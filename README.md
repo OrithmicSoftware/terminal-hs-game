@@ -10,6 +10,12 @@ Safe, fictional hacking simulation for terminal gameplay.
 node game.mjs
 ```
 
+Or: `npm start` (Node 18+).
+
+## Alpha release
+
+Git tag **`v0.1.0-alpha.1`** matches `package.json` version `0.1.0-alpha.1`. After pushing to GitHub, open **Releases → Draft a new release**, choose that tag, mark **Set as a pre-release**, and publish.
+
 ## Campaign Features
 
 - 1 handcrafted mission + 5 procedural missions
