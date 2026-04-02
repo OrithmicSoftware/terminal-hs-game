@@ -1,0 +1,200 @@
+{
+  "id": "m1-ghost-proxy",
+  "title": "Operation Ghost Proxy",
+  "brief": "Infiltrate Orion Logistics staging network and exfiltrate client billing evidence without hitting max trace.",
+  "story": {
+    "handler": { "name": "Sable" },
+    "time": "02:13",
+    "region": "Orion Logistics / staging segment",
+    "debrief": {
+      "success": "Clean pull. That ledger ties the manual adjustments to an internal account. Stay off-grid for 24 hours; Orion will be sweeping logs.",
+      "fail": "You burned the session. Orion's SOC will rotate keys and harden paths. If you retry, go slower: lay low when alerts hit and keep trace under budget."
+    }
+  },
+  "tutorial": {
+    "steps": [
+      {
+        "when": "discover_gw",
+        "nodeId": "gw-edge",
+        "title": "Step 1: Find the edge gateway",
+        "text": "Run scan with no arguments to list adjacent hosts, then run scan ports <host> for a port sweep (open ports + CVE-class hints). Same as scan <host>.",
+        "suggest": "scan"
+      },
+      {
+        "when": "enum_here",
+        "title": "Step 2: Enumerate services",
+        "text": "On the host, enum maps each port/service to a known weakness class and the exploit id to run.",
+        "suggest": "enum"
+      },
+      {
+        "when": "own_node",
+        "nodeId": "gw-edge",
+        "title": "Step 3: Get a foothold",
+        "text": "Use the exploit id you saw in enum. Once owned, you can safely read files on the node.",
+        "suggest": "exploit weak-ssh"
+      },
+      {
+        "when": "discover_gw",
+        "nodeId": "app-api",
+        "title": "Step 4: Pivot to the app tier",
+        "text": "From your foothold, port-sweep the next hop: scan ports app-api. Review CVE-class notes, then connect and enum.",
+        "suggest": "scan ports app-api"
+      },
+      {
+        "when": "own_node",
+        "nodeId": "app-api",
+        "title": "Step 5: Compromise the app",
+        "text": "Move to the app node, enumerate, then exploit.",
+        "suggest": "connect app-api"
+      },
+      {
+        "when": "discover_gw",
+        "nodeId": "db-core",
+        "title": "Step 6: Find the database core",
+        "text": "The objective file lives on db-core—sweep its ports, then pivot.",
+        "suggest": "scan ports db-core"
+      },
+      {
+        "when": "own_node",
+        "nodeId": "db-core",
+        "title": "Step 7: Root the target",
+        "text": "Exploit the database misconfiguration, then exfiltrate the target file.",
+        "suggest": "exploit misconfig-copy"
+      },
+      {
+        "when": "exfil",
+        "path": "/data/client_billing.csv",
+        "title": "Step 8: Exfiltrate evidence",
+        "text": "Exfiltration is noisy. If SOC is active, consider laylow first.",
+        "suggest": "exfil /data/client_billing.csv"
+      },
+      {
+        "when": "submit",
+        "title": "Step 9: Submit",
+        "text": "Once exfil is complete, submit the objective to close the operation.",
+        "suggest": "submit"
+      }
+    ]
+  },
+  "startNode": "local",
+  "security": {
+    "maxTrace": 42
+  },
+  "objective": {
+    "summary": "Exfiltrate /data/client_billing.csv from db-core and submit.",
+    "requiredNode": "db-core",
+    "exfilFiles": [
+      "/data/client_billing.csv"
+    ]
+  },
+  "edges": [
+    ["local", "gw-edge"],
+    ["gw-edge", "app-api"],
+    ["app-api", "db-core"]
+  ],
+  "nodes": [
+    {
+      "id": "local",
+      "services": [],
+      "noise": {
+        "enum": 0
+      },
+      "files": []
+    },
+    {
+      "id": "gw-edge",
+      "services": [
+        {
+          "name": "ssh",
+          "protocol": "tcp",
+          "port": 22,
+          "exploitId": "weak-ssh",
+          "noise": 4,
+          "vulnRef": "CVE-2024-6387 (OpenSSH regreSSHion) — unauthenticated RCE class on affected versions"
+        }
+      ],
+      "noise": {
+        "enum": 2
+      },
+      "files": [
+        {
+          "path": "/var/log/auth.log",
+          "content": "Failed key attempts from app-api. Maintenance account still enabled."
+        },
+        {
+          "path": "/home/ops/maintenance-note.txt",
+          "content": "Reminder: rotate the app maintenance artifact after the quarter close.",
+          "artifact": {
+            "id": "artifact-app-maint",
+            "description": "A fictional maintenance credential artifact that can unlock alternate access paths to app-api in this game."
+          }
+        },
+        {
+          "path": "/etc/routes.txt",
+          "content": "upstream: app-api"
+        }
+      ]
+    },
+    {
+      "id": "app-api",
+      "services": [
+        {
+          "name": "http",
+          "protocol": "tcp",
+          "port": 8080,
+          "exploitId": "template-rce",
+          "noise": 5,
+          "vulnRef": "SSTI / OGNL-style template injection (cf. CVE-2022-26134 class — server-side template RCE)"
+        },
+        {
+          "name": "ssh",
+          "protocol": "tcp",
+          "port": 22,
+          "exploitId": "artifact-ssh",
+          "noise": 2,
+          "requiresArtifacts": ["artifact-app-maint"],
+          "vulnRef": "SSH auth surface — alternate path when maintenance key artifact is available (no CVE; access gating)"
+        }
+      ],
+      "noise": {
+        "enum": 3
+      },
+      "files": [
+        {
+          "path": "/opt/app/.env",
+          "content": "DB_HOST=db-core\nDB_USER=svc_report\nDB_PASS=rotating-token"
+        },
+        {
+          "path": "/opt/app/logs/error.log",
+          "content": "stacktrace: query endpoint retries against db-core failed at 00:16"
+        }
+      ]
+    },
+    {
+      "id": "db-core",
+      "services": [
+        {
+          "name": "postgres",
+          "protocol": "tcp",
+          "port": 5432,
+          "exploitId": "misconfig-copy",
+          "noise": 6,
+          "vulnRef": "CVE-2019-9193 (PostgreSQL COPY FROM PROGRAM) — dangerous COPY / superuser misconfig class"
+        }
+      ],
+      "noise": {
+        "enum": 4
+      },
+      "files": [
+        {
+          "path": "/data/client_billing.csv",
+          "content": "client_id,invoice_usd,flag\nOR-102,87500,manual_adjustment\nOR-225,119000,manual_adjustment"
+        },
+        {
+          "path": "/data/audit_notes.txt",
+          "content": "Do not expose manual adjustments before quarter close."
+        }
+      ]
+    }
+  ]
+}

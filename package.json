@@ -1,0 +1,21 @@
+{
+  "name": "hacker-terminal-game",
+  "version": "0.1.0-alpha.1",
+  "description": "Fictional terminal hacking campaign (safe, educational)",
+  "type": "module",
+  "private": false,
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node game.mjs",
+    "game": "node game.mjs"
+  },
+  "keywords": [
+    "terminal",
+    "game",
+    "cli",
+    "campaign"
+  ]
+}
