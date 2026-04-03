@@ -79,6 +79,13 @@ async function typeLine(line) {
   const delay = Math.max(1, Math.floor(1000 / uiState.cps));
   for (let i = 0; i < line.length; i += 1) {
     process.stdout.write(line[i]);
+    if (uiState.beep && typeof globalThis.__HKTM_TYPE === "function") {
+      try {
+        globalThis.__HKTM_TYPE();
+      } catch {
+        /* ignore */
+      }
+    }
     await sleep(delay);
   }
   process.stdout.write("\n");
@@ -180,13 +187,53 @@ function flattenBoxBodyLines(rawLines, inner) {
 }
 
 export async function boxEnterPaged(title, lines, width = uiState.width, footerHint = "") {
+  clearTerminalScreen();
   await box(title, lines, width);
-  if (footerHint) console.log(tone(footerHint, "dim"));
+  await waitForEnterContinue(footerHint);
 }
 
 export async function boxPaged(title, lines, width = uiState.width, footerHint = "") {
-  await box(title, lines, width);
-  if (footerHint) console.log(tone(footerHint, "dim"));
+  const uiRows = Math.max(16, Math.floor(process?.stdout?.rows ?? 36));
+  const w = Math.max(12, Math.floor(width));
+  const inner = w - 4;
+  const body = flattenBoxBodyLines(lines, inner);
+
+  // Reserve lines for frame: top + bottom + optional header (1) + footer hint (1)
+  const hasHeader = Boolean(title);
+  const reserved = 2 + (hasHeader ? 1 : 0) + 1;
+  const pageSize = Math.max(6, uiRows - reserved - 1);
+
+  const pages = chunkArray(body, pageSize);
+  for (let p = 0; p < pages.length; p += 1) {
+    clearTerminalScreen();
+    if (uiState.beep) {
+      if (typeof globalThis.__HKTM_PAGE === "function") {
+        try {
+          globalThis.__HKTM_PAGE();
+        } catch {
+          /* ignore */
+        }
+      } else if (typeof globalThis.__HKTM_BEEP === "function") {
+        try {
+          globalThis.__HKTM_BEEP();
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+    await box(title, pages[p], width);
+    const isLast = p === pages.length - 1;
+    const footer =
+      footerHint ||
+      (pages.length > 1
+        ? `Page ${p + 1}/${pages.length} — Press Enter to continue`
+        : "");
+    if (!isLast) {
+      await waitForEnterContinue(footer);
+    } else if (footer) {
+      console.log(tone(footer, "dim"));
+    }
+  }
 }
 
 export function setUiOptions(options) {
@@ -205,6 +252,19 @@ export function getUiOptions() {
 function bell() {
   if (!uiState.beep) return;
   if (typeof globalThis.__HKTM_BEEP === "function") globalThis.__HKTM_BEEP();
+}
+
+export function notifyPage() {
+  if (!uiState.beep) return;
+  if (typeof globalThis.__HKTM_PAGE === "function") {
+    try {
+      globalThis.__HKTM_PAGE();
+      return;
+    } catch {
+      /* ignore */
+    }
+  }
+  bell();
 }
 
 export function notifyBell() {

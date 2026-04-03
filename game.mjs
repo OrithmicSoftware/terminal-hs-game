@@ -12,6 +12,7 @@ import {
   setPagerHooks,
   clearTerminalScreen,
   waitForEnterContinue,
+  setWaitEnterContinueImpl,
 } from "./src/ui.mjs";
 import { tone } from "./src/colors.mjs";
 import { setLanguage, t } from "./src/i18n.mjs";
@@ -239,10 +240,35 @@ function applyUi(state) {
 async function runBootRender(state, draw) {
   applyUi(state);
   setUiOptions({ cps: BOOT_RENDER_CPS });
+  let pausedForBoot = false;
   try {
+    // While readline is active during slow banner typing, Enter can be buffered; on resume the
+    // process can look like it "exits" or skip waits. Pause for the whole boot draw.
+    if (!rlClosed) {
+      rl.pause();
+      pausedForBoot = true;
+    }
     await draw();
   } finally {
+    if (pausedForBoot && !rlClosed) {
+      try {
+        rl.resume();
+      } catch {
+        /* ignore */
+      }
+    }
     applyUi(state);
+  }
+}
+
+/** After waitForEnterContinue resumes readline, pause again before splash typing (same buffer issue). */
+function pauseReadlineForSplashTyping() {
+  if (!rlClosed) {
+    try {
+      rl.pause();
+    } catch {
+      /* ignore */
+    }
   }
 }
 
@@ -306,6 +332,30 @@ const rl = readline.createInterface({
   completer: createTabCompleter(() => mission),
 });
 
+/** Readline `line` wait for boot (replaces raw keypress; fixes Windows/Cursor early exit). */
+let bootEnterResolver = null;
+
+function waitForBootEnterLine(footerHint = "") {
+  return new Promise((resolve) => {
+    if (!process.stdin.isTTY) {
+      resolve();
+      return;
+    }
+    if (footerHint) console.log(tone(footerHint, "dim"));
+    bootEnterResolver = resolve;
+    try {
+      rl.resume();
+    } catch {
+      /* ignore */
+    }
+    try {
+      process.stdin.ref();
+    } catch {
+      /* ignore */
+    }
+  });
+}
+
 setPagerHooks({
   pause: () => rl.pause(),
   resume: () => rl.resume(),
@@ -319,19 +369,21 @@ if (process.stdin.isTTY) {
   }
 }
 
-/** QA: two-pass boot verification (see docs/qa/EXIT-QA.md). */
+/** QA: two-pass boot verification (see docs/qa/EXIT-QA.md). Handler: Elliot (new lead). */
 if (process.env.HKTM_QA === "1") {
   console.error(
-    "\n[HKTM QA] Pass 1/2 — Run full boot (Enter twice). Process must not return to shell before `>`.\n",
+    "\n[HKTM QA | Elliot] Pass 1/2 — prior lead fired; run full boot (Enter twice). Must not hit shell before `>`.\n",
   );
 } else if (process.env.HKTM_QA === "2") {
   console.error(
-    "\n[HKTM QA] Pass 2/2 — Repeat cold start from the same terminal session; log any early exit.\n",
+    "\n[HKTM QA | Elliot] Pass 2/2 — cold start again; lonely night shift, log any early exit.\n",
   );
 }
 if (process.env.HKTM_QA) {
   process.once("beforeExit", (code) => {
-    console.error(`[HKTM QA] beforeExit (code ${code}) — unexpected? attach log in EXIT-QA.md cycle B.\n`);
+    console.error(
+      `[HKTM QA | Elliot] beforeExit (code ${code}) — unexpected; attach transcript (EXIT-QA.md).\n`,
+    );
   });
 }
 
@@ -385,6 +437,19 @@ async function moveToNextMission() {
 
 rl.on("line", async (line) => {
   if (rlClosed) return;
+  if (bootEnterResolver) {
+    const r = bootEnterResolver;
+    bootEnterResolver = null;
+    try {
+      rl.pause();
+    } catch {
+      /* ignore */
+    }
+    setImmediate(() => {
+      setImmediate(() => r());
+    });
+    return;
+  }
   if (shouldClearScreen(line)) {
     clearTerminal();
   }
@@ -397,6 +462,7 @@ rl.on("line", async (line) => {
     await runBootRender(campaignState, async () => {
       await session.printBanner();
       await waitForEnterContinue(t("press_enter_continue"));
+      pauseReadlineForSplashTyping();
       clearTerminal();
       await showSplash(campaignState);
     });
@@ -412,6 +478,7 @@ rl.on("line", async (line) => {
     await runBootRender(campaignState, async () => {
       await session.printBanner();
       await waitForEnterContinue(t("press_enter_continue"));
+      pauseReadlineForSplashTyping();
       clearTerminal();
       await showSplash(campaignState);
     });
@@ -473,6 +540,7 @@ rl.on("line", async (line) => {
     await runBootRender(campaignState, async () => {
       await session.printBanner();
       await waitForEnterContinue(t("press_enter_continue"));
+      pauseReadlineForSplashTyping();
       clearTerminal();
       await showSplash(campaignState);
     });
@@ -561,6 +629,8 @@ rl.on("line", async (line) => {
   if (!rlClosed) rl.prompt();
 });
 
+setWaitEnterContinueImpl(waitForBootEnterLine);
+
 main().catch((err) => {
   console.error(err);
   process.exitCode = 1;
@@ -573,9 +643,10 @@ async function main() {
     await waitForEnterContinue(t("press_enter_continue"));
     if (process.env.HKTM_QA) {
       console.error(
-        "[HKTM QA] Second warning: banner Enter OK — splash loading next; process must not return to shell yet.\n",
+        "[HKTM QA | Elliot] Mid-boot: banner Enter OK — splash next; still must not return to shell.\n",
       );
     }
+    pauseReadlineForSplashTyping();
     clearTerminal();
     await showSplash(campaignState);
   });
@@ -592,8 +663,12 @@ async function main() {
     }
   }
   if (process.env.HKTM_QA === "1") {
-    console.error("[HKTM QA] Pass 1 complete: `>` shown. Next run with HKTM_QA=2 for cycle B.\n");
+    console.error(
+      "[HKTM QA | Elliot] Pass 1 OK — `>` visible. Run HKTM_QA=2 for cycle B before you call it a night.\n",
+    );
   } else if (process.env.HKTM_QA === "2") {
-    console.error("[HKTM QA] Pass 2 complete: both cycles logged — close EXIT-QA.md checklist.\n");
+    console.error(
+      "[HKTM QA | Elliot] Pass 2 OK — both cycles on record; EXIT-QA.md sign-off.\n",
+    );
   }
 }

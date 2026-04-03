@@ -2,6 +2,20 @@
 
 Premature return to the shell after **Press Enter to continue…** (before `>`) is a **P0**. Each engineering iteration must run **two full QA cycles** before merge or release.
 
+**Handler refresh:** The previous verification lead was released after repeated misses on the early-exit regression. **Elliot** is the new lead — a **lonely father** raising his kid solo; he cannot afford another false “green” on boot. Treat stderr banners from `HKTM_QA` as his sign‑offs, not optional flavor.
+
+## Why the game can look like it “just quits”
+
+Node only stays alive while something is still scheduled (e.g. readline waiting on stdin). Common real causes:
+
+- **Stdin closed / EOF** — piping into `node game.mjs`, a runner that closes stdin, or a terminal profile that ends input early will tear down readline and the process can exit right after boot.
+- **Launched outside a persistent shell** — double‑clicking `game.mjs` or a shortcut can open a window that closes as soon as Node exits, which feels like an instant quit even when the game behaved normally.
+- **Intended exit** — `quit`, campaign end paths, or **Ctrl+C** / **Ctrl+D** (EOF) end the session on purpose.
+
+If Elliot’s cycles fail, capture **full stdout+stderr**, Node version, terminal name, and whether stdin is piped.
+
+**Boot tip:** Do not tap **Enter** while the mission banner is still **typing**—with readline active, that key can be buffered and make the next “Press Enter to continue” step behave like an instant exit on some Windows / IDE terminals.
+
 ## Environment
 
 ```powershell

@@ -9,27 +9,65 @@ const termEl = document.getElementById("term");
 const termWrap = document.getElementById("term-wrap");
 const cmdInput = document.getElementById("cmd");
 
-function playTone(freq = 880, ms = 140, vol = 0.08) {
+let audioPrimed = false;
+const soundBase = "/sounds/fallout_terminal";
+const typingFiles = ["01.wav", "02.wav", "03.wav", "04.wav", "05.wav", "06.wav"];
+const enterFiles = ["charenter_01.wav", "charenter_02.wav", "charenter_03.wav"];
+
+const pools = new Map();
+
+function getPool(url, size = 6) {
+  const key = `${url}|${size}`;
+  const existing = pools.get(key);
+  if (existing) return existing;
+  const arr = Array.from({ length: size }, () => {
+    const a = new Audio(url);
+    a.preload = "auto";
+    a.volume = 0.3;
+    return a;
+  });
+  pools.set(key, arr);
+  return arr;
+}
+
+function playFromPool(url, vol = 0.25) {
+  const pool = getPool(url);
+  // pick a paused audio or recycle the oldest
+  const a = pool.find((x) => x.paused) ?? pool[0];
   try {
-    const ctx = new AudioContext();
-    const g = ctx.createGain();
-    g.gain.value = vol;
-    const o = ctx.createOscillator();
-    o.type = "sine";
-    o.frequency.value = freq;
-    o.connect(g);
-    g.connect(ctx.destination);
-    o.start();
-    setTimeout(() => {
-      o.stop();
-      ctx.close();
-    }, ms);
+    a.pause();
+    a.currentTime = 0;
+    a.volume = vol;
+    void a.play();
   } catch {
     /* ignore */
   }
 }
 
-globalThis.__HKTM_BEEP = () => playTone(880, 120, 0.07);
+function primeAudio() {
+  if (audioPrimed) return;
+  audioPrimed = true;
+  // Preload by touching Audio objects; first user gesture will allow play().
+  for (const f of [...typingFiles, ...enterFiles]) {
+    getPool(`${soundBase}/${f}`, 2);
+  }
+}
+
+window.addEventListener("pointerdown", primeAudio, { once: true });
+window.addEventListener("keydown", primeAudio, { once: true });
+
+globalThis.__HKTM_TYPE = () => {
+  const f = typingFiles[(Math.random() * typingFiles.length) | 0];
+  playFromPool(`${soundBase}/${f}`, 0.22);
+};
+globalThis.__HKTM_BEEP = () => {
+  const f = enterFiles[(Math.random() * enterFiles.length) | 0];
+  playFromPool(`${soundBase}/${f}`, 0.28);
+};
+globalThis.__HKTM_PAGE = () => {
+  const f = typingFiles[(Math.random() * typingFiles.length) | 0];
+  playFromPool(`${soundBase}/${f}`, 0.12);
+};
 globalThis.__HKTM_CLEAR = () => {
   termEl.innerHTML = "";
 };
@@ -45,7 +83,12 @@ globalThis.process = {
     columns: 100,
     rows: 40,
     write(s) {
-      termEl.innerHTML += ansiUp.ansi_to_html(String(s));
+      let chunk = String(s);
+      if (chunk.includes("\x1b[2J")) {
+        termEl.innerHTML = "";
+        chunk = chunk.replace(/\x1b\[2J\x1b\[H/g, "").replace(/\x1b\[2J/g, "").replace(/\x1b\[H/g, "");
+      }
+      termEl.innerHTML += ansiUp.ansi_to_html(chunk);
       termWrap.scrollTop = termWrap.scrollHeight;
     },
   },
@@ -73,7 +116,7 @@ window.addEventListener("keydown", (e) => {
 });
 
 setLanguage("en");
-setUiOptions({ mode: "pip", width: 88, typing: false, cps: 24000, beep: true });
+setUiOptions({ mode: "pip", width: 88, typing: true, cps: 2200, beep: true });
 
 async function boot() {
   const { createMissionSession } = await import("../src/engine.mjs");
@@ -85,8 +128,14 @@ async function boot() {
 
   const session = createMissionSession(mission);
 
+  // Hide input row during initial "Press Enter to continue" so it matches the CLI boot.
+  const inputRow = document.querySelector(".input-row");
+  if (inputRow) inputRow.style.display = "none";
+
   await session.printBanner();
   await waitForEnterContinue(t("press_enter_continue"));
+
+  if (inputRow) inputRow.style.display = "flex";
 
   console.log("");
   console.log(toneLine("=== Browser demo: first mission only (save/load uses Node build) ===", "dim"));

@@ -19,7 +19,8 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-const LOADING_ANIM_SPEED = 72;
+// Global animation scaler. Higher = faster (shorter durations + tighter frame interval).
+const LOADING_ANIM_SPEED = 144;
 
 async function loading(label, ms) {
   if (!useAnim || ms <= 0) return;

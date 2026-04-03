@@ -106,9 +106,16 @@ function waitEnterPagerKeyOnce() {
 }
 
 /**
- * Pause readline, raw stdin, wait for Enter or Space (boot / intro).
+ * When set (by `game.mjs`), boot / intro uses readline `line` instead of raw `keypress`.
+ * Avoids readline + raw mode fighting on Windows / Cursor integrated terminal (instant exit).
  */
-export function waitForEnterContinue(footerHint = "") {
+let waitEnterContinueImpl = null;
+
+export function setWaitEnterContinueImpl(fn) {
+  waitEnterContinueImpl = typeof fn === "function" ? fn : null;
+}
+
+function waitForEnterContinueRaw(footerHint = "") {
   return new Promise((resolve) => {
     if (!process.stdin.isTTY) {
       resolve();
@@ -128,7 +135,6 @@ export function waitForEnterContinue(footerHint = "") {
       } catch {
         /* ignore */
       }
-      // Double defer so readline drains Enter before boot continues (Windows / IDE terminals).
       setImmediate(() => {
         setImmediate(() => resolve());
       });
@@ -138,6 +144,14 @@ export function waitForEnterContinue(footerHint = "") {
     } catch {
       finish();
       return;
+    }
+    try {
+      let chunk;
+      while (process.stdin.readableLength > 0 && (chunk = process.stdin.read()) != null) {
+        /* discard */
+      }
+    } catch {
+      /* ignore */
     }
     const onKey = (str, key) => {
       if (key?.ctrl && key.name === "c") {
@@ -158,8 +172,18 @@ export function waitForEnterContinue(footerHint = "") {
         finish();
       }
     };
-    process.stdin.on("keypress", onKey);
+    setImmediate(() => {
+      process.stdin.on("keypress", onKey);
+    });
   });
+}
+
+/** Pause readline, raw stdin, wait for Enter or Space (boot / intro) — or CLI override. */
+export function waitForEnterContinue(footerHint = "") {
+  if (waitEnterContinueImpl) {
+    return waitEnterContinueImpl(footerHint);
+  }
+  return waitForEnterContinueRaw(footerHint);
 }
 
 /**
