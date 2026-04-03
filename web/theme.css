@@ -1,0 +1,167 @@
+/* PIP-style palette: green frame, cyan/magenta accents (terminal emulation) */
+:root {
+  --bg: #0a0f0c;
+  --panel: #0d1510;
+  --text: #c8e6d0;
+  --dim: #5a7a66;
+  --green: #3dff7a;
+  --cyan: #5ce1e6;
+  --magenta: #e070ff;
+  --yellow: #e6d04a;
+  --red: #ff6b6b;
+  --blue: #6eb5ff;
+  --font: "Cascadia Code", "Fira Code", "Consolas", monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.45;
+  min-height: 100vh;
+}
+
+.chrome {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid #1f3328;
+  padding-bottom: 0.5rem;
+}
+
+.title {
+  color: var(--green);
+  font-weight: bold;
+  letter-spacing: 0.06em;
+}
+
+.badge {
+  font-size: 0.75rem;
+  color: var(--magenta);
+  border: 1px solid #3d2a44;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+}
+
+.ghost {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid var(--dim);
+  color: var(--cyan);
+  font-family: inherit;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.ghost:hover {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.term-wrap {
+  background: var(--panel);
+  border: 1px solid #1a3d2e;
+  border-radius: 6px;
+  box-shadow: 0 0 0 1px #0d2818, 0 12px 40px rgba(0, 0, 0, 0.45);
+  min-height: 420px;
+  max-height: 60vh;
+  overflow: auto;
+}
+
+.term {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* ansi_up use_classes */
+.term .ansi-bright-black-fg {
+  color: var(--dim);
+}
+.term .ansi-green-fg,
+.term .ansi-bright-green-fg {
+  color: var(--green);
+}
+.term .ansi-cyan-fg,
+.term .ansi-bright-cyan-fg {
+  color: var(--cyan);
+}
+.term .ansi-magenta-fg,
+.term .ansi-bright-magenta-fg {
+  color: var(--magenta);
+}
+.term .ansi-yellow-fg,
+.term .ansi-bright-yellow-fg {
+  color: var(--yellow);
+}
+.term .ansi-red-fg,
+.term .ansi-bright-red-fg {
+  color: var(--red);
+}
+.term .ansi-blue-fg,
+.term .ansi-bright-blue-fg {
+  color: var(--blue);
+}
+.term .ansi-bold {
+  font-weight: bold;
+}
+.term .ansi-dim {
+  opacity: 0.72;
+}
+
+.input-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.prompt {
+  color: var(--green);
+  font-weight: bold;
+}
+
+#cmd {
+  flex: 1;
+  background: #050807;
+  border: 1px solid #1f3328;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  padding: 0.45rem 0.6rem;
+  border-radius: 4px;
+  outline: none;
+}
+
+#cmd:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 0 1px rgba(61, 255, 122, 0.25);
+}
+
+.hint {
+  color: var(--dim);
+  font-size: 0.8rem;
+  margin-top: 0.75rem;
+}
+
+.hint code {
+  color: var(--cyan);
+}

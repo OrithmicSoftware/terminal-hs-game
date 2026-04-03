@@ -3,14 +3,16 @@
   "version": "0.1.0-alpha.1",
   "description": "Fictional terminal hacking campaign (safe, educational)",
   "type": "module",
-  "private": false,
+  "private": true,
   "license": "MIT",
   "engines": {
     "node": ">=18"
   },
   "scripts": {
     "start": "node game.mjs",
-    "game": "node game.mjs"
+    "game": "node game.mjs",
+    "web:dev": "npm run dev --prefix web",
+    "web:build": "npm run build --prefix web"
   },
   "keywords": [
     "terminal",

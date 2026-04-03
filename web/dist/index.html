@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hacker Terminal Game (browser alpha)</title>
+    <script type="module" crossorigin src="/assets/index-DCgssW4v.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-BzygPXui.css">
+  </head>
+  <body>
+    <div class="chrome">
+      <header>
+        <span class="title">TERMINAL HACKSIM</span>
+        <span class="badge">browser α</span>
+        <button type="button" id="beep-test" class="ghost">Test sound</button>
+      </header>
+      <div class="term-wrap" id="term-wrap">
+        <pre id="term" class="term" aria-live="polite"></pre>
+      </div>
+      <div class="input-row">
+        <span class="prompt">&gt;</span>
+        <input id="cmd" type="text" spellcheck="false" autocomplete="off" placeholder="Type commands (Enter) — use Enter in terminal area to continue boot" />
+      </div>
+      <p class="hint">Sound: Web Audio beeps on events when enabled. Node build: <code>npm start</code> in repo root.</p>
+    </div>
+  </body>
+</html>

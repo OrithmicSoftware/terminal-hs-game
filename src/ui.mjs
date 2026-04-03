@@ -123,8 +123,15 @@ export function waitForEnterContinue(footerHint = "") {
         /* ignore */
       }
       pagerHooks.resume();
-      // Defer so readline can consume Enter after resume (avoids Windows/Cursor exit before splash).
-      setImmediate(() => resolve());
+      try {
+        if (process.stdin.isTTY) process.stdin.ref();
+      } catch {
+        /* ignore */
+      }
+      // Double defer so readline drains Enter before boot continues (Windows / IDE terminals).
+      setImmediate(() => {
+        setImmediate(() => resolve());
+      });
     };
     try {
       process.stdin.setRawMode(true);
@@ -282,6 +289,11 @@ function bell() {
   } catch {
     /* ignore */
   }
+}
+
+/** Short feedback tone (BEL or Web Audio via ui-browser shim). */
+export function notifyBell() {
+  bell();
 }
 
 /**

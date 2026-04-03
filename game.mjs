@@ -67,6 +67,7 @@ function shouldClearScreen(line) {
     "cover",
     "spoof",
     "laylow",
+    "sql",
     "submit",
     "tutorial",
     "quit",
@@ -98,6 +99,9 @@ const STATIC_TAB_COMMANDS = [
   "retry",
   "scan",
   "scan ports",
+  "sql",
+  "sql demo",
+  "sql translate",
   "spoof",
   "stash",
   "status",
@@ -313,6 +317,22 @@ if (process.stdin.isTTY) {
   } catch {
     /* ignore */
   }
+}
+
+/** QA: two-pass boot verification (see docs/qa/EXIT-QA.md). */
+if (process.env.HKTM_QA === "1") {
+  console.error(
+    "\n[HKTM QA] Pass 1/2 — Run full boot (Enter twice). Process must not return to shell before `>`.\n",
+  );
+} else if (process.env.HKTM_QA === "2") {
+  console.error(
+    "\n[HKTM QA] Pass 2/2 — Repeat cold start from the same terminal session; log any early exit.\n",
+  );
+}
+if (process.env.HKTM_QA) {
+  process.once("beforeExit", (code) => {
+    console.error(`[HKTM QA] beforeExit (code ${code}) — unexpected? attach log in EXIT-QA.md cycle B.\n`);
+  });
 }
 
 let appClosing = false;
@@ -551,6 +571,11 @@ async function main() {
     clearTerminal();
     await session.printBanner();
     await waitForEnterContinue(t("press_enter_continue"));
+    if (process.env.HKTM_QA) {
+      console.error(
+        "[HKTM QA] Second warning: banner Enter OK — splash loading next; process must not return to shell yet.\n",
+      );
+    }
     clearTerminal();
     await showSplash(campaignState);
   });
@@ -559,4 +584,16 @@ async function main() {
   session.showStatus();
   rl.setPrompt("> ");
   rl.prompt();
+  if (process.stdin.isTTY) {
+    try {
+      process.stdin.ref();
+    } catch {
+      /* ignore */
+    }
+  }
+  if (process.env.HKTM_QA === "1") {
+    console.error("[HKTM QA] Pass 1 complete: `>` shown. Next run with HKTM_QA=2 for cycle B.\n");
+  } else if (process.env.HKTM_QA === "2") {
+    console.error("[HKTM QA] Pass 2 complete: both cycles logged — close EXIT-QA.md checklist.\n");
+  }
 }

@@ -1,5 +1,5 @@
 import { tone, meter } from "./colors.mjs";
-import { boxPaged, pagedPlainLines, wrap, getUiOptions } from "./ui.mjs";
+import { boxPaged, pagedPlainLines, wrap, getUiOptions, notifyBell } from "./ui.mjs";
 import { t } from "./i18n.mjs";
 
 const useAnim = process.stdout.isTTY && process.env.NO_ANIM !== "1";
@@ -48,6 +48,44 @@ async function loading(label, ms) {
   }
 }
 
+/** OpenSSH-style host-key prompts (fiction); auto-“yes” for pacing. */
+async function printSshConnectTheater(toId) {
+  const ui = getUiOptions();
+  const lineMs = ui.mode === "pip" ? 55 : 75;
+  const fakeIp = `192.0.2.${Math.min(233, 40 + (toId.length % 40))}`;
+  const seed = `${toId}|${fakeIp}`;
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i += 1) h = Math.imul(h ^ seed.charCodeAt(i), 16777619);
+  const fp = `SHA256:${(h >>> 0).toString(16)}${[...toId].map((c) => c.charCodeAt(0).toString(16)).join("").slice(0, 32)}...`;
+  const script = [
+    `Connecting to ${toId} port 22...`,
+    `The authenticity of host '${toId} (${fakeIp})' can't be established.`,
+    `ED25519 key fingerprint is ${fp}`,
+    `This key is not known by any other names.`,
+    `Are you sure you want to continue connecting (yes/no/[fingerprint])?`,
+  ];
+  for (const line of script) {
+    console.log(tone(line, "dim"));
+    await sleep(lineMs);
+  }
+  console.log(
+    tone("(simulation) ", "dim") +
+      tone('typing "yes" — StrictHostKeyChecking policy auto-accepted for this op.', "green"),
+  );
+  await sleep(ui.mode === "pip" ? 320 : 240);
+  console.log(
+    tone(`Warning: Permanently added '${toId}' (${fakeIp}) to the list of known hosts.`, "yellow"),
+  );
+  await sleep(ui.mode === "pip" ? 220 : 160);
+  console.log(
+    tone("Enter passphrase for key '/home/operator/.ssh/covert_ed25519': ", "dim") +
+      tone("[agent forwarded — empty return]", "green"),
+  );
+  await sleep(ui.mode === "pip" ? 380 : 260);
+  console.log(tone(`Last login: simulated session from ${fakeIp}`, "dim"));
+  await sleep(ui.mode === "pip" ? 140 : 100);
+}
+
 /**
  * Long, staged “covert link” animation when pivoting to another node (PIP runs longer).
  */
@@ -55,6 +93,7 @@ async function connectRouteAnimation(fromId, toId) {
   if (!useAnim) return;
 
   const ui = getUiOptions();
+  await printSshConnectTheater(toId);
   const totalMs = ui.mode === "pip" ? 5200 : 3400;
   const phases = [
     "Negotiating ephemeral session keys (forward secrecy…)",
@@ -184,7 +223,7 @@ export function createMissionSession(mission, initialSnapshot = null) {
   function maybeTriggerSoc(command, risk) {
     if (state.socAlert || risk <= 0) return;
     // Defensive / cleanup actions should not roll a fresh SOC alert the same turn.
-    if (command === "spoof" || command === "laylow" || command === "cover") return;
+    if (command === "spoof" || command === "laylow" || command === "cover" || command === "sql") return;
     const alert = rollSocAlert(state.currentNode, command, risk, state.turns);
     if (alert) {
       state.socAlert = alert;
@@ -299,7 +338,8 @@ export function createMissionSession(mission, initialSnapshot = null) {
       `  ${tone("enum", "cyan")}                 enumerate services and exploit ids`,
       `  ${tone("enum -f / --force", "cyan")}    re-scan (costs trace again; use if you need fresh output)`,
       `  ${tone("exploit <id>", "cyan")}         run exploit on current node`,
-      `  ${tone("info <term>", "cyan")}           explain a term (ssh, template-rce, ...)`,
+      `  ${tone("info <term>", "cyan")}           explain a term (ssh, template-rce, sql-injection, ...)`,
+      `  ${tone("sql", "cyan")}                    SQL lab: ${tone("sql demo", "dim")} | ${tone(`sql translate "text"`, "dim")}`,
       `  ${tone("stash", "cyan")}                list collected credential artifacts`,
       `  ${tone("ls", "cyan")}                   list files on current node (owned only)`,
       `  ${tone("cat <path>", "cyan")}           read file on current node`,
@@ -327,6 +367,56 @@ export function createMissionSession(mission, initialSnapshot = null) {
     }
   }
 
+  /** Fictional mapping: wargame input → ssh / psql strings (education only; no DB runs). */
+  function runSqlSimulator(raw) {
+    const arg = String(raw ?? "").trim();
+    if (!arg) {
+      console.log(tone("SQL mapping lab (fictional; compare naive concat vs bind)", "bold"));
+      console.log(`  ${tone("sql demo", "cyan")}                — OR 1=1 style login bypass`);
+      console.log(`  ${tone(`sql translate "…"`, "cyan")}  — your text → transport + naive psql line`);
+      console.log(tone("Intel: cat /opt/intel/sql-bridge-note.txt on app-api (when owned).", "dim"));
+      return 0;
+    }
+    const lower = arg.toLowerCase();
+    if (lower === "demo") {
+      console.log(tone("— App trusts user search string inside SQL (anti-pattern)", "magenta"));
+      console.log(`  attacker input:  ' OR '1'='1`);
+      console.log(tone("— Naive server builds (string concat):", "red"));
+      console.log(`  SELECT * FROM users WHERE username = '' OR '1'='1' LIMIT 1;`);
+      console.log(tone("— Safe pattern (parameter / prepared — input is data only):", "green"));
+      console.log(`  SELECT * FROM users WHERE username = $1   -- bind: literal "' OR '1'='1"`);
+      return 0;
+    }
+    const m = arg.match(/^translate\s+(.+)$/is);
+    if (m) {
+      let inner = m[1].trim();
+      if (
+        (inner.startsWith('"') && inner.endsWith('"')) ||
+        (inner.startsWith("'") && inner.endsWith("'"))
+      ) {
+        inner = inner.slice(1, -1);
+      }
+      const host = state.currentNode;
+      console.log(tone("— Layer 1: op context (wargame)", "magenta"));
+      console.log(`  current node: ${tone(host, "blue")} (after connect)`);
+      console.log(tone("— Layer 2: transport (would run)", "magenta"));
+      console.log(`  ssh -o StrictHostKeyChecking=accept-new ops@${host}`);
+      console.log(tone("— Layer 3: naive psql one-liner (vulnerable concat)", "red"));
+      console.log(
+        `  psql -h /var/run/postgresql -U svc_app -d reports -c "SELECT id,note FROM tickets WHERE title='${inner}';"`,
+      );
+      console.log(tone("— Example injected clause in same slot:", "yellow"));
+      console.log(`  ${tone("' UNION SELECT NULL,version()--", "cyan")}`);
+      console.log(tone("— Safer: parameters / bind (illustrative)", "green"));
+      console.log(
+        `  psql ... -c 'SELECT id,note FROM tickets WHERE title = $1' -- with bound value (not pasted into SQL text)`,
+      );
+      return 0;
+    }
+    console.log("Try: sql demo   or   sql translate \"your text\"");
+    return 0;
+  }
+
   async function clearScreen() {
     if (process.stdout.isTTY) {
       process.stdout.write("\x1b[2J\x1b[H");
@@ -341,7 +431,7 @@ export function createMissionSession(mission, initialSnapshot = null) {
     if (!term) {
       console.log("Usage: info <term>. Example: info ssh");
       console.log(
-        "Known: ssh, http, postgres, weak-ssh, template-rce, misconfig-copy, rce, soc, trace, cve, port-scan, artifact",
+        "Known: ssh, http, postgres, weak-ssh, template-rce, misconfig-copy, rce, soc, trace, cve, port-scan, artifact, sql-injection",
       );
       return;
     }
@@ -418,6 +508,12 @@ export function createMissionSession(mission, initialSnapshot = null) {
           "A port scan (here: scan ports <host>, or scan <host>) is a fictional discovery step that lists open TCP/UDP ports and service fingerprints, aligned with how real attackers map attack surface—without sending real packets.",
         exploit:
           "Exploitation (example): scan ports reveals open services and CVE-class hints; connect + enum maps those ports to exploit ids; you chain one id per service to simulate weaponizing a known weakness class.",
+      },
+      "sql-injection": {
+        about:
+          "SQL injection happens when user-controlled text is pasted into a SQL command as code instead of as data. The fix is parameterized queries / prepared statements so the database never parses user input as SQL structure.",
+        exploit:
+          "In this game, use sql demo and sql translate \"…\" to see a fictional mapping from your op shell to ssh/psql strings. Compare the naive concat line to the bind/parameter pattern—no real queries run.",
       },
     };
 
@@ -641,6 +737,15 @@ export function createMissionSession(mission, initialSnapshot = null) {
     console.log(
       `${tone("Exploit succeeded.", "green")} ${service.name}:${service.port}/${serviceProtocol(service)} on ${n.id} (owned).${refBit}`,
     );
+    if (exploitId === "misconfig-copy") {
+      console.log(
+        tone(
+          "[sim] psql banner: COPY FROM STDIN available — training scenario only; no PROGRAM / no host access.",
+          "dim",
+        ),
+      );
+    }
+    notifyBell();
     return risk;
   }
 
@@ -819,6 +924,10 @@ export function createMissionSession(mission, initialSnapshot = null) {
         break;
       case "info":
         await info(arg);
+        break;
+      case "sql":
+        await loading("Resolving SQL bridge (fictional mapping)...", 180);
+        risk = runSqlSimulator(arg);
         break;
       case "stash":
         showStash();
