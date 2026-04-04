@@ -11,66 +11,93 @@
       "fail": "You burned the session. Orion's SOC will rotate keys and harden paths. If you retry, go slower: lay low when alerts hit and keep trace under budget."
     }
   },
+  "connectGates": [
+    {
+      "from": "local",
+      "to": "gw-edge",
+      "afterExploit": { "node": "local", "exploitId": "weak-ssh" }
+    },
+    {
+      "from": "gw-edge",
+      "to": "app-api",
+      "afterExploit": { "node": "gw-edge", "exploitId": "weak-ssh" }
+    }
+  ],
   "tutorial": {
     "steps": [
       {
         "when": "discover_gw",
         "nodeId": "gw-edge",
         "title": "Step 1: Find the edge gateway",
-        "text": "Run scan with no arguments to list adjacent hosts, then run scan ports <host> for a port sweep (open ports + CVE-class hints). Same as scan <host>.",
+        "text": "Run scan to list adjacent hosts, then probe <host> for a remote port sweep (open ports only). After connect, enum maps ports to exploit ids — probe does not duplicate enum.",
         "suggest": "scan"
       },
       {
-        "when": "enum_here",
-        "title": "Step 2: Enumerate services",
-        "text": "On the host, enum maps each port/service to a known weakness class and the exploit id to run.",
+        "when": "enum_on_node",
+        "nodeId": "local",
+        "title": "Step 2: Enumerate services on your rig",
+        "text": "On local, enum shows the staging SSH surface. You must run exploit weak-ssh here before the gateway will accept a connect — that hop is blocked until staging credentials exist.",
         "suggest": "enum"
+      },
+      {
+        "when": "gate_met",
+        "gate": { "node": "local", "exploitId": "weak-ssh" },
+        "title": "Step 3: Stage credentials for the gateway hop",
+        "text": "Run exploit weak-ssh on local (staging / trust material). This is not the same as owning the edge box yet — it only authorizes the link.",
+        "suggest": "exploit weak-ssh"
+      },
+      {
+        "when": "not_on_node",
+        "nodeId": "gw-edge",
+        "title": "Step 4: Pivot to the edge gateway",
+        "text": "Now connect gw-edge. The SSH theater runs only after staging succeeded.",
+        "suggest": "connect gw-edge"
       },
       {
         "when": "own_node",
         "nodeId": "gw-edge",
-        "title": "Step 3: Get a foothold",
-        "text": "Use the exploit id you saw in enum. Once owned, you can safely read files on the node.",
+        "title": "Step 5: Own the gateway",
+        "text": "On gw-edge, enum again — the weak-ssh entry here is the real compromise. Exploit it to own the node and read files.",
         "suggest": "exploit weak-ssh"
       },
       {
         "when": "discover_gw",
         "nodeId": "app-api",
-        "title": "Step 4: Pivot to the app tier",
-        "text": "From your foothold, port-sweep the next hop: scan ports app-api. Review CVE-class notes, then connect and enum.",
-        "suggest": "scan ports app-api"
+        "title": "Step 6: Pivot to the app tier",
+        "text": "Probe app-api from the graph (remote sweep: ports only). You cannot connect app-api until the edge gateway is owned — exploit weak-ssh on gw-edge first; then connect app-api.",
+        "suggest": "probe app-api"
       },
       {
         "when": "own_node",
         "nodeId": "app-api",
-        "title": "Step 5: Compromise the app",
-        "text": "Move to the app node, enumerate, then exploit.",
+        "title": "Step 7: Compromise the app",
+        "text": "After gw-edge is owned, connect app-api, enumerate, then exploit.",
         "suggest": "connect app-api"
       },
       {
         "when": "discover_gw",
         "nodeId": "db-core",
-        "title": "Step 6: Find the database core",
+        "title": "Step 8: Find the database core",
         "text": "The objective file lives on db-core—sweep its ports, then pivot.",
-        "suggest": "scan ports db-core"
+        "suggest": "probe db-core"
       },
       {
         "when": "own_node",
         "nodeId": "db-core",
-        "title": "Step 7: Root the target",
+        "title": "Step 9: Root the target",
         "text": "Exploit the database misconfiguration, then exfiltrate the target file.",
         "suggest": "exploit misconfig-copy"
       },
       {
         "when": "exfil",
         "path": "/data/client_billing.csv",
-        "title": "Step 8: Exfiltrate evidence",
+        "title": "Step 10: Exfiltrate evidence",
         "text": "Exfiltration is noisy. If SOC is active, consider laylow first.",
         "suggest": "exfil /data/client_billing.csv"
       },
       {
         "when": "submit",
-        "title": "Step 9: Submit",
+        "title": "Step 11: Submit",
         "text": "Once exfil is complete, submit the objective to close the operation.",
         "suggest": "submit"
       }
@@ -95,7 +122,17 @@
   "nodes": [
     {
       "id": "local",
-      "services": [],
+      "services": [
+        {
+          "name": "ssh",
+          "protocol": "tcp",
+          "port": 22,
+          "exploitId": "weak-ssh",
+          "noise": 2,
+          "stagingOnly": true,
+          "vulnRef": "Staging SSH client — establish operator trust material before the edge gateway accepts your session (fiction; not a second compromise of local)"
+        }
+      ],
       "noise": {
         "enum": 0
       },

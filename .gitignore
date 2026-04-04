@@ -5,3 +5,8 @@ campaign-save.json
 *.log
 .DS_Store
 Thumbs.db
+
+# Playwright / E2E
+web/test-results/
+web/playwright-report/
+playwright/.cache/

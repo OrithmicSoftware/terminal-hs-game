@@ -34,7 +34,8 @@ const dictionaries = {
     session_aborted: "Session aborted.",
     screen_help:
       "Each command clears the screen. Long output is split into pages that fit this terminal; use ↑/↓, Enter/Space (next page), q (exit pager).",
-    pager_help_line: "↓ Enter/Space next page  ↑ previous  q exit to prompt",
+    pager_help_line:
+      "Enter / Space / n / PgDn — next   ↑ / p / PgUp — prev   q / Esc — exit to prompt",
     press_enter_continue: "Press Enter to continue…",
     boot_pager_hint: "Enter/Space next page  q exit"
   },
@@ -73,7 +74,8 @@ const dictionaries = {
     session_aborted: "Сессия прервана.",
     screen_help:
       "Каждая команда очищает экран. Длинный вывод разбит на страницы; ↑/↓, Enter/Пробел — далее, q — выход из просмотра.",
-    pager_help_line: "↓ Enter/Пробел — след. стр.  ↑ — назад  q — выход",
+    pager_help_line:
+      "Enter / Пробел / n / PgDn — след. стр.   ↑ / p / PgUp — назад   q / Esc — выход",
     press_enter_continue: "Нажмите Enter, чтобы продолжить…",
     boot_pager_hint: "Enter/Пробел — след. стр.  q — выход"
   }

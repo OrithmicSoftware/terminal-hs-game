@@ -56,8 +56,14 @@ header {
   border-radius: 3px;
 }
 
-.ghost {
+.header-actions {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ghost {
   background: transparent;
   border: 1px solid var(--dim);
   color: var(--cyan);
@@ -65,6 +71,11 @@ header {
   padding: 0.25rem 0.5rem;
   cursor: pointer;
   border-radius: 4px;
+}
+
+.ghost.sound-off {
+  color: var(--dim);
+  border-color: #2a3830;
 }
 
 .ghost:hover {
@@ -77,9 +88,14 @@ header {
   border: 1px solid #1a3d2e;
   border-radius: 6px;
   box-shadow: 0 0 0 1px #0d2818, 0 12px 40px rgba(0, 0, 0, 0.45);
-  min-height: 420px;
-  max-height: 60vh;
+  min-height: 483px;
+  max-height: 69vh;
   overflow: auto;
+}
+
+.term-wrap:focus {
+  outline: none;
+  box-shadow: 0 0 0 1px var(--green), 0 12px 40px rgba(0, 0, 0, 0.45);
 }
 
 .term {
@@ -90,6 +106,15 @@ header {
   font-family: inherit;
   font-size: 13px;
   line-height: 1.4;
+}
+
+/* Carriage-return live lines (spinners, connect LINK bar) must stay one physical row or \r redraws stack as wrapped junk. */
+.term .hktm-out-live {
+  display: block;
+  white-space: pre;
+  overflow-x: auto;
+  word-break: normal;
+  max-width: 100%;
 }
 
 /* ansi_up use_classes */

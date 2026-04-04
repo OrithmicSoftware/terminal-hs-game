@@ -2,15 +2,32 @@
   "name": "hacker-terminal-web",
   "private": true,
   "type": "module",
+  "description": "Vite browser build for Terminal HS Game (browser alpha, PIP UI, Web Audio, Playwright E2E).",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OrithmicSoftware/terminal-hs-game.git",
+    "directory": "web"
+  },
+  "bugs": {
+    "url": "https://github.com/OrithmicSoftware/terminal-hs-game/issues"
+  },
+  "homepage": "https://github.com/OrithmicSoftware/terminal-hs-game/tree/main/web",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "preview:e2e": "vite preview --port 4173 --strictPort --host 127.0.0.1",
+    "test:e2e": "npm run build && start-server-and-test \"npm run preview:e2e\" http://127.0.0.1:4173 \"playwright test\"",
+    "test:e2e:install": "playwright install chromium",
+    "split-typing": "node scripts/split-typing-sound.mjs"
   },
   "dependencies": {
     "ansi_up": "^6.0.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
+    "ffmpeg-static": "^5.3.0",
+    "start-server-and-test": "^3.0.0",
     "vite": "^6.2.0"
   }
 }

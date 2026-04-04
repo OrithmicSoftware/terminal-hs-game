@@ -4,15 +4,20 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Hacker Terminal Game (browser alpha)</title>
-    <script type="module" crossorigin src="/assets/index-DsqOCzgz.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-BzygPXui.css">
+    <script type="module" crossorigin src="/assets/index-DF21KdIr.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-BivSGRM2.css">
   </head>
   <body>
     <div class="chrome">
       <header>
         <span class="title">TERMINAL HACKSIM</span>
         <span class="badge">browser α</span>
-        <button type="button" id="beep-test" class="ghost">Test sound</button>
+        <span class="header-actions">
+          <button type="button" id="sound-toggle" class="ghost" aria-pressed="true" title="Toggle game and terminal sounds">
+            Sound on
+          </button>
+          <button type="button" id="beep-test" class="ghost" title="Play a sample beep">Test sound</button>
+        </span>
       </header>
       <div class="term-wrap" id="term-wrap">
         <pre id="term" class="term" aria-live="polite"></pre>
@@ -21,7 +26,12 @@
         <span class="prompt">&gt;</span>
         <input id="cmd" type="text" spellcheck="false" autocomplete="off" placeholder="Type commands (Enter) — use Enter in terminal area to continue boot" />
       </div>
-      <p class="hint">Sound: Web Audio beeps on events when enabled. Node build: <code>npm start</code> in repo root.</p>
+      <p class="hint">
+        Sound: terminal keystrokes use built-in Web Audio (no sample files). Optional Fallout-style UI
+        (selection / browse / click): drop <code>ui_select.wav</code>, <code>ui_browse.wav</code>,
+        <code>ui_click.wav</code> in <code>/sounds/fallout_terminal/</code> or use built-in synth.
+        Node: <code>npm start</code>. Step history (after clears): <kbd>Alt+PgUp</kbd> / <kbd>Alt+PgDn</kbd> for previous / next command output.
+      </p>
     </div>
   </body>
 </html>

@@ -57,6 +57,7 @@ function shouldClearScreen(line) {
     "status",
     "map",
     "scan",
+    "probe",
     "connect",
     "enum",
     "exploit",
@@ -99,7 +100,7 @@ const STATIC_TAB_COMMANDS = [
   "reset",
   "retry",
   "scan",
-  "scan ports",
+  "probe",
   "sql",
   "sql demo",
   "sql translate",
@@ -121,7 +122,7 @@ function missionTabCompletions(mission) {
   const out = [];
   const ids = mission.nodes.map((n) => n.id).sort();
   for (const id of ids) {
-    out.push(`connect ${id}`, `scan ${id}`, `scan ports ${id}`);
+    out.push(`connect ${id}`, `probe ${id}`);
   }
   for (const node of mission.nodes) {
     for (const s of node.services ?? []) {

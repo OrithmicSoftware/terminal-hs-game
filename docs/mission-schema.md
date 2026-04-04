@@ -13,8 +13,12 @@ Every mission file lives in `missions/*.json`.
   - `region` (string)
   - `debrief.success` (string)
   - `debrief.fail` (string)
+- `connectGates` (array, optional): block `connect` along an edge until a prerequisite exploit completes
+  - items: `{ "from", "to", "afterExploit": { "node", "exploitId" } }` — gate is satisfied when `exploit <exploitId>` succeeds on `node` (tracked in save state)
+  - Example: `local → gw-edge` may require staging `weak-ssh` on `local`; `gw-edge → app-api` may require owning the gateway first (`exploit weak-ssh` on `gw-edge`) before pivoting to the app tier
 - `tutorial` (object, optional): guided steps for new players
-  - `steps[]` items with: `when`, `title`, `text`, `suggest` (+ optional `nodeId`/`path`)
+  - `steps[]` items with: `when`, `title`, `text`, `suggest` (+ optional `nodeId`/`path`/`gate`)
+  - `when` values include: `discover_gw`, `enum_here`, `enum_on_node`, `gate_met`, `not_on_node`, `own_node`, `exfil`, `submit`
 - `startNode` (string): initial node id (usually `local`)
 - `security.maxTrace` (number): fail threshold
 - `objective.summary` (string): displayed objective
@@ -32,9 +36,10 @@ Every mission file lives in `missions/*.json`.
   - `protocol` (string, optional): default `tcp` (also `udp` for display)
   - `exploitId` (string): command value for `exploit <id>`
   - `noise` (number): trace increase on exploit
-  - `vulnRef` (string, optional): human-readable **CVE-style or weakness-class label** shown on `scan ports <host>` and `enum` (educational; not exploit instructions)
+  - `vulnRef` (string, optional): human-readable **CVE-style or weakness-class label** shown on **`enum`** (on-host); probe shows ports only (educational; not exploit instructions)
   - `vulnerability` (string, optional): alias for `vulnRef` if you prefer the longer key
   - `requiresArtifacts` (string[], optional): required in-game credential artifacts to run this exploit
+  - `stagingOnly` (boolean, optional): if true, exploit is allowed on an **already-owned** start node to unlock gated hops (e.g. staging SSH before `connect`); does not re-flag the node as newly owned
 - `noise.enum` (number): trace increase on `enum`
 - `files` (array):
   - `path` (string)
@@ -45,11 +50,11 @@ Every mission file lives in `missions/*.json`.
 
 ## Command DSL used by engine
 
-- `scan`: list adjacent hosts to port-sweep
-- `scan ports <host>` (alias: `scan <host>`): discover host + **port sweep** (open ports, protocol, CVE-class hints)
-- `connect <node>`: move to owned adjacent node
-- `enum`: reveal services/exploit ids on current node
-- `exploit <id>`: compromise current node via service exploit id
+- `scan`: list neighbors from footholds + current node (no arguments); then `probe <id>` for a remote sweep
+- `probe <host>`: discover host (if reachable) + **remote** port sweep — open ports and rough listener guesses **only** (no CVE writeups, no exploit ids on purpose)
+- `connect <node>`: pivot session to a discovered adjacent node (subject to `connectGates`)
+- `enum`: **on-host** enumeration on **current** node — maps ports to CVE-class text **and** `exploit <id>` (after you have connected; not a duplicate of probe)
+- `exploit <id>`: run the staged exploit for a service enum showed; can own the host, unlock gated connects (`stagingOnly`), or depend on `requiresArtifacts` / file intel for alternate paths
 - `stash`: list collected artifacts
 - `ls`, `cat <path>`, `exfil <path>`: file intel loop
 - `cover`: reduce trace

@@ -50,6 +50,9 @@ function chunkArray(arr, size) {
 
 const enterWaiters = [];
 
+/** Resolves with next | prev | quit — mirrors Node `waitPagerKeyOnce` (arrows / Enter / Space / q). */
+let pagerKeyResolve = null;
+
 export function waitForEnterContinue(footerHint = "") {
   return new Promise((resolve) => {
     if (footerHint) console.log(tone(footerHint, "dim"));
@@ -62,17 +65,126 @@ export function __hktmFlushEnterWaiter() {
   if (r) r();
 }
 
+function waitForPagerKeyOnce() {
+  return new Promise((resolve) => {
+    pagerKeyResolve = resolve;
+  });
+}
+
+/**
+ * Browser: route keyboard while a pager is waiting. Call from a window `keydown` listener (use capture so it runs before cmd input).
+ * @returns {boolean} true if the event was consumed
+ */
+function hktmUiSelect() {
+  try {
+    globalThis.__HKTM_UI_SELECT?.();
+  } catch {
+    /* ignore */
+  }
+}
+
+function hktmUiClick() {
+  try {
+    globalThis.__HKTM_UI_CLICK?.();
+  } catch {
+    /* ignore */
+  }
+}
+
+export function handlePagerKeydown(e) {
+  if (!pagerKeyResolve) return false;
+  const k = e.key;
+  const code = e.code || "";
+  /** `e.key` is reliable in modern browsers; `code` + keyCode cover edge cases (some Windows/Chrome builds). */
+  const pageDown = k === "PageDown" || code === "PageDown" || e.keyCode === 34;
+  const pageUp = k === "PageUp" || code === "PageUp" || e.keyCode === 33;
+  const nextKeys =
+    k === "ArrowDown" ||
+    k === "Enter" ||
+    k === " " ||
+    pageDown ||
+    k === "n" ||
+    k === "N";
+  const prevKeys = k === "ArrowUp" || pageUp || k === "p" || k === "P";
+  if (nextKeys) {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    if (k === "ArrowDown" || pageDown) hktmUiSelect();
+    else hktmUiClick();
+    const r = pagerKeyResolve;
+    pagerKeyResolve = null;
+    r("next");
+    return true;
+  }
+  if (prevKeys) {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    hktmUiSelect();
+    const r = pagerKeyResolve;
+    pagerKeyResolve = null;
+    r("prev");
+    return true;
+  }
+  if (k === "Escape" || k === "q" || k === "Q") {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    hktmUiClick();
+    const r = pagerKeyResolve;
+    pagerKeyResolve = null;
+    r("quit");
+    return true;
+  }
+  return false;
+}
+
 export async function pagedPlainLines(lines, footerHint = "") {
-  for (const l of lines) console.log(l);
-  if (footerHint) console.log(tone(footerHint, "dim"));
+  const hint = footerHint || "Enter / Space / n → next   ↑ / p / PgUp → prev   q / Esc → exit";
+  const rows = Math.max(16, Math.floor(process?.stdout?.rows ?? 36));
+  const maxLines = Math.max(1, rows - 3);
+  const chunks = chunkArray(lines, maxLines);
+  if (chunks.length <= 1) {
+    for (const l of lines) console.log(l);
+    if (footerHint) console.log(tone(footerHint, "dim"));
+    return;
+  }
+  pagerHooks.pause();
+  let page = 0;
+  try {
+    while (true) {
+      clearTerminalScreen();
+      for (const l of chunks[page]) {
+        console.log(l);
+      }
+      console.log(tone(hint, "dim"));
+      const key = await waitForPagerKeyOnce();
+      if (key === "quit") break;
+      if (key === "next") {
+        if (page < chunks.length - 1) page += 1;
+        else break;
+      }
+      if (key === "prev") page = Math.max(0, page - 1);
+    }
+  } finally {
+    pagerHooks.resume();
+    clearTerminalScreen();
+  }
 }
 
 function sleep(ms) {
   return new Promise((res) => setTimeout(res, ms));
 }
 
+function isWebUiOutput() {
+  try {
+    return globalThis.process?.env?.HKTM_WEB === "1";
+  } catch {
+    return false;
+  }
+}
+
 async function typeLine(line) {
-  if (!uiState.typing || uiState.cps >= 20000) {
+  const turboLine = !uiState.typing || (uiState.cps >= 20000 && !isWebUiOutput());
+  if (turboLine) {
     console.log(line);
     return;
   }
@@ -193,46 +305,57 @@ export async function boxEnterPaged(title, lines, width = uiState.width, footerH
 }
 
 export async function boxPaged(title, lines, width = uiState.width, footerHint = "") {
-  const uiRows = Math.max(16, Math.floor(process?.stdout?.rows ?? 36));
+  const hint = footerHint || "Enter / Space / n → next   ↑ / p / PgUp → prev   q / Esc → exit";
+  const rows = Math.max(16, Math.floor(process?.stdout?.rows ?? 36));
   const w = Math.max(12, Math.floor(width));
   const inner = w - 4;
-  const body = flattenBoxBodyLines(lines, inner);
+  const flat = flattenBoxBodyLines(lines, inner);
+  const maxBody = Math.max(4, rows - 6);
+  if (flat.length <= maxBody) {
+    await box(title, lines, width);
+    return;
+  }
+  const chunks = chunkArray(flat, maxBody);
+  if (chunks.length <= 1) {
+    await box(title, lines, width);
+    return;
+  }
 
-  // Reserve lines for frame: top + bottom + optional header (1) + footer hint (1)
-  const hasHeader = Boolean(title);
-  const reserved = 2 + (hasHeader ? 1 : 0) + 1;
-  const pageSize = Math.max(6, uiRows - reserved - 1);
-
-  const pages = chunkArray(body, pageSize);
-  for (let p = 0; p < pages.length; p += 1) {
-    clearTerminalScreen();
-    if (uiState.beep) {
-      if (typeof globalThis.__HKTM_PAGE === "function") {
-        try {
-          globalThis.__HKTM_PAGE();
-        } catch {
-          /* ignore */
-        }
-      } else if (typeof globalThis.__HKTM_BEEP === "function") {
-        try {
-          globalThis.__HKTM_BEEP();
-        } catch {
-          /* ignore */
+  pagerHooks.pause();
+  let page = 0;
+  const titlePlain = stripAnsi(title);
+  try {
+    while (true) {
+      clearTerminalScreen();
+      if (uiState.beep) {
+        if (typeof globalThis.__HKTM_PAGE === "function") {
+          try {
+            globalThis.__HKTM_PAGE();
+          } catch {
+            /* ignore */
+          }
+        } else if (typeof globalThis.__HKTM_BEEP === "function") {
+          try {
+            globalThis.__HKTM_BEEP();
+          } catch {
+            /* ignore */
+          }
         }
       }
+      const pageTitle = tone(`${titlePlain} (${page + 1}/${chunks.length})`, "bold");
+      await box(pageTitle, chunks[page], width);
+      console.log(tone(hint, "dim"));
+      const key = await waitForPagerKeyOnce();
+      if (key === "quit") break;
+      if (key === "next") {
+        if (page < chunks.length - 1) page += 1;
+        else break;
+      }
+      if (key === "prev") page = Math.max(0, page - 1);
     }
-    await box(title, pages[p], width);
-    const isLast = p === pages.length - 1;
-    const footer =
-      footerHint ||
-      (pages.length > 1
-        ? `Page ${p + 1}/${pages.length} — Press Enter to continue`
-        : "");
-    if (!isLast) {
-      await waitForEnterContinue(footer);
-    } else if (footer) {
-      console.log(tone(footer, "dim"));
-    }
+  } finally {
+    pagerHooks.resume();
+    clearTerminalScreen();
   }
 }
 

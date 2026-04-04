@@ -1,8 +1,41 @@
 import { tone, meter } from "./colors.mjs";
 import { boxPaged, pagedPlainLines, wrap, getUiOptions, notifyBell } from "./ui.mjs";
 import { t } from "./i18n.mjs";
+import { INFO_GLOSSARY } from "./info-glossary.mjs";
 
-const useAnim = process.stdout.isTTY && process.env.NO_ANIM !== "1";
+/** Web build sets `process.env.HKTM_WEB=1` (see web/main.js). */
+function isWebUi() {
+  try {
+    return globalThis.process?.env?.HKTM_WEB === "1";
+  } catch {
+    return false;
+  }
+}
+
+/** Animations/spinners/connect theater — must be true in browser even when `process` is unset at chunk load. */
+function useAnimEnabled() {
+  if (isWebUi()) return true;
+  try {
+    return Boolean(
+      typeof process !== "undefined" &&
+        process.stdout?.isTTY &&
+        process.env?.NO_ANIM !== "1",
+    );
+  } catch {
+    return false;
+  }
+}
+
+// Higher = shorter spinner duration + snappier frames. Lower TERM = slower, more readable terminal spinners.
+const LOADING_ANIM_SPEED_TERM = 52;
+const LOADING_ANIM_SPEED_WEB = 220;
+
+/** Web: SSH theater + link bar wall-clock budget (ms). Keep generous so the link bar is not starved after SSH lines. */
+const WEB_CONNECT_SCENE_MAX_MS = 14000;
+
+function loadingAnimSpeed() {
+  return isWebUi() ? LOADING_ANIM_SPEED_WEB : LOADING_ANIM_SPEED_TERM;
+}
 
 function textWrapWidth() {
   const uw = getUiOptions().width;
@@ -19,25 +52,37 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// Global animation scaler. Higher = faster (shorter durations + tighter frame interval).
-const LOADING_ANIM_SPEED = 144;
+function webLoadingTick() {
+  if (!isWebUi() || typeof globalThis.__HKTM_LOADING_TICK !== "function") return;
+  try {
+    globalThis.__HKTM_LOADING_TICK();
+  } catch {
+    /* ignore */
+  }
+}
 
 async function loading(label, ms) {
-  if (!useAnim || ms <= 0) return;
+  if (!useAnimEnabled() || ms <= 0) return;
 
   const ui = getUiOptions();
-  const speed = (ui.mode === "pip" ? 0.55 : 1) / LOADING_ANIM_SPEED;
-  const durationMs = Math.max(12, Math.floor(ms * speed));
-  const frameMs = Math.max(8, Math.floor((ui.mode === "pip" ? 55 : 80) / LOADING_ANIM_SPEED));
+  const sp = loadingAnimSpeed();
+  const speed = (ui.mode === "pip" ? 0.55 : 1) / sp;
+  let durationMs = Math.max(12, Math.floor(ms * speed));
+  if (!isWebUi()) {
+    durationMs = Math.max(durationMs, Math.floor(ms * (ui.mode === "pip" ? 0.28 : 0.22)));
+  }
+  const frameMs = Math.max(8, Math.floor((ui.mode === "pip" ? 55 : 80) / sp));
 
   const frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
   let i = 0;
   const started = Date.now();
 
   process.stdout.write(`${tone(frames[0], "cyan")} ${label}`);
+  webLoadingTick();
   const timer = setInterval(() => {
     i = (i + 1) % frames.length;
     process.stdout.write(`\r${tone(frames[i], "cyan")} ${label}`);
+    webLoadingTick();
   }, frameMs);
 
   try {
@@ -46,13 +91,15 @@ async function loading(label, ms) {
     clearInterval(timer);
     const elapsed = Date.now() - started;
     process.stdout.write(`\r${tone("✔", "green")} ${label} ${tone(`(${elapsed}ms)`, "dim")}\n`);
+    webLoadingTick();
   }
 }
 
 /** OpenSSH-style host-key prompts (fiction); auto-“yes” for pacing. */
 async function printSshConnectTheater(toId) {
   const ui = getUiOptions();
-  const lineMs = ui.mode === "pip" ? 55 : 75;
+  const pace = isWebUi() ? 0.42 : 1;
+  const lineMs = Math.max(8, Math.floor((ui.mode === "pip" ? 55 : 75) * pace));
   const fakeIp = `192.0.2.${Math.min(233, 40 + (toId.length % 40))}`;
   const seed = `${toId}|${fakeIp}`;
   let h = 2166136261;
@@ -73,29 +120,40 @@ async function printSshConnectTheater(toId) {
     tone("(simulation) ", "dim") +
       tone('typing "yes" — StrictHostKeyChecking policy auto-accepted for this op.', "green"),
   );
-  await sleep(ui.mode === "pip" ? 320 : 240);
+  await sleep(Math.floor((ui.mode === "pip" ? 320 : 240) * pace));
   console.log(
     tone(`Warning: Permanently added '${toId}' (${fakeIp}) to the list of known hosts.`, "yellow"),
   );
-  await sleep(ui.mode === "pip" ? 220 : 160);
+  await sleep(Math.floor((ui.mode === "pip" ? 220 : 160) * pace));
   console.log(
     tone("Enter passphrase for key '/home/operator/.ssh/covert_ed25519': ", "dim") +
       tone("[agent forwarded — empty return]", "green"),
   );
-  await sleep(ui.mode === "pip" ? 380 : 260);
+  await sleep(Math.floor((ui.mode === "pip" ? 380 : 260) * pace));
   console.log(tone(`Last login: simulated session from ${fakeIp}`, "dim"));
-  await sleep(ui.mode === "pip" ? 140 : 100);
+  await sleep(Math.floor((ui.mode === "pip" ? 140 : 100) * pace));
 }
 
 /**
  * Long, staged “covert link” animation when pivoting to another node (PIP runs longer).
  */
 async function connectRouteAnimation(fromId, toId) {
-  if (!useAnim) return;
+  if (!useAnimEnabled()) return;
 
   const ui = getUiOptions();
+  const connectSceneStart = Date.now();
   await printSshConnectTheater(toId);
-  const totalMs = ui.mode === "pip" ? 5200 : 3400;
+  const sshElapsed = Date.now() - connectSceneStart;
+  const baseBarMs = Math.floor(
+    (ui.mode === "pip" ? 5200 : 3400) * (isWebUi() ? 0.48 : 1),
+  );
+  let totalMs = baseBarMs;
+  if (isWebUi()) {
+    const reserveFinalMs = 140;
+    const remaining = WEB_CONNECT_SCENE_MAX_MS - sshElapsed - reserveFinalMs;
+    totalMs = Math.min(baseBarMs, Math.max(0, remaining));
+    if (totalMs < 900) totalMs = Math.min(baseBarMs, 900);
+  }
   const phases = [
     "Negotiating ephemeral session keys (forward secrecy…)",
     "Mesh relay handshake — timing jitter matched to cover traffic…",
@@ -105,7 +163,7 @@ async function connectRouteAnimation(fromId, toId) {
     "Cryptographic transcript verified — stabilizing link…",
   ];
   const frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-  const frameMs = Math.max(8, Math.floor((ui.mode === "pip" ? 55 : 80) / LOADING_ANIM_SPEED));
+  const frameMs = Math.max(8, Math.floor((ui.mode === "pip" ? 55 : 80) / loadingAnimSpeed()));
   const clearPad = Math.min(140, Math.max(80, (ui.width ?? 74) + 36));
   const start = Date.now();
   let tick = 0;
@@ -130,6 +188,7 @@ async function connectRouteAnimation(fromId, toId) {
     const phase = truncate(phases[phaseIdx], maxPhase);
     const line = `${tone(f, "cyan")} ${tone("LINK", "magenta")} [${tone(bar, "green")}] ${tone(String(pct).padStart(3), "yellow")}%  ${tone(phase, "dim")}`;
     process.stdout.write(`\r${line}`);
+    // No webLoadingTick here: same samples as typing/page in the web shell and reads as "rendering" over the link bar.
     // eslint-disable-next-line no-await-in-loop
     await sleep(frameMs);
   }
@@ -164,6 +223,31 @@ function reachableFromOwned(mission, ownedNodes, targetNode) {
   return false;
 }
 
+/** Probe target may be 2+ hops away: expand through discovered nodes from owned footholds (not only direct owned→target). */
+function probeReachable(mission, ownedNodes, discoveredNodes, targetNode) {
+  if (ownedNodes.has(targetNode)) return true;
+  for (const o of ownedNodes) {
+    if (isConnected(mission, o, targetNode)) return true;
+  }
+  const queue = [...ownedNodes];
+  const seen = new Set(ownedNodes);
+  while (queue.length) {
+    const u = queue.shift();
+    for (const [a, b] of mission.edges) {
+      const v = a === u ? b : b === u ? a : null;
+      if (!v) continue;
+      if (!discoveredNodes.has(v)) continue;
+      if (seen.has(v)) continue;
+      seen.add(v);
+      queue.push(v);
+    }
+  }
+  for (const u of seen) {
+    if (isConnected(mission, u, targetNode)) return true;
+  }
+  return false;
+}
+
 function rollSocAlert(nodeId, command, risk, turns) {
   if (risk <= 0) return null;
   const deterministic = (nodeId.length * 31 + command.length * 17 + turns * 13) % 100;
@@ -181,6 +265,25 @@ function rollSocAlert(nodeId, command, risk, turns) {
 }
 
 export function createMissionSession(mission, initialSnapshot = null) {
+  if (mission?.id === "m1-ghost-proxy") {
+    const m1DefaultGates = [
+      {
+        from: "local",
+        to: "gw-edge",
+        afterExploit: { node: "local", exploitId: "weak-ssh" },
+      },
+      {
+        from: "gw-edge",
+        to: "app-api",
+        afterExploit: { node: "gw-edge", exploitId: "weak-ssh" },
+      },
+    ];
+    if (!Array.isArray(mission.connectGates)) mission.connectGates = [];
+    for (const g of m1DefaultGates) {
+      const has = mission.connectGates.some((x) => x.from === g.from && x.to === g.to);
+      if (!has) mission.connectGates.push(g);
+    }
+  }
   const nodeById = indexNodes(mission.nodes);
 
   const state = {
@@ -199,6 +302,7 @@ export function createMissionSession(mission, initialSnapshot = null) {
     lastArg: null,
     finished: false,
     result: "in_progress",
+    exploitGatesMet: new Set(),
   };
 
   if (initialSnapshot) {
@@ -215,6 +319,7 @@ export function createMissionSession(mission, initialSnapshot = null) {
     state.lastArg = initialSnapshot.lastArg ?? null;
     state.finished = Boolean(initialSnapshot.finished);
     state.result = initialSnapshot.result ?? "in_progress";
+    state.exploitGatesMet = new Set(initialSnapshot.exploitGatesMet ?? []);
   }
 
   function addTrace(amount) {
@@ -249,11 +354,26 @@ export function createMissionSession(mission, initialSnapshot = null) {
     return nodeById.get(id);
   }
 
+  function connectGateForHop(fromId, toId) {
+    const gates = mission.connectGates ?? [];
+    return gates.find((g) => g.from === fromId && g.to === toId) ?? null;
+  }
+
+  /** True when `connect` from → to exists in the graph but a prerequisite exploit is not yet met. */
+  function connectHopBlocked(fromId, toId) {
+    const gate = connectGateForHop(fromId, toId);
+    if (!gate?.afterExploit) return { blocked: false, gate: null };
+    const { node: gateNode, exploitId } = gate.afterExploit;
+    const key = `${gateNode}:${exploitId}`;
+    if (state.exploitGatesMet.has(key)) return { blocked: false, gate };
+    return { blocked: true, gate };
+  }
+
   function serviceProtocol(s) {
     return String(s.protocol ?? "tcp").toLowerCase();
   }
 
-  /** Port sweep table after `scan <host>` — educational CVE names only; no exploit code. */
+  /** Remote port sweep after `probe <host>` — open ports + guesses only; no CVE/exploit mapping (that is `enum` on-host). */
   function printPortSweep(hostId, n) {
     const svcs = n.services ?? [];
     if (svcs.length === 0) {
@@ -261,21 +381,36 @@ export function createMissionSession(mission, initialSnapshot = null) {
       return;
     }
     console.log(
-      `\n${tone(`Port sweep — ${hostId}`, "bold")}  ${tone("(fictional op; CVE refs are real public identifiers, not instructions)", "dim")}`,
+      `\n${tone(`Remote port sweep — ${hostId}`, "bold")}  ${tone("(from your foothold; no shell on target yet)", "dim")}`,
     );
     console.log(
-      `${tone("PORT/SVC", "dim")}     ${tone("STATE", "dim")}   ${tone("VULN / PROTOCOL ABUSE (known classes)", "dim")}`,
+      `${tone("PORT/PROTO", "dim")}   ${tone("STATE", "dim")}   ${tone("REMOTE NOTE", "dim")}`,
     );
     for (const s of svcs) {
       const p = `${s.port}/${serviceProtocol(s)}`;
       const svcName = s.name ?? "?";
       const label = `${p} ${svcName}`;
-      const vuln = s.vulnRef ?? s.vulnerability ?? "Run enum on-host for mapped exploit id";
-      console.log(`${tone(label.padEnd(22), "cyan")} ${tone("open", "green")}   ${vuln}`);
+      console.log(
+        `${tone(label.padEnd(22), "cyan")} ${tone("open", "green")}   ${tone("listener / banner guess only", "dim")}`,
+      );
     }
     console.log(
-      `\n${tone("Tip:", "dim")} ${tone("connect", "cyan")} ${hostId} → ${tone("enum", "cyan")} binds ports to ${tone("exploit <id>", "yellow")} (weaponized chain is abstracted).`,
+      tone(
+        "Probe does not map CVE classes or exploit ids — that requires an on-host session. Flow: discover (scan) → remote sweep (probe) → connect → enum → exploit (then pivot, cat intel, stash artifacts, or chain e.g. SQL → creds → another host).",
+        "dim",
+      ),
     );
+    const hop = connectHopBlocked(state.currentNode, hostId);
+    if (hop.blocked && hop.gate?.afterExploit) {
+      const g = hop.gate.afterExploit;
+      console.log(
+        `\n${tone("Tip:", "dim")} ${tone(`connect ${hostId}`, "cyan")} is blocked until ${tone(`exploit ${g.exploitId}`, "yellow")} on ${tone(g.node, "blue")} (staging). After the hop: ${tone("enum", "cyan")} on ${hostId} for ${tone("exploit <id>", "yellow")} mapping.`,
+      );
+    } else {
+      console.log(
+        `\n${tone("Tip:", "dim")} ${tone("connect", "cyan")} ${hostId}, then ${tone("enum", "cyan")} on that host to list ${tone("exploit <id>", "yellow")} per port before ${tone("exploit", "cyan")}.`,
+      );
+    }
   }
 
   async function printBanner() {
@@ -333,13 +468,13 @@ export function createMissionSession(mission, initialSnapshot = null) {
       `  ${tone("clear", "cyan")}                clear screen and reprint header/status`,
       `  ${tone("status", "cyan")}               show current status`,
       `  ${tone("map", "cyan")}                  show discovered network graph`,
-      `  ${tone("scan", "cyan")}                 list adjacent hosts (next: port sweep one)`,
-      `  ${tone("scan ports <host>", "cyan")}    port sweep + fingerprint (alias: scan <host>)`,
+      `  ${tone("scan", "cyan")}                 list adjacent hosts (no arguments)`,
+      `  ${tone("probe <host>", "cyan")}         remote port sweep (open ports; no exploit ids)`,
       `  ${tone("connect <node>", "cyan")}       move to discovered adjacent node`,
-      `  ${tone("enum", "cyan")}                 enumerate services and exploit ids`,
+      `  ${tone("enum", "cyan")}                 on-host: map ports → exploit ids + vuln class`,
       `  ${tone("enum -f / --force", "cyan")}    re-scan (costs trace again; use if you need fresh output)`,
       `  ${tone("exploit <id>", "cyan")}         run exploit on current node`,
-      `  ${tone("info <term>", "cyan")}           explain a term (ssh, template-rce, sql-injection, ...)`,
+      `  ${tone("info <term>", "cyan")}           glossary: every command + concepts (try: info help)`,
       `  ${tone("sql", "cyan")}                    SQL lab: ${tone("sql demo", "dim")} | ${tone(`sql translate "text"`, "dim")}`,
       `  ${tone("stash", "cyan")}                list collected credential artifacts`,
       `  ${tone("ls", "cyan")}                   list files on current node (owned only)`,
@@ -427,100 +562,27 @@ export function createMissionSession(mission, initialSnapshot = null) {
     await printBanner();
   }
 
+  function printKnownInfoTerms() {
+    const keys = Object.keys(INFO_GLOSSARY).sort();
+    const cw = textWrapWidth();
+    console.log(tone("Known terms:", "dim"));
+    for (const line of wrap(keys.join(", "), cw)) {
+      console.log(tone(line, "dim"));
+    }
+  }
+
   async function info(termRaw) {
     const term = String(termRaw ?? "").trim().toLowerCase();
     if (!term) {
-      console.log("Usage: info <term>. Example: info ssh");
-      console.log(
-        "Known: ssh, http, postgres, weak-ssh, template-rce, misconfig-copy, rce, soc, trace, cve, port-scan, artifact, sql-injection",
-      );
+      console.log("Usage: info <term>. Example: info probe");
+      printKnownInfoTerms();
       return;
     }
 
-    const glossary = {
-      ssh: {
-        about:
-          "SSH (Secure Shell) is a protocol for encrypted remote login/command access to a machine. In this game, an 'ssh' service means a remote admin entry point exists.",
-        exploit:
-          "Exploitation (example): attackers probe for weak credentials, leaked keys, or misconfigured trust—then reuse a foothold to pivot. Here you simulate that by choosing the matching exploit id after enum; success grants shell-style access (owned) and raises trace like a noisy login or key reuse would.",
-      },
-      http: {
-        about:
-          "HTTP is the standard web protocol. An HTTP service often exposes an application/API surface, which may contain bugs or misconfigurations.",
-        exploit:
-          "Exploitation (example): classic paths include template bugs, unsafe deserialization, or admin panels left exposed. In this game, an HTTP-linked exploit id is a stand-in for chaining to RCE or data access—higher noise often means a splashier attack surface.",
-      },
-      postgres: {
-        about:
-          "Postgres (PostgreSQL) is a database server. In games like this, databases often hold the objective data but are riskier to touch (higher trace).",
-        exploit:
-          "Exploitation (example): attackers abuse COPY/export features, weak roles, or SQL paths exposed through an app. Here, a postgres-style exploit is abstracted as a high-impact action—expect more trace than touching a static file.",
-      },
-      soc: {
-        about:
-          "SOC = Security Operations Center. Think: defenders monitoring logs/alerts. SOC events raise pressure and can add trace if you ignore them.",
-        exploit:
-          "Exploitation (example): repeated scans, loud exploits, or ignored alerts behave like tripping detections—use spoof or laylow to simulate cooling off before the fictional analysts escalate.",
-      },
-      trace: {
-        about:
-          "Trace is your detection meter. If it hits the max for the mission, the session is burned (fail). Reduce it with cover/laylow/spoof.",
-        exploit:
-          "Exploitation (example): every noisy action (scan, exploit, exfil) adds heat. Planning a route that minimizes redundant touches models 'living off the land' versus hammering every service.",
-      },
-      "weak-ssh": {
-        about:
-          "weak-ssh: shorthand for an SSH access weakness (e.g., weak passwords, reused credentials, leaked keys, or leftover maintenance accounts). Real-world hardening: prefer key-based auth (ed25519), disable password login where possible, require MFA for admin access, remove default/unused accounts, and restrict SSH to VPN/allowlisted IPs.",
-        exploit:
-          "Exploitation (example): reuse a recovered key or password from another node (artifact flow), then run exploit weak-ssh on the service—this mirrors lateral movement with stolen creds, not scanning random hosts.",
-      },
-      "template-rce": {
-        about:
-          "template-rce: shorthand for server-side template injection leading to RCE (remote code execution). In the real world, this can happen when user input is rendered in templates unsafely. Here it's a fictional exploit class.",
-        exploit:
-          "Exploitation (example): after enum shows template-rce, you deploy that exploit id on the node to flip it to owned—think of it as user-controlled template data executing server-side, abstracted as one command.",
-      },
-      rce: {
-        about:
-          "RCE (Remote Code Execution) means causing a remote system to run attacker-chosen code. In this game it's simulated as a state transition to 'owned'.",
-        exploit:
-          "Exploitation (example): any exploit id labeled rce or ending in an RCE class is resolved as 'run payload, get foothold'—no real shellcode; the game marks the node compromised and bumps trace to reflect impact.",
-      },
-      "misconfig-copy": {
-        about:
-          "misconfig-copy: shorthand for a database misconfiguration that allows an unsafe COPY/export style data access path. Here it's a fictional exploit class representing 'bad DB configuration'.",
-        exploit:
-          "Exploitation (example): you abuse the mis-set export path to read rows or files the app didn't intend—represented here as a single exploit step with elevated trace, then you pivot to exfil objectives.",
-      },
-      artifact: {
-        about:
-          "Credential artifacts are fictional puzzle items in this game. Reading certain intel files can grant an artifact, which may unlock alternate access paths defined by the mission JSON.",
-        exploit:
-          "Exploitation (example): cat the note that references a key, stash lists the artifact, and a service may require that artifact before exploit succeeds—modeling 'use leaked material from host A on host B' without real secrets.",
-      },
-      cve: {
-        about:
-          "CVE (Common Vulnerabilities and Exposures) is a public catalog of IDs for specific security issues (CVE-YYYY-NNNN+). It does not contain exploit code; it is a reference label used by vendors, scanners, and defenders.",
-        exploit:
-          "In this game, mission JSON may attach a CVE-style label to a port/service to hint at the weakness class. Your action is still the abstract exploit command—no real exploitation steps are performed or taught.",
-      },
-      "port-scan": {
-        about:
-          "A port scan (here: scan ports <host>, or scan <host>) is a fictional discovery step that lists open TCP/UDP ports and service fingerprints, aligned with how real attackers map attack surface—without sending real packets.",
-        exploit:
-          "Exploitation (example): scan ports reveals open services and CVE-class hints; connect + enum maps those ports to exploit ids; you chain one id per service to simulate weaponizing a known weakness class.",
-      },
-      "sql-injection": {
-        about:
-          "SQL injection happens when user-controlled text is pasted into a SQL command as code instead of as data. The fix is parameterized queries / prepared statements so the database never parses user input as SQL structure.",
-        exploit:
-          "In this game, use sql demo and sql translate \"…\" to see a fictional mapping from your op shell to ssh/psql strings. Compare the naive concat line to the bind/parameter pattern—no real queries run.",
-      },
-    };
-
-    const entry = glossary[term] ?? null;
+    const entry = INFO_GLOSSARY[term] ?? null;
     if (!entry) {
-      console.log("Unknown term. Try: info ssh | info template-rce | info trace");
+      console.log("Unknown term.");
+      printKnownInfoTerms();
       return;
     }
 
@@ -540,46 +602,61 @@ export function createMissionSession(mission, initialSnapshot = null) {
     return false;
   }
 
-  /** `scan ports app-api` and `scan app-api` both resolve to target `app-api`. */
-  function normalizeScanArg(raw) {
-    const s = String(raw ?? "").trim();
-    if (!s) return "";
-    const parts = s.split(/\s+/);
-    if (parts[0]?.toLowerCase() === "ports") {
-      return parts.slice(1).join(" ").trim();
+  function listAdjacentHosts() {
+    /** Owning only `local` while `connect`ed to `gw-edge` is common — expand edges from current position too, not just owned nodes. */
+    const seeds = new Set([...state.ownedNodes, state.currentNode]);
+    const neighbors = new Set();
+    for (const seed of seeds) {
+      for (const [a, b] of mission.edges) {
+        if (a === seed) neighbors.add(b);
+        if (b === seed) neighbors.add(a);
+      }
     }
-    return s;
-  }
 
-  function scan(target) {
-    if (!target) {
-      const candidates = new Set();
-      for (const owned of state.ownedNodes) {
-        for (const [a, b] of mission.edges) {
-          if (a === owned && !state.discoveredNodes.has(b)) candidates.add(b);
-          if (b === owned && !state.discoveredNodes.has(a)) candidates.add(a);
-        }
-      }
+    const undiscovered = [...neighbors].filter((id) => !state.discoveredNodes.has(id)).sort();
+    const discovered = [...neighbors].filter((id) => state.discoveredNodes.has(id)).sort();
 
-      if (candidates.size === 0) {
-        console.log("No adjacent undiscovered nodes found from your footholds.");
-        return 0;
-      }
-
-      console.log(`\n${tone("Adjacent hosts (run port sweep)", "bold")}`);
-      for (const id of [...candidates].sort()) {
-        console.log(
-          `- ${tone(id, "blue")}  (${tone("port sweep:", "dim")} ${tone(`scan ports ${id}`, "cyan")} ${tone(`(or scan ${id})`, "dim")})`,
-        );
-      }
+    if (neighbors.size === 0) {
+      console.log("No graph neighbors found from your footholds and current node.");
       return 0;
     }
 
+    if (undiscovered.length > 0) {
+      console.log(`\n${tone("Adjacent hosts (not fingerprinted yet — run port sweep)", "bold")}`);
+      for (const id of undiscovered) {
+        console.log(
+          `- ${tone(id, "blue")}  (${tone("port sweep:", "dim")} ${tone(`probe ${id}`, "cyan")})`,
+        );
+      }
+    }
+
+    if (discovered.length > 0) {
+      console.log(`\n${tone("Adjacent hosts (already discovered)", "bold")}`);
+      for (const id of discovered) {
+        console.log(
+          `- ${tone(id, "blue")}  (${tone("next:", "dim")} ${tone(`connect ${id}`, "cyan")} ${tone("from a node that shares an edge; then", "dim")} ${tone("enum", "cyan")})`,
+        );
+      }
+    }
+
+    if (undiscovered.length === 0) {
+      console.log(
+        tone(
+          "\nNo new hosts to probe on direct edges from your footholds / current node — listed hosts are already fingerprinted.",
+          "dim",
+        ),
+      );
+    }
+
+    return 0;
+  }
+
+  function probeTarget(target) {
     if (!nodeById.has(target)) {
       console.log("Unknown node id.");
       return 0;
     }
-    const canReach = reachableFromOwned(mission, state.ownedNodes, target);
+    const canReach = probeReachable(mission, state.ownedNodes, state.discoveredNodes, target);
     if (!canReach) {
       console.log("Target not adjacent to your foothold.");
       addTrace(2);
@@ -587,7 +664,7 @@ export function createMissionSession(mission, initialSnapshot = null) {
     }
     state.discoveredNodes.add(target);
     addTrace(1);
-    console.log(`${tone("Scan complete:", "green")} ${target} fingerprinted (routing + port sweep).`);
+    console.log(`${tone("Probe complete:", "green")} ${target} fingerprinted (routing + port sweep).`);
     printPortSweep(target, node(target));
 
     if (state.currentNode === target) {
@@ -595,15 +672,31 @@ export function createMissionSession(mission, initialSnapshot = null) {
     }
 
     if (isConnected(mission, state.currentNode, target)) {
-      console.log(`${tone("Route available:", "green")} connect ${tone(target, "blue")}`);
+      const hop = connectHopBlocked(state.currentNode, target);
+      if (hop.blocked && hop.gate?.afterExploit) {
+        const g = hop.gate.afterExploit;
+        console.log(
+          `${tone("Edge exists, but connect is gated:", "yellow")} run ${tone(`exploit ${g.exploitId}`, "cyan")} on ${tone(g.node, "blue")} first — then ${tone(`connect ${target}`, "cyan")}.`,
+        );
+      } else {
+        console.log(`${tone("Route available:", "green")} connect ${tone(target, "blue")}`);
+      }
       return 1;
     }
 
     const via = [...state.ownedNodes].find((owned) => isConnected(mission, owned, target));
     if (via) {
-      console.log(
-        `${tone("Reachable via foothold:", "yellow")} connect ${tone(via, "blue")} -> connect ${tone(target, "blue")}`,
-      );
+      const hop = connectHopBlocked(via, target);
+      if (hop.blocked && hop.gate?.afterExploit) {
+        const g = hop.gate.afterExploit;
+        console.log(
+          `${tone("Foothold can reach this host, but that hop is gated:", "yellow")} complete ${tone(`exploit ${g.exploitId}`, "cyan")} on ${tone(g.node, "blue")} — then ${tone(`connect ${via}`, "cyan")} → ${tone(`connect ${target}`, "cyan")}.`,
+        );
+      } else {
+        console.log(
+          `${tone("Reachable via foothold:", "yellow")} connect ${tone(via, "blue")} -> connect ${tone(target, "blue")}`,
+        );
+      }
     }
     return 1;
   }
@@ -625,6 +718,18 @@ export function createMissionSession(mission, initialSnapshot = null) {
     if (state.currentNode === target) {
       console.log(`${tone("Connected to", "green")} ${tone(target, "blue")}`);
       return 0;
+    }
+    const gates = mission.connectGates ?? [];
+    const gate = gates.find((g) => g.from === state.currentNode && g.to === target);
+    if (gate?.afterExploit) {
+      const { node: gateNode, exploitId: gateExploit } = gate.afterExploit;
+      const key = `${gateNode}:${gateExploit}`;
+      if (!state.exploitGatesMet.has(key)) {
+        console.log(
+          `${tone("Link blocked.", "yellow")} Complete ${tone(`exploit ${gateExploit}`, "cyan")} on ${tone(gateNode, "blue")} first — the gateway will not accept your session until staging credentials exist.`,
+        );
+        return 0;
+      }
     }
     const fromId = state.currentNode;
     await connectRouteAnimation(fromId, target);
@@ -652,7 +757,13 @@ export function createMissionSession(mission, initialSnapshot = null) {
 
   function printEnumServices(n) {
     console.log(
-      `\n${tone(`Service / vuln mapping @ ${n.id}`, "bold")}  (${tone("on-host enum", "dim")})`,
+      `\n${tone(`On-host enumeration @ ${n.id}`, "bold")}  (${tone("session on this node — not a remote probe", "dim")})`,
+    );
+    console.log(
+      tone(
+        "Maps listeners to exploit ids and weakness classes. Use exploit <id> here; some paths need artifacts (cat/stash) or intel chains (e.g. SQL notes → DB credentials elsewhere).",
+        "dim",
+      ),
     );
     console.log(
       `${tone("PROTO", "dim")} ${tone("PORT", "dim")}  ${tone("SERVICE", "dim")}     ${tone("KNOWN WEAKNESS / CVE CLASS", "dim")}`,
@@ -713,9 +824,17 @@ export function createMissionSession(mission, initialSnapshot = null) {
       addTrace(2);
       return 2;
     }
+    const gateKey = `${n.id}:${exploitId}`;
     if (state.ownedNodes.has(n.id)) {
-      console.log("Node already compromised.");
-      return 0;
+      const staging = Boolean(service.stagingOnly);
+      if (!staging) {
+        console.log("Node already compromised.");
+        return 0;
+      }
+      if (state.exploitGatesMet.has(gateKey)) {
+        console.log("That staging step is already complete.");
+        return 0;
+      }
     }
 
     if (Array.isArray(service.requiresArtifacts) && service.requiresArtifacts.length > 0) {
@@ -732,12 +851,17 @@ export function createMissionSession(mission, initialSnapshot = null) {
 
     const risk = service.noise ?? 4;
     addTrace(risk);
-    state.ownedNodes.add(n.id);
+    state.exploitGatesMet.add(gateKey);
+    if (!state.ownedNodes.has(n.id)) {
+      state.ownedNodes.add(n.id);
+    }
     const ref = (service.vulnRef ?? service.vulnerability ?? "").slice(0, 64);
     const refBit = ref ? ` ${tone(`— ${ref}`, "dim")}` : "";
-    console.log(
-      `${tone("Exploit succeeded.", "green")} ${service.name}:${service.port}/${serviceProtocol(service)} on ${n.id} (owned).${refBit}`,
-    );
+    const staging = Boolean(service.stagingOnly);
+    const outcome = staging
+      ? `${tone("Exploit succeeded.", "green")} Staging ${service.name}:${service.port}/${serviceProtocol(service)} on ${n.id} — gateway hop authorized.${refBit}`
+      : `${tone("Exploit succeeded.", "green")} ${service.name}:${service.port}/${serviceProtocol(service)} on ${n.id} (owned).${refBit}`;
+    console.log(outcome);
     if (exploitId === "misconfig-copy") {
       console.log(
         tone(
@@ -745,6 +869,13 @@ export function createMissionSession(mission, initialSnapshot = null) {
           "dim",
         ),
       );
+      const need = mission.objective?.exfilFiles ?? [];
+      if (need.length > 0) {
+        const first = need[0];
+        console.log(
+          `${tone("Next step:", "yellow")} ${tone(`exfil ${first}`, "cyan")} ${tone("(pull evidence to your rig), then", "dim")} ${tone("submit", "cyan")} ${tone("to finish the objective.", "dim")}`,
+        );
+      }
     }
     notifyBell();
     return risk;
@@ -895,13 +1026,40 @@ export function createMissionSession(mission, initialSnapshot = null) {
         showMap();
         break;
       case "scan": {
-        const scanTarget = normalizeScanArg(arg);
-        if (scanTarget) {
-          await loading(`Port sweep ${scanTarget}...`, 220);
-        } else {
-          await loading("Sweeping adjacent targets...", 260);
+        const raw = String(arg ?? "").trim();
+        const lower = raw.toLowerCase();
+        if (lower.startsWith("ports ")) {
+          const host = raw.slice(6).trim();
+          if (host) {
+            console.log(
+              `${tone("Use ", "dim")}${tone(`probe ${host}`, "cyan")} ${tone("(remote port sweep — enum after connect for exploit ids)", "dim")}`,
+            );
+          } else {
+            console.log(`Usage: ${tone("probe <host>", "cyan")} — remote port sweep (no exploit ids).`);
+          }
+          risk = 0;
+          break;
         }
-        risk = scan(scanTarget);
+        if (raw) {
+          console.log(
+            `${tone("Usage:", "dim")} ${tone("scan", "cyan")} — list adjacent hosts (no arguments). ${tone("probe <host>", "cyan")} — remote port sweep.`,
+          );
+          risk = 0;
+          break;
+        }
+        await loading("Sweeping adjacent targets...", 260);
+        risk = listAdjacentHosts();
+        break;
+      }
+      case "probe": {
+        const host = String(arg ?? "").trim();
+        if (!host) {
+          console.log(`Usage: ${tone("probe <host>", "cyan")} — remote port sweep (enum after connect for exploit ids).`);
+          risk = 0;
+          break;
+        }
+        await loading(`Port sweep ${host}...`, 220);
+        risk = probeTarget(host);
         break;
       }
       case "connect":
@@ -1014,6 +1172,12 @@ export function createMissionSession(mission, initialSnapshot = null) {
           return !discovered.has(s.nodeId);
         case "enum_here":
           return !enumeratedHere;
+        case "enum_on_node":
+          return !state.enumerated.has(`${s.nodeId}:enum`);
+        case "gate_met":
+          return !state.exploitGatesMet.has(`${s.gate.node}:${s.gate.exploitId}`);
+        case "not_on_node":
+          return state.currentNode !== s.nodeId;
         case "own_node":
           return !owned.has(s.nodeId);
         case "exfil":
@@ -1034,6 +1198,9 @@ export function createMissionSession(mission, initialSnapshot = null) {
     if (next.title) lines.push(tone(next.title, "bold"));
     if (next.text) lines.push(...wrap(next.text, textWrapWidth()));
     const dynamicSuggest = (() => {
+      if (next.when === "not_on_node" && next.nodeId) {
+        return `connect ${next.nodeId}`;
+      }
       if (next.when !== "own_node" || !next.nodeId) return null;
 
       const targetNode = next.nodeId;
@@ -1063,7 +1230,7 @@ export function createMissionSession(mission, initialSnapshot = null) {
       if (state.currentNode !== next.nodeId) {
         lines.push(
           ...wrap(
-            `You scanned ${next.nodeId}, but you're still on ${state.currentNode}. Use connect to move, then enum/exploit once you're there.`,
+            `You discovered ${next.nodeId} (e.g. via probe), but you're still on ${state.currentNode}. Use connect to move, then enum/exploit once you're there.`,
             textWrapWidth(),
           ),
         );
@@ -1088,6 +1255,7 @@ export function createMissionSession(mission, initialSnapshot = null) {
       lastArg: state.lastArg,
       finished: state.finished,
       result: state.result,
+      exploitGatesMet: [...state.exploitGatesMet],
     };
   }
 

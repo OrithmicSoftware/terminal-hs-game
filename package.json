@@ -1,10 +1,28 @@
 {
-  "name": "hacker-terminal-game",
+  "name": "terminal-hs-game",
   "version": "0.1.0-alpha.1",
-  "description": "Fictional terminal hacking campaign (safe, educational)",
+  "description": "Fictional terminal hacking campaign (safe, educational). CLI + browser alpha.",
   "type": "module",
   "private": true,
   "license": "MIT",
+  "author": "Orithmic Software (https://github.com/OrithmicSoftware)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OrithmicSoftware/terminal-hs-game.git"
+  },
+  "bugs": {
+    "url": "https://github.com/OrithmicSoftware/terminal-hs-game/issues"
+  },
+  "homepage": "https://github.com/OrithmicSoftware/terminal-hs-game#readme",
+  "keywords": [
+    "terminal",
+    "game",
+    "cli",
+    "campaign",
+    "hacking-simulation",
+    "educational",
+    "browser-game"
+  ],
   "engines": {
     "node": ">=18"
   },
@@ -12,12 +30,7 @@
     "start": "node game.mjs",
     "game": "node game.mjs",
     "web:dev": "npm run dev --prefix web",
-    "web:build": "npm run build --prefix web"
-  },
-  "keywords": [
-    "terminal",
-    "game",
-    "cli",
-    "campaign"
-  ]
+    "web:build": "npm run build --prefix web",
+    "test:e2e": "npm run test:e2e --prefix web"
+  }
 }
