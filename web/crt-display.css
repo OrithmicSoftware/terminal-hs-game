@@ -1,0 +1,253 @@
+/**
+ * CRT-style display options (web approximation of cool-retro-term–style cathode look).
+ * Classes on <html>: crt-theme-*, crt-fx-* — toggled from main.js + localStorage.
+ */
+
+/* —— Theme presets (ANSI-ish colors remapped per phosphor) —— */
+
+html.crt-theme-amber {
+  --text: #e9d5b8;
+  --dim: #8f7a5c;
+  --green: #ffb84a;
+  --cyan: #ffd080;
+  --magenta: #ff9ec8;
+  --yellow: #ffe08a;
+  --red: #ff8a7a;
+  --blue: #9ec8ff;
+  --panel: #140f0a;
+  --bg: #0a0805;
+  --wallpaper-overlay: linear-gradient(
+    180deg,
+    rgba(18, 10, 4, 0.82) 0%,
+    rgba(12, 8, 4, 0.88) 45%,
+    rgba(6, 4, 2, 0.92) 100%
+  );
+}
+
+html.crt-theme-ibm {
+  --text: #c0c0c0;
+  --dim: #6a7a8a;
+  --green: #55ff55;
+  --cyan: #55ffff;
+  --magenta: #ff55ff;
+  --yellow: #ffff55;
+  --red: #ff5555;
+  --blue: #5555ff;
+  --panel: #00007a;
+  --bg: #00002a;
+  --wallpaper-overlay: linear-gradient(
+    180deg,
+    rgba(0, 0, 50, 0.85) 0%,
+    rgba(0, 0, 40, 0.9) 50%,
+    rgba(0, 0, 28, 0.94) 100%
+  );
+}
+
+html.crt-theme-ibm .term-wrap {
+  border-color: #3a5aaa;
+  box-shadow: 0 0 0 1px #1a2a6a, 0 12px 40px rgba(0, 0, 0, 0.55);
+}
+
+html.crt-theme-ibm #cmd {
+  background: #000052;
+  border-color: #3a5aaa;
+  color: var(--text);
+}
+
+html.crt-theme-amber .term-wrap {
+  border-color: #4a3820;
+}
+
+/* —— Terminal frame: effects stack on #term-wrap —— */
+
+#term-wrap {
+  position: relative;
+  isolation: isolate;
+}
+
+/* Scanlines (horizontal CRT raster) */
+html.crt-fx-scanlines #term-wrap::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: inherit;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 1px,
+    rgba(0, 0, 0, 0.18) 1px,
+    rgba(0, 0, 0, 0.18) 2px
+  );
+  mix-blend-mode: multiply;
+  opacity: 0.55;
+}
+
+/* Subtle rolling bar (very light, cool-retro-term–like) */
+html.crt-fx-scanlines.crt-fx-flicker #term-wrap::before {
+  animation: hktm-crt-scan-drift 6s linear infinite;
+}
+
+@keyframes hktm-crt-scan-drift {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(4px);
+  }
+}
+
+/* Film grain / CRT noise */
+html.crt-fx-grain #term-wrap::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  border-radius: inherit;
+  opacity: 0.07;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+  mix-blend-mode: overlay;
+}
+
+/* Phosphor bloom on glyph edges */
+html.crt-fx-bloom .term {
+  text-shadow:
+    0 0 3px color-mix(in srgb, var(--green) 35%, transparent),
+    0 0 8px color-mix(in srgb, var(--green) 12%, transparent);
+}
+
+html.crt-fx-bloom.crt-theme-amber .term {
+  text-shadow:
+    0 0 3px color-mix(in srgb, var(--green) 40%, transparent),
+    0 0 10px color-mix(in srgb, #ffb84a 15%, transparent);
+}
+
+html.crt-fx-bloom.crt-theme-ibm .term {
+  text-shadow:
+    0 0 2px color-mix(in srgb, var(--green) 45%, transparent),
+    0 0 6px color-mix(in srgb, #55ff55 12%, transparent);
+}
+
+/* Screen brightness flicker */
+html.crt-fx-flicker #term-wrap {
+  animation: hktm-crt-flicker 0.12s steps(2) infinite;
+}
+
+@keyframes hktm-crt-flicker {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.97;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.crt-fx-flicker #term-wrap {
+    animation: none;
+  }
+  html.crt-fx-scanlines.crt-fx-flicker #term-wrap::before {
+    animation: none;
+  }
+}
+
+/* —— Settings dialog —— */
+
+.hktm-crt-dialog {
+  max-width: min(22rem, 92vw);
+  padding: 0;
+  border: 1px solid #2a4a38;
+  border-radius: 8px;
+  background: rgba(8, 14, 10, 0.97);
+  color: var(--text);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.65);
+}
+
+.hktm-crt-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.hktm-crt-dialog-inner {
+  padding: 1rem 1.1rem 1.1rem;
+  font-family: var(--font);
+}
+
+.hktm-crt-dialog-inner h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  letter-spacing: 0.06em;
+  color: var(--green);
+}
+
+.hktm-crt-hint {
+  margin: 0 0 0.85rem;
+  font-size: 0.78rem;
+  color: var(--dim);
+  line-height: 1.35;
+}
+
+.hktm-crt-hint a {
+  color: var(--cyan);
+}
+
+.hktm-crt-field {
+  margin-bottom: 0.65rem;
+}
+
+.hktm-crt-field label {
+  display: block;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--dim);
+  margin-bottom: 0.25rem;
+}
+
+.hktm-crt-field select {
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  font-family: inherit;
+  font-size: 0.85rem;
+  background: #050807;
+  border: 1px solid #1f3328;
+  color: var(--text);
+  border-radius: 4px;
+}
+
+html.crt-theme-ibm .hktm-crt-field select {
+  background: #000052;
+  border-color: #3a5aaa;
+}
+
+.hktm-crt-checks {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0.75rem 0 0.85rem;
+}
+
+.hktm-crt-checks label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.82rem;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.hktm-crt-checks input {
+  accent-color: var(--green);
+}
+
+.hktm-crt-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.hktm-crt-actions .ghost {
+  font-size: 0.82rem;
+}

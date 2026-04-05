@@ -1,6 +1,15 @@
+import { execSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
+
+function getGitVersion() {
+  try {
+    return execSync("git describe --always --dirty", { encoding: "utf8" }).trim();
+  } catch {
+    return "unknown";
+  }
+}
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 const srcDir = path.resolve(rootDir, "../src");
@@ -22,6 +31,13 @@ export default defineConfig({
     },
   },
   plugins: [
+    {
+      name: "hktm-git-version-html",
+      transformIndexHtml(html) {
+        const v = getGitVersion();
+        return html.replace(/%HKTM_GIT_VERSION%/g, v);
+      },
+    },
     {
       name: "hktm-engine-import-shims",
       enforce: "pre",

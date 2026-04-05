@@ -26,3 +26,18 @@ export function meter(current, max) {
   const color = ratio >= 0.8 ? "red" : ratio >= 0.5 ? "yellow" : "green";
   return tone(`[${bar}] ${current}/${max}`, color);
 }
+
+const NODE_IDS = new Set(["local", "gw-edge", "app-api", "db-core"]);
+
+const TERM_RE =
+  /ShadowNet\s+IM|ShadowNet|Orion(?:·INT)?|SMTP|SSH|SOC|CVE-[0-9-]+/g;
+
+/** @see colors.mjs */
+export function highlightCommandHints(text) {
+  if (!text || typeof text !== "string") return text;
+  const cmdRe =
+    /info\s+(?:[a-z0-9_-]+|<[^>\n]+>)|compose\s+mail|sendmail|exploit\s+(?:[a-z0-9_-]+|<[^>\n]+>)|connect\s+[a-z0-9_-]+|probe\s+[a-z0-9_-]+|mail\s+list|mail\s+read\s+\S+|chat\s+close|enum(?:\s+(?:-f|--force))?|exfil\s+\S+|cat\s+\/[^\s]+|\bcat\b|sql\s+demo|sql\s+translate|\/brief|\/exit|(?:submit|help|tutorial|scan|stash|clear|status|map|cover|spoof|laylow|quit|chat|retry)\b|local\b|gw-edge|app-api|db-core/gi;
+  let out = text.replace(cmdRe, (m) => tone(m, NODE_IDS.has(m.toLowerCase()) ? "blue" : "cyan"));
+  out = out.replace(TERM_RE, (m) => tone(m, "magenta"));
+  return out;
+}

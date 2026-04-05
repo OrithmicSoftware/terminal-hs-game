@@ -11,22 +11,79 @@ import {
   boxEnterPaged,
   setPagerHooks,
   clearTerminalScreen,
+  drainStdinSync,
   waitForEnterContinue,
+  waitForEnterContinueRaw,
   setWaitEnterContinueImpl,
+  setWaitChoiceImpl,
+  logScreenStep,
 } from "./src/ui.mjs";
-import { tone } from "./src/colors.mjs";
+import { tone, highlightCommandHints } from "./src/colors.mjs";
 import { setLanguage, t } from "./src/i18n.mjs";
+import { createInitialCampaignState, ensureCampaignConsistency } from "./src/campaign-state.mjs";
+import { BOOT_RENDER_CPS } from "./src/boot-constants.mjs";
+import { getInitialGateMessages, getMissionBriefChatMessages } from "./src/client-chat.mjs";
+import { resolveContactAlias } from "./src/contact-alias.mjs";
+import { runTerminalIntroSequence, runTerminalLoadingSequence } from "./src/terminal-boot-cli.mjs";
+import { animSleep } from "./src/anim-sleep-core.mjs";
+import { readLineWithGhostDefault } from "./src/terminal-readline-ghost.mjs";
+import { CHECKPOINT_IDS, formatCheckpointListForCli } from "./src/checkpoints.mjs";
 
-/** Boot banner/splash: turbo (≥20k) so intro draws line-at-once — ~2×+ faster than 2200 CPS crawl. */
-const BOOT_RENDER_CPS = 20000;
+/** `--checkpoint splash|operator-survey` match cold start (first clear label differs). `--checkpoint kernel-loading` skips splash and lands on faux kernel loading. */
+const BOOT_INTRO_CHECKPOINTS = new Set(["splash", "operator-survey", "kernel-loading"]);
+import { DEFAULT_OPERATOR_REGION_ID } from "./src/operator-regions.mjs";
+import { generateOperatorNickname } from "./src/operator-nickname.mjs";
+import { installRuntimeStepLogFromEnv } from "./src/debug-step-runtime-log.mjs";
+
+installRuntimeStepLogFromEnv();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const missionPath = path.join(__dirname, "missions", "m1-ghost-proxy.json");
-const campaignSavePath = path.join(__dirname, "campaign-save.json");
+/** Override for CI / CLI E2E (`test/cli-e2e.test.mjs`). Default: repo-root `campaign-save.json`. */
+const campaignSavePath = process.env.HKTM_CAMPAIGN_SAVE_PATH
+  ? path.resolve(process.env.HKTM_CAMPAIGN_SAVE_PATH)
+  : path.join(__dirname, "campaign-save.json");
 
-function clearTerminal() {
-  clearTerminalScreen();
+function parseCliOptions(argv) {
+  /** @type {{ checkpoint: string | null }} */
+  const opts = { checkpoint: null };
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = String(argv[i] ?? "");
+    if (arg === "--checkpoint") {
+      const next = String(argv[i + 1] ?? "").trim();
+      if (!next) {
+        throw new Error(`Missing value for --checkpoint.\n${formatCheckpointListForCli()}`);
+      }
+      i += 1;
+      if (!CHECKPOINT_IDS.has(next)) {
+        throw new Error(`Unsupported checkpoint: ${next}\n${formatCheckpointListForCli()}`);
+      }
+      opts.checkpoint = next;
+      continue;
+    }
+    if (arg.startsWith("--checkpoint=")) {
+      const value = arg.slice("--checkpoint=".length).trim();
+      if (!value) {
+        throw new Error(`Missing value for --checkpoint.\n${formatCheckpointListForCli()}`);
+      }
+      if (!CHECKPOINT_IDS.has(value)) {
+        throw new Error(`Unsupported checkpoint: ${value}\n${formatCheckpointListForCli()}`);
+      }
+      opts.checkpoint = value;
+      continue;
+    }
+  }
+  return opts;
+}
+
+const cliOptions = parseCliOptions(process.argv.slice(2));
+const startupCheckpoint = cliOptions.checkpoint;
+const composeMailCheckpoint = startupCheckpoint === "compose-mail";
+const composeMailReadyCheckpoint = startupCheckpoint === "compose-mail-ready";
+
+function clearTerminal(stepName) {
+  clearTerminalScreen(stepName);
 }
 
 /** Clear before handling input only when the command is recognized (unknown keeps scrollback). */
@@ -46,11 +103,15 @@ function shouldClearScreen(line) {
     "tutorial on",
     "tutorial off",
     "quit",
-    "campaign",
     "retry",
+    "next",
+    "continue",
+    "next mission",
   ]);
   if (campaignExact.has(lower)) return true;
   const [a] = lower.split(/\s+/);
+  /* `info` logs its own [STEP … type=log] + pause; skip pre-command clear so HKTM_DEBUG is not noisy. */
+  if (a === "info") return false;
   const mission = new Set([
     "help",
     "clear",
@@ -70,7 +131,11 @@ function shouldClearScreen(line) {
     "spoof",
     "laylow",
     "sql",
+    "mail",
+    "sendmail",
+    "compose",
     "submit",
+    "/brief",
     "tutorial",
     "quit",
   ]);
@@ -81,7 +146,6 @@ function shouldClearScreen(line) {
 const STATIC_TAB_COMMANDS = [
   "beep off",
   "beep on",
-  "campaign",
   "cat",
   "clear",
   "connect",
@@ -96,6 +160,17 @@ const STATIC_TAB_COMMANDS = [
   "laylow",
   "ls",
   "map",
+  "mail",
+  "mail list",
+  "compose mail",
+  "sendmail",
+  "next",
+  "continue",
+  "next mission",
+  "info chat",
+  "chat",
+  "chat close",
+  "/brief",
   "quit",
   "reset",
   "retry",
@@ -153,26 +228,9 @@ const handcraftedMission = JSON.parse(fs.readFileSync(missionPath, "utf8"));
 const proceduralMissions = generateProceduralMissions(5);
 const campaign = [handcraftedMission, ...proceduralMissions];
 
-function createInitialCampaignState() {
-  return {
-    schemaVersion: 2,
-    currentMissionIndex: 0,
-    tutorialEnabled: true,
-    language: "en",
-    uiMode: "pip",
-    typing: true,
-    beep: false,
-    missions: campaign.map((m) => ({
-      missionId: m.id,
-      status: "locked",
-      snapshot: null,
-    })),
-  };
-}
-
 function loadCampaignState() {
   if (!fs.existsSync(campaignSavePath)) {
-    const fresh = createInitialCampaignState();
+    const fresh = createInitialCampaignState(campaign);
     fresh.missions[0].status = "active";
     return fresh;
   }
@@ -182,7 +240,7 @@ function loadCampaignState() {
     if (!Array.isArray(parsed.missions)) throw new Error("bad save");
     return parsed;
   } catch {
-    const fresh = createInitialCampaignState();
+    const fresh = createInitialCampaignState(campaign);
     fresh.missions[0].status = "active";
     return fresh;
   }
@@ -190,29 +248,6 @@ function loadCampaignState() {
 
 function saveCampaignState(state) {
   fs.writeFileSync(campaignSavePath, JSON.stringify(state, null, 2), "utf8");
-}
-
-function ensureCampaignConsistency(state) {
-  if (!state.missions || state.missions.length !== campaign.length) {
-    return createInitialCampaignState();
-  }
-  if (state.currentMissionIndex < 0 || state.currentMissionIndex >= campaign.length) {
-    state.currentMissionIndex = 0;
-  }
-  for (let i = 0; i < state.missions.length; i += 1) {
-    if (!state.missions[i].status) state.missions[i].status = i === 0 ? "active" : "locked";
-  }
-  if (typeof state.tutorialEnabled !== "boolean") state.tutorialEnabled = true;
-  // v1 saves defaulted language to ru; migrate to English UI (schema v2).
-  if (typeof state.schemaVersion !== "number" || state.schemaVersion < 2) {
-    state.schemaVersion = 2;
-    state.language = "en";
-  }
-  if (!state.language) state.language = "en";
-  if (!state.uiMode) state.uiMode = "pip";
-  if (typeof state.typing !== "boolean") state.typing = true;
-  if (typeof state.beep !== "boolean") state.beep = false;
-  return state;
 }
 
 function computeFrameWidth(uiMode) {
@@ -233,7 +268,7 @@ function applyUi(state) {
     typing: state.typing,
     beep: state.beep,
     width: computeFrameWidth(state.uiMode),
-    // ≥20000 → full-line turbo in ui.typeLine (snappy mission output; avoids slow per-char boxes).
+    // ≥20k → full-line turbo in ui.typeLine (snappy mission output; avoids slow per-char boxes).
     cps: state.uiMode === "pip" ? 24000 : 22000,
   });
 }
@@ -284,7 +319,6 @@ async function showSplash(state) {
     `${tone(`${t("typing_label")}:`, "magenta")} ${state.typing ? tone(t("on"), "green") : tone(t("off"), "yellow")}  (${tone("typing on/off", "cyan")})`,
     `${tone(`${t("beep_label")}:`, "magenta")} ${state.beep ? tone(t("on"), "green") : tone(t("off"), "yellow")}  (${tone("beep on/off", "cyan")})`,
     `${tone(`${t("tutorial_label")}:`, "magenta")} ${state.tutorialEnabled ? tone(t("on"), "green") : tone(t("off"), "yellow")}  (${tone("tutorial on/off", "cyan")})`,
-    `${tone(`${t("campaign_board_label")}:`, "magenta")} ${tone("campaign", "cyan")}`,
     `${tone(`${t("quit_label")}:`, "magenta")} ${tone("quit", "cyan")}`,
     "",
     ...wrap(t("screen_help"), contentW),
@@ -295,35 +329,105 @@ async function showSplash(state) {
     lines,
     computeFrameWidth(state.uiMode),
     t("boot_pager_hint"),
+    "boot-splash",
   );
 }
 
-function printCampaignSummary(state) {
-  console.log(`\n=== ${t("campaign_ops_board")} ===`);
-  campaign.forEach((m, i) => {
-    const marker = i === state.currentMissionIndex ? " <current>" : "";
-    console.log(`${i + 1}. ${m.title} [${state.missions[i].status}]${marker}`);
+function printOperationFooter(state) {
+  const cur = campaign[state.currentMissionIndex];
+  console.log(`\n${tone(t("current_operation"), "bold")} ${tone(cur.title, "green")}`);
+  console.log("");
+  console.log(`${tone(">", "dim")} ${t("save_path")}: ${campaignSavePath}`);
+  console.log(`${tone(">", "dim")} ${t("controls_line")}`);
+}
+
+function printIncomingMessageHint() {
+  console.log("");
+  console.log(
+    `${tone("You have 1 incoming message.", "green")} Type ${tone("chat", "cyan")} to open ${tone("ShadowNet IM", "magenta")}. See ${tone("info chat", "cyan")} for details.`,
+  );
+  console.log("");
+}
+
+function printMissionBriefTerminal(state, mission) {
+  const lines = getMissionBriefChatMessages(mission, {
+    missionIndex: state.currentMissionIndex,
+    missionTotal: campaign.length,
   });
-  console.log(`${t("save_path")}: ${campaignSavePath}`);
-  console.log(t("controls_line"));
+  const w = Math.max(40, computeFrameWidth(state.uiMode) - 4);
+  console.log("");
+  for (const line of lines) {
+    for (const row of wrap(line, w)) {
+      console.log(`${tone("[brief]", "cyan")} ${tone(row, "yellow")}`);
+    }
+  }
+  console.log("");
 }
 
 function activateMission(state, missionIndex) {
   const mission = campaign[missionIndex];
   const missionState = state.missions[missionIndex];
   missionState.status = missionState.status === "completed" ? "completed" : "active";
-  const session = createMissionSession(mission, missionState.snapshot);
+  const alias = resolveContactAlias(state.contactAliasSeed);
+  globalThis.__HKTM_CONTACT_ALIAS = alias;
+  const session = createMissionSession(mission, missionState.snapshot, {
+    contactAliasSeed: state.contactAliasSeed,
+    missionIndex,
+    missionTotal: campaign.length,
+    composeMailReadyCheckpoint,
+    afterInfoRestore: async (runDefaultRestore) => {
+      if (!chatGatePending) {
+        await runDefaultRestore();
+        return;
+      }
+      if (process.stdout.isTTY) {
+        clearTerminalScreen("post-splash");
+      } else {
+        console.log("\n".repeat(20));
+        logScreenStep("post-splash");
+      }
+      await runTerminalLoadingSequence();
+      printIncomingMessageHint();
+    },
+  });
   return { mission, session };
 }
 
 let campaignState = loadCampaignState();
 const schemaBefore = campaignState.schemaVersion;
-campaignState = ensureCampaignConsistency(campaignState);
+campaignState = ensureCampaignConsistency(campaignState, campaign);
 if (schemaBefore !== campaignState.schemaVersion) {
   saveCampaignState(campaignState);
 }
+if (startupCheckpoint) {
+  // Checkpoints start from a deterministic fresh mission state, independent of any prior save.
+  campaignState = createInitialCampaignState(campaign);
+  campaignState.missions[0].status = "active";
+  campaignState.currentMissionIndex = 0;
+  if (startupCheckpoint === "mission-shell" || startupCheckpoint === "chat-gate") {
+    campaignState.operatorRegionId = DEFAULT_OPERATOR_REGION_ID;
+    campaignState.operatorCodename = generateOperatorNickname();
+    campaignState.seenTerminalBoot = true;
+  }
+  if (startupCheckpoint === "kernel-loading") {
+    campaignState.operatorRegionId = DEFAULT_OPERATOR_REGION_ID;
+    campaignState.operatorCodename = generateOperatorNickname();
+  }
+}
 setLanguage(campaignState.language);
 applyUi(campaignState);
+
+function applyOperatorProfileFromState(state) {
+  const cid = String(state?.operatorCodename ?? "").trim();
+  const rid = String(state?.operatorRegionId ?? "").trim();
+  if (cid && rid) {
+    globalThis.__HKTM_PROFILE = { codename: cid, regionId: rid };
+  } else {
+    globalThis.__HKTM_PROFILE = undefined;
+  }
+}
+
+applyOperatorProfileFromState(campaignState);
 let { mission, session } = activateMission(campaignState, campaignState.currentMissionIndex);
 
 const rl = readline.createInterface({
@@ -333,27 +437,97 @@ const rl = readline.createInterface({
   completer: createTabCompleter(() => mission),
 });
 
-/** Readline `line` wait for boot (replaces raw keypress; fixes Windows/Cursor early exit). */
-let bootEnterResolver = null;
+/** When true, the main `rl.on("line")` handler yields to the choice listener. */
+let choicePending = false;
 
-function waitForBootEnterLine(footerHint = "") {
+setWaitChoiceImpl((footerHint, max = 3) => {
   return new Promise((resolve) => {
     if (!process.stdin.isTTY) {
-      resolve();
+      resolve(1);
       return;
     }
     if (footerHint) console.log(tone(footerHint, "dim"));
-    bootEnterResolver = resolve;
+    choicePending = true;
+    const one = (line) => {
+      const n = parseInt(String(line).trim(), 10);
+      if (n >= 1 && n <= max) {
+        choicePending = false;
+        try {
+          rl.pause();
+        } catch {
+          /* ignore */
+        }
+        resolve(n);
+      } else {
+        console.log(tone(`Invalid — enter a number from 1 to ${max}.`, "yellow"));
+        rl.once("line", one);
+      }
+    };
     try {
       rl.resume();
     } catch {
       /* ignore */
     }
+    rl.once("line", one);
+  });
+});
+
+/** One-shot line capture for operator region/codename (same rl as mission shell). */
+let operatorLineResolver = null;
+
+/**
+ * Pause readline and wait for Enter in raw mode so Space is not buffered as line input
+ * (Space stays available for animation turbo only).
+ */
+async function waitForBootEnterLine(footerHint = "") {
+  await waitForEnterContinueRaw(footerHint, { readlineInterface: rl });
+}
+
+function readLineForSetup(prompt) {
+  return new Promise((resolve) => {
+    operatorLineResolver = (line) => {
+      operatorLineResolver = null;
+      try {
+        rl.pause();
+      } catch {
+        /* ignore */
+      }
+      resolve(String(line ?? ""));
+    };
     try {
-      process.stdin.ref();
+      rl.resume();
     } catch {
       /* ignore */
     }
+    rl.setPrompt(prompt ? tone(prompt, "cyan") : tone("> ", "green"));
+    rl.prompt();
+  });
+}
+
+/**
+ * Ghost default (gray) + shared readline: pause rl, resume stdin, noop rl._ttyWrite while editing.
+ * @param {string} promptPlain
+ * @param {string} ghostDefault
+ * @param {{ maxLen?: number }} [options]
+ */
+function readLineForSetupGhost(promptPlain, ghostDefault, options = {}) {
+  return readLineWithGhostDefault(promptPlain, ghostDefault, {
+    maxLen: options.maxLen ?? 32,
+    readlineInterface: rl,
+    pause: () => {
+      try {
+        rl.pause();
+      } catch {
+        /* ignore */
+      }
+    },
+    resume: () => {
+      try {
+        rl.resume();
+      } catch {
+        /* ignore */
+      }
+    },
   });
 }
 
@@ -390,6 +564,14 @@ if (process.env.HKTM_QA) {
 
 let appClosing = false;
 let rlClosed = false;
+/** False until `finishMainShellAndQaHints` — drops stray buffered `line` events during boot (avoids accidental `quit`, etc.). */
+let bootComplete = false;
+
+/** When set, `line` events route here (Client gate before handler brief). */
+let chatLineConsumer = null;
+
+/** True until the player runs `chat` for the first time on a cold mission-1 start. */
+let chatGatePending = false;
 
 rl.on("close", () => {
   rlClosed = true;
@@ -414,12 +596,14 @@ async function moveToNextMission() {
       ({ mission, session } = activateMission(campaignState, campaignState.currentMissionIndex));
       console.log(`\n${t("next_mission_unlocked")}\n`);
       await runBootRender(campaignState, async () => {
+        clearTerminal("next-mission-banner");
         await session.printBanner();
-        await waitForEnterContinue(t("press_enter_continue"));
       });
-      printCampaignSummary(campaignState);
-      session.showMap();
-      session.showStatus();
+      if (process.stdin.isTTY) {
+        drainStdinSync();
+        await waitForEnterContinue(t("press_enter_continue"));
+      }
+      printOperationFooter(campaignState);
     } else {
       console.log(`\n${t("campaign_complete")}`);
       appClosing = true;
@@ -427,7 +611,7 @@ async function moveToNextMission() {
     }
   } else if (currentMissionState.snapshot.result === "failed") {
     currentMissionState.status = "failed";
-    console.log(`\n${t("mission_failed_retry")}`);
+    console.log(`\n${highlightCommandHints(t("mission_failed_retry"))}`);
   } else if (currentMissionState.snapshot.result === "aborted") {
     console.log(`\n${t("session_aborted")}`);
     appClosing = true;
@@ -436,23 +620,258 @@ async function moveToNextMission() {
   saveCampaignState(campaignState);
 }
 
+function shouldRunTerminalClientChatGate() {
+  if (startupCheckpoint === "mission-shell" || startupCheckpoint === "mission-complete-m1") return false;
+  if (startupCheckpoint === "chat-gate") {
+    if (!process.stdin.isTTY) return false;
+    if (process.env.HKTM_QA === "1" || process.env.HKTM_QA === "2") return false;
+    if (process.env.HKTM_SKIP_CHAT_GATE === "1") return false;
+    return true;
+  }
+  if (startupCheckpoint) return false;
+  if (campaignState.currentMissionIndex !== 0) return false;
+  if (campaignState.missions[0]?.snapshot) return false;
+  if (!process.stdin.isTTY) return false;
+  if (process.env.HKTM_QA === "1" || process.env.HKTM_QA === "2") return false;
+  if (process.env.HKTM_SKIP_CHAT_GATE === "1") return false;
+  return true;
+}
+
+/**
+ * Browser opens the Client drawer first; terminal mirrors with an inline chat until /exit.
+ */
+async function maybeTerminalClientChatGate() {
+  if (!shouldRunTerminalClientChatGate()) return;
+  await runTerminalClientChatGate();
+}
+
+function chatTypingDelay() {
+  return 600 + Math.random() * 500;
+}
+
+async function runTerminalClientChatGate() {
+  const codename =
+    globalThis.__HKTM_PROFILE?.codename ||
+    process.env.HKTM_CODENAME ||
+    process.env.USER ||
+    "operator";
+  const alias = resolveContactAlias(campaignState.contactAliasSeed);
+  const [line1, line2] = getInitialGateMessages(codename, alias);
+  const tag = alias.tag;
+  const w = Math.max(40, computeFrameWidth(campaignState.uiMode) - 4);
+  let briefShown = false;
+  const typingLabel = t("chat_typing");
+
+  const quickReplies = [
+    { key: "1", label: t("chat_reply_1_label"), text: t("chat_reply_1"), response: t("chat_reply_1_response"), used: false },
+    { key: "2", label: t("chat_reply_2_label"), text: t("chat_reply_2"), response: t("chat_reply_2_response"), used: false },
+    { key: "3", label: t("chat_reply_3_label"), text: t("chat_reply_3"), response: t("chat_reply_3_response"), used: false },
+  ];
+
+  function printReplies() {
+    console.log("");
+    console.log(tone(t("chat_quick_replies_header"), "dim"));
+    for (const r of quickReplies) {
+      if (r.used) {
+        console.log(`  ${tone(r.key, "dim")}  ${tone(r.label, "dim")}`);
+      } else {
+        console.log(`  ${tone(r.key, "green")}  ${tone(r.label, "cyan")}`);
+      }
+    }
+    console.log(`  ${tone("/brief", "green")}  ${tone("Mission brief", "yellow")}`);
+    console.log(`  ${tone("/exit", "green")}  ${tone("Close ShadowNet IM", "dim")}`);
+    console.log("");
+  }
+
+  const cmdRe = /(\/brief|\/exit|\bcompose mail\b|\binfo phishing\b|\binfo chat\b|\bmail list\b|\bchat\b)/g;
+  function chatLine(text) {
+    return String(text)
+      .split(cmdRe)
+      .map((seg, i) => (i % 2 === 1 ? tone(seg, "cyan") : tone(seg, "yellow")))
+      .join("");
+  }
+
+  async function showTypingIndicator() {
+    const prefix = `${tone(`[${tag}]`, "cyan")} `;
+    const indicator = `${prefix}${tone(`${typingLabel}...`, "dim")}`;
+    if (process.stdout.isTTY) {
+      process.stdout.write(indicator);
+      await animSleep(chatTypingDelay());
+      process.stdout.write("\r\x1b[2K");
+    } else {
+      console.log(indicator);
+      await animSleep(chatTypingDelay());
+    }
+  }
+
+  async function showTypingThenLine(text, color) {
+    const prefix = `${tone(`[${tag}]`, "cyan")} `;
+    await showTypingIndicator();
+    const colored = color === "chat" ? chatLine(text) : tone(text, color ?? "yellow");
+    console.log(`${prefix}${colored}`);
+  }
+
+  async function showTypingThenLines(textRows, color) {
+    if (!textRows.length) return;
+    const prefix = `${tone(`[${tag}]`, "cyan")} `;
+    await showTypingIndicator();
+    for (const row of textRows) {
+      const colored = color === "chat" ? chatLine(row) : tone(row, color ?? "yellow");
+      console.log(`${prefix}${colored}`);
+    }
+  }
+
+  async function printBriefInChat() {
+    const lines = getMissionBriefChatMessages(mission, {
+      missionIndex: campaignState.currentMissionIndex,
+      missionTotal: campaign.length,
+    });
+    const prefix = `${tone(`[${tag}]`, "cyan")} `;
+    await showTypingIndicator();
+    console.log(`${prefix}${chatLine("Uploading brief…")}`);
+    await animSleep(400);
+
+    const inner = w - 4;
+    const title = ` MISSION BRIEF — ${mission.title} `;
+    const top = tone(`┌${"─".repeat(w - 2)}┐`, "dim");
+    const hdr = tone(`├──${title}${"─".repeat(Math.max(0, w - 5 - title.length))}┤`, "dim");
+    const bot = tone(`└${"─".repeat(w - 2)}┘`, "dim");
+    console.log(top);
+    console.log(hdr);
+    for (const rawLine of lines) {
+      const rows = rawLine === "" ? [""] : wrap(rawLine, inner);
+      for (const row of rows) {
+        const pad = " ".repeat(Math.max(0, inner - row.length));
+        console.log(`${tone("│", "dim")} ${tone(row, "yellow")}${pad} ${tone("│", "dim")}`);
+      }
+    }
+    console.log(bot);
+    briefShown = true;
+  }
+
+  console.log("");
+  console.log(tone(`${tag} — ShadowNet IM`, "bold"));
+  console.log("");
+  await showTypingThenLine(line1, "chat");
+  await showTypingThenLine(line2, "chat");
+
+  printReplies();
+
+  function resumePrompt() {
+    if (!rlClosed) {
+      rl.setPrompt(tone(`${alias.handlePrompt}> `, "dim"));
+      rl.prompt();
+    }
+  }
+
+  return new Promise((resolve) => {
+    function onChatLine(raw) {
+      const msg = String(raw ?? "").trim();
+      const lower = msg.toLowerCase();
+
+      if (lower === "/exit" || lower === "exit") {
+        chatLineConsumer = null;
+        void (async () => {
+          if (briefShown) {
+            await showTypingThenLine(
+              `Brief's in your terminal. Start with compose mail — info phishing if you need the theory. — ${alias.signoff}`,
+              "chat",
+            );
+          } else {
+            await showTypingThenLine(
+              `Channel on standby. Type chat anytime to reopen. — ${alias.signoff}`,
+              "chat",
+            );
+          }
+          console.log("");
+          choicePending = true;
+          console.log(tone("Press Enter to continue.", "dim"));
+          rl.once("line", () => {
+            choicePending = false;
+            clearTerminal("chat-gate-exit");
+            try { rl.setPrompt(""); } catch { /* ignore */ }
+            try { rl.pause(); } catch { /* ignore */ }
+            resolve();
+          });
+        })();
+        return;
+      }
+
+      if (lower === "/brief") {
+        chatLineConsumer = null;
+        void (async () => {
+          console.log(`${tone("[YOU]", "magenta")} /brief`);
+          await printBriefInChat();
+          console.log("");
+          await showTypingThenLine(
+            `All yours. /exit when you're ready to move. — ${alias.signoff}`,
+            "chat",
+          );
+          printReplies();
+          chatLineConsumer = onChatLine;
+          resumePrompt();
+        })();
+        return;
+      }
+
+      const quick = quickReplies.find((r) => r.key === msg);
+      if (quick) {
+        chatLineConsumer = null;
+        void (async () => {
+          console.log(`${tone("[YOU]", "magenta")} ${quick.text}`);
+          quick.used = true;
+          if (quick.response) {
+            const rows = wrap(quick.response, w);
+            await showTypingThenLines(rows, "chat");
+          }
+          printReplies();
+          chatLineConsumer = onChatLine;
+          resumePrompt();
+        })();
+        return;
+      }
+
+      if (msg) {
+        console.log(`${tone("[YOU]", "magenta")} ${msg}`);
+      }
+      chatLineConsumer = null;
+      void (async () => {
+        await showTypingThenLine("Copy. ShadowNet IM only — keep trace down.", "dim");
+        chatLineConsumer = onChatLine;
+        resumePrompt();
+      })();
+    }
+
+    chatLineConsumer = onChatLine;
+    try { rl.resume(); } catch { /* ignore */ }
+    rl.setPrompt(tone(`${alias.handlePrompt}> `, "dim"));
+    rl.prompt();
+  });
+}
+
 rl.on("line", async (line) => {
   if (rlClosed) return;
-  if (bootEnterResolver) {
-    const r = bootEnterResolver;
-    bootEnterResolver = null;
-    try {
-      rl.pause();
-    } catch {
-      /* ignore */
+  if (choicePending) return;
+  if (operatorLineResolver) {
+    const fn = operatorLineResolver;
+    operatorLineResolver = null;
+    fn(line);
+    return;
+  }
+  if (!bootComplete && !chatLineConsumer) {
+    if (!line.trim()) {
+      if (!rlClosed) rl.prompt();
+      return;
     }
-    setImmediate(() => {
-      setImmediate(() => r());
-    });
+    if (!rlClosed) rl.prompt();
+    return;
+  }
+  if (chatLineConsumer) {
+    chatLineConsumer(line);
     return;
   }
   if (shouldClearScreen(line)) {
-    clearTerminal();
+    clearTerminal("command-clear");
   }
   const trimmed = line.trim().toLowerCase();
   if (trimmed === "ui pip") {
@@ -461,11 +880,8 @@ rl.on("line", async (line) => {
     saveCampaignState(campaignState);
     console.log(t("ui_set_pip"));
     await runBootRender(campaignState, async () => {
+      clearTerminal("ui-pip-banner");
       await session.printBanner();
-      await waitForEnterContinue(t("press_enter_continue"));
-      pauseReadlineForSplashTyping();
-      clearTerminal();
-      await showSplash(campaignState);
     });
     if (!rlClosed) rl.prompt();
     return;
@@ -477,11 +893,8 @@ rl.on("line", async (line) => {
     saveCampaignState(campaignState);
     console.log(t("ui_set_plain"));
     await runBootRender(campaignState, async () => {
+      clearTerminal("ui-plain-banner");
       await session.printBanner();
-      await waitForEnterContinue(t("press_enter_continue"));
-      pauseReadlineForSplashTyping();
-      clearTerminal();
-      await showSplash(campaignState);
     });
     if (!rlClosed) rl.prompt();
     return;
@@ -532,22 +945,33 @@ rl.on("line", async (line) => {
     if (fs.existsSync(campaignSavePath)) {
       fs.unlinkSync(campaignSavePath);
     }
-    campaignState = createInitialCampaignState();
+    campaignState = createInitialCampaignState(campaign);
     campaignState.missions[0].status = "active";
     applyUi(campaignState);
     saveCampaignState(campaignState);
     ({ mission, session } = activateMission(campaignState, campaignState.currentMissionIndex));
     console.log(`\n${t("campaign_reset")}\n`);
+    const resetGate = shouldRunTerminalClientChatGate();
     await runBootRender(campaignState, async () => {
-      await session.printBanner();
-      await waitForEnterContinue(t("press_enter_continue"));
-      pauseReadlineForSplashTyping();
-      clearTerminal();
-      await showSplash(campaignState);
+      clearTerminal("reset-intro");
+      await runTerminalIntroSequence({
+        campaignState,
+        save: () => saveCampaignState(campaignState),
+        readLine: readLineForSetup,
+        readLineGhost: readLineForSetupGhost,
+        campaignSavePath,
+      });
+      applyOperatorProfileFromState(campaignState);
+      if (resetGate) {
+        printIncomingMessageHint();
+      } else {
+        clearTerminal("reset-mission-banner");
+        await session.printBanner();
+      }
     });
-    printCampaignSummary(campaignState);
-    session.showMap();
-    session.showStatus();
+    if (resetGate) {
+      chatGatePending = true;
+    }
     if (!rlClosed) rl.prompt();
     return;
   }
@@ -588,29 +1012,68 @@ rl.on("line", async (line) => {
     return;
   }
 
-  if (trimmed === "campaign") {
-    printCampaignSummary(campaignState);
-    if (!rlClosed) rl.prompt();
-    return;
-  }
-
   if (trimmed === "retry") {
     campaignState.missions[campaignState.currentMissionIndex].snapshot = null;
     campaignState.missions[campaignState.currentMissionIndex].status = "active";
     ({ mission, session } = activateMission(campaignState, campaignState.currentMissionIndex));
     saveCampaignState(campaignState);
-    await runBootRender(campaignState, async () => {
-      await session.printBanner();
-      await waitForEnterContinue(t("press_enter_continue"));
-    });
-    session.showMap();
-    session.showStatus();
+    if (shouldRunTerminalClientChatGate()) {
+      chatGatePending = true;
+      printIncomingMessageHint();
+    } else {
+      await runBootRender(campaignState, async () => {
+        clearTerminal("retry-banner");
+        await session.printBanner();
+      });
+    }
     if (!rlClosed) rl.prompt();
     return;
   }
 
   if (session.state.finished) {
-    console.log(t("mission_resolved_hint"));
+    const res = session.state.result;
+    if (res === "failed" || res === "aborted") {
+      console.log(highlightCommandHints(t("mission_resolved_hint")));
+      if (!rlClosed) rl.prompt();
+      return;
+    }
+    if (res === "success") {
+      if (trimmed === "next" || trimmed === "continue" || trimmed === "next mission") {
+        await moveToNextMission();
+        persistCurrentSnapshot();
+        if (appClosing) return;
+        if (!rlClosed) rl.prompt();
+        return;
+      }
+      // Otherwise allow chat / info chat via session.execute below.
+    } else {
+      console.log(highlightCommandHints(t("mission_resolved_hint")));
+      if (!rlClosed) rl.prompt();
+      return;
+    }
+  }
+
+  if (chatGatePending) {
+    if (!trimmed) {
+      if (!rlClosed) rl.prompt();
+      return;
+    }
+    if (trimmed.startsWith("chat")) {
+      chatGatePending = false;
+      clearTerminal("chat-gate-open");
+      await runTerminalClientChatGate();
+      printOperationFooter(campaignState);
+      if (!rlClosed) rl.prompt();
+      return;
+    }
+    if (trimmed.startsWith("info")) {
+      await session.execute(line);
+      if (!rlClosed) rl.prompt();
+      return;
+    }
+    console.log(
+      `${tone("You have 1 incoming message.", "green")} Type ${tone("chat", "cyan")} first.`,
+    );
     if (!rlClosed) rl.prompt();
     return;
   }
@@ -622,40 +1085,21 @@ rl.on("line", async (line) => {
     await session.showTutorialHint?.();
   }
 
-  if (session.state.finished) {
-    await moveToNextMission();
-    if (appClosing) return;
-  }
-
   if (!rlClosed) rl.prompt();
 });
 
 setWaitEnterContinueImpl(waitForBootEnterLine);
 
-main().catch((err) => {
-  console.error(err);
-  process.exitCode = 1;
-});
-
-async function main() {
-  await runBootRender(campaignState, async () => {
-    clearTerminal();
-    await session.printBanner();
-    await waitForEnterContinue(t("press_enter_continue"));
-    if (process.env.HKTM_QA) {
-      console.error(
-        "[HKTM QA | Elliot] Mid-boot: banner Enter OK — splash next; still must not return to shell.\n",
-      );
+function finishMainShellAndQaHints() {
+  bootComplete = true;
+  if (!rlClosed) {
+    rl.setPrompt(tone("> ", "green"));
+    try {
+      rl.prompt();
+    } catch {
+      /* Piped stdin may close readline before prompt (e.g. CLI E2E). */
     }
-    pauseReadlineForSplashTyping();
-    clearTerminal();
-    await showSplash(campaignState);
-  });
-  printCampaignSummary(campaignState);
-  session.showMap();
-  session.showStatus();
-  rl.setPrompt("> ");
-  rl.prompt();
+  }
   if (process.stdin.isTTY) {
     try {
       process.stdin.ref();
@@ -672,4 +1116,114 @@ async function main() {
       "[HKTM QA | Elliot] Pass 2 OK — both cycles on record; EXIT-QA.md sign-off.\n",
     );
   }
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exitCode = 1;
+});
+
+async function main() {
+  if (startupCheckpoint && !process.stdin.isTTY) {
+    throw new Error(`--checkpoint ${startupCheckpoint} requires an interactive TTY.`);
+  }
+
+  const chatGateOnBoot = shouldRunTerminalClientChatGate();
+
+  if (composeMailCheckpoint || composeMailReadyCheckpoint) {
+    // Fast-path to mission shell + immediate compose flow for rapid iteration/testing.
+    clearTerminal("checkpoint-compose-mail");
+    await session.printBanner();
+    printOperationFooter(campaignState);
+    console.log(tone(`\n[checkpoint] ${startupCheckpoint}`, "dim"));
+    // Prime readline before the first raw Enter wait (Windows/Cursor: stdin can drop without a prior prompt cycle).
+    try {
+      process.stdin.ref();
+    } catch {
+      /* ignore */
+    }
+    try {
+      rl.resume();
+    } catch {
+      /* ignore */
+    }
+    rl.setPrompt("");
+    rl.prompt();
+    try {
+      rl.pause();
+    } catch {
+      /* ignore */
+    }
+    bootComplete = true;
+    await session.execute("compose mail");
+    persistCurrentSnapshot();
+    if (session.state.finished) {
+      await moveToNextMission();
+      if (appClosing) return;
+    }
+  } else if (startupCheckpoint === "chat-gate") {
+    applyOperatorProfileFromState(campaignState);
+    clearTerminal("checkpoint-chat-gate");
+    printIncomingMessageHint();
+    chatGatePending = true;
+    finishMainShellAndQaHints();
+    return;
+  } else if (startupCheckpoint === "mission-shell") {
+    applyOperatorProfileFromState(campaignState);
+    clearTerminal("checkpoint-mission-shell");
+    await session.printBanner();
+    printOperationFooter(campaignState);
+    console.log(tone(`\n[checkpoint] ${startupCheckpoint}`, "dim"));
+    chatGatePending = false;
+    finishMainShellAndQaHints();
+    return;
+  } else if (startupCheckpoint === "mission-complete-m1") {
+    session.state.finished = true;
+    session.state.result = "success";
+    persistCurrentSnapshot();
+    applyOperatorProfileFromState(campaignState);
+    clearTerminal("checkpoint-mission-complete-m1");
+    console.log(tone(`\n[checkpoint] ${startupCheckpoint}`, "dim"));
+    console.log(
+      tone("Mission 1 marked success — try `next`, `chat`, or `info chat` (same as after a harvest).", "dim"),
+    );
+    printOperationFooter(campaignState);
+    chatGatePending = false;
+    finishMainShellAndQaHints();
+    return;
+  } else {
+    const introClearStep =
+      startupCheckpoint && BOOT_INTRO_CHECKPOINTS.has(startupCheckpoint)
+        ? `checkpoint-${startupCheckpoint}`
+        : "boot-intro";
+    await runBootRender(campaignState, async () => {
+      if (introClearStep !== "boot-intro") {
+        clearTerminal(introClearStep);
+      }
+      await runTerminalIntroSequence({
+        campaignState,
+        save: () => saveCampaignState(campaignState),
+        readLine: readLineForSetup,
+        readLineGhost: readLineForSetupGhost,
+        campaignSavePath,
+        skipSplash: startupCheckpoint === "kernel-loading",
+      });
+      applyOperatorProfileFromState(campaignState);
+
+      if (chatGateOnBoot) {
+        printIncomingMessageHint();
+      } else {
+        clearTerminal("boot-mission-banner");
+        await session.printBanner();
+      }
+    });
+  }
+
+  if (chatGateOnBoot) {
+    chatGatePending = true;
+  } else if (!composeMailCheckpoint && !composeMailReadyCheckpoint) {
+    printOperationFooter(campaignState);
+  }
+
+  finishMainShellAndQaHints();
 }

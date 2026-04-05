@@ -1,16 +1,42 @@
 {
   "id": "m1-ghost-proxy",
   "title": "Operation Ghost Proxy",
-  "brief": "Infiltrate Orion Logistics staging network and exfiltrate client billing evidence without hitting max trace.",
+  "brief": "Draft and deliver a spear-phishing lure targeting an Orion Logistics employee. Harvest their corporate email password.",
   "story": {
     "handler": { "name": "Sable" },
     "time": "02:13",
     "region": "Orion Logistics / staging segment",
     "debrief": {
-      "success": "Clean pull. That ledger ties the manual adjustments to an internal account. Stay off-grid for 24 hours; Orion will be sweeping logs.",
-      "fail": "You burned the session. Orion's SOC will rotate keys and harden paths. If you retry, go slower: lay low when alerts hit and keep trace under budget."
+      "success": "Password harvested. That credential opens the staging segment for the next contract. Stay off-grid until the lure page expires.",
+      "fail": "You burned the session. Orion's SOC will flag the domain and warn their users. If you retry, pick your lure more carefully."
     }
   },
+  "emails": [
+    {
+      "id": "PHISH-ORI-01",
+      "from": "handler-comms@orithmic.private",
+      "subject": "Lure sent — Orion training portal (read once)",
+      "body": "Operator—\n\nSpear-phishing lure is delivered to the target mailbox. They should see a plausible \"session refresh\" page on a typo-domain we control.\n\nWhat is phishing? In short: fake messages or sites that impersonate a trusted party so the victim types a password into the attacker's form. We are not breaking cryptography here — we are catching what they submit.\n\nWhen the harvest hits, use that material as staging trust on your local SSH surface before the gateway hop will authenticate you.\n\n— Sable"
+    },
+    {
+      "id": "OPS-GR-001",
+      "from": "operations@orithmic.private",
+      "subject": "Operator brief — Ghost Proxy (slot confirmed)",
+      "body": "Operator—\n\nYou are cleared for staging segment access only.\n\nRules of engagement:\n- No destructive payloads on production billing paths.\n- If Orion SOC escalates, acknowledge spoof/laylow before retrying noisy steps.\n- Submit evidence through the encrypted handler channel only.\n\nIf this message reaches the wrong mailbox, burn the session and report.\n\n— Sable, Handler"
+    },
+    {
+      "id": "LEG-ALR-992",
+      "from": "legal-alerts@helix.trust",
+      "subject": "Automated retention notice",
+      "body": "This channel is monitored. By continuing you accept cross-border arbitration under Helix Standard Terms R-12. Logs may be retained seven years for disputes. Nothing in this notice waives operator indemnities."
+    },
+    {
+      "id": "INT-ORI-14",
+      "from": "intel-feed@orion.internal",
+      "subject": "Staging topology (last verified — unofficial)",
+      "body": "Unofficial routing: local → gw-edge → app-api → db-core.\n\nEdge requires staged trust before connect. Do not rely on this map for warranty claims; graph is authoritative in-game."
+    }
+  ],
   "connectGates": [
     {
       "from": "local",
@@ -26,78 +52,84 @@
   "tutorial": {
     "steps": [
       {
+        "when": "phishing_pending",
+        "title": "Step 1: Transmit the spear-phishing lure",
+        "text": "From your rig (local), run compose mail — To is pre-filled; sendmail runs under the hood (SMTP handshake, relay spinner), then the interactive lure composer. After harvest, enum shows the staging SSH surface; exploit weak-ssh on local unlocks the gateway hop.",
+        "suggest": "compose mail"
+      },
+      {
         "when": "discover_gw",
         "nodeId": "gw-edge",
-        "title": "Step 1: Find the edge gateway",
+        "title": "Step 2: Find the edge gateway",
         "text": "Run scan to list adjacent hosts, then probe <host> for a remote port sweep (open ports only). After connect, enum maps ports to exploit ids — probe does not duplicate enum.",
         "suggest": "scan"
       },
       {
         "when": "enum_on_node",
         "nodeId": "local",
-        "title": "Step 2: Enumerate services on your rig",
-        "text": "On local, enum shows the staging SSH surface. You must run exploit weak-ssh here before the gateway will accept a connect — that hop is blocked until staging credentials exist.",
+        "title": "Step 3: Enumerate services on your rig",
+        "text": "On local, enum shows the staging SSH surface. Run exploit weak-ssh here after the harvest — the gateway hop stays blocked until staging credentials exist.",
         "suggest": "enum"
       },
       {
         "when": "gate_met",
         "gate": { "node": "local", "exploitId": "weak-ssh" },
-        "title": "Step 3: Stage credentials for the gateway hop",
+        "title": "Step 4: Stage credentials for the gateway hop",
         "text": "Run exploit weak-ssh on local (staging / trust material). This is not the same as owning the edge box yet — it only authorizes the link.",
         "suggest": "exploit weak-ssh"
       },
       {
         "when": "not_on_node",
         "nodeId": "gw-edge",
-        "title": "Step 4: Pivot to the edge gateway",
+        "title": "Step 5: Pivot to the edge gateway",
         "text": "Now connect gw-edge. The SSH theater runs only after staging succeeded.",
         "suggest": "connect gw-edge"
       },
       {
         "when": "own_node",
         "nodeId": "gw-edge",
-        "title": "Step 5: Own the gateway",
+        "title": "Step 6: Own the gateway",
         "text": "On gw-edge, enum again — the weak-ssh entry here is the real compromise. Exploit it to own the node and read files.",
         "suggest": "exploit weak-ssh"
       },
       {
         "when": "discover_gw",
         "nodeId": "app-api",
-        "title": "Step 6: Pivot to the app tier",
+        "title": "Step 7: Pivot to the app tier",
         "text": "Probe app-api from the graph (remote sweep: ports only). You cannot connect app-api until the edge gateway is owned — exploit weak-ssh on gw-edge first; then connect app-api.",
         "suggest": "probe app-api"
       },
       {
         "when": "own_node",
         "nodeId": "app-api",
-        "title": "Step 7: Compromise the app",
+        "title": "Step 8: Compromise the app",
         "text": "After gw-edge is owned, connect app-api, enumerate, then exploit.",
         "suggest": "connect app-api"
       },
       {
         "when": "discover_gw",
         "nodeId": "db-core",
-        "title": "Step 8: Find the database core",
+        "title": "Step 9: Find the database core",
         "text": "The objective file lives on db-core—sweep its ports, then pivot.",
         "suggest": "probe db-core"
       },
       {
         "when": "own_node",
         "nodeId": "db-core",
-        "title": "Step 9: Root the target",
+        "title": "Step 10: Root the target",
         "text": "Exploit the database misconfiguration, then exfiltrate the target file.",
         "suggest": "exploit misconfig-copy"
       },
       {
         "when": "exfil",
         "path": "/data/client_billing.csv",
-        "title": "Step 10: Exfiltrate evidence",
+        "title": "Step 11: Exfiltrate evidence",
         "text": "Exfiltration is noisy. If SOC is active, consider laylow first.",
         "suggest": "exfil /data/client_billing.csv"
       },
       {
         "when": "submit",
-        "title": "Step 11: Submit",
+        "title": "Step 12: Submit",
         "text": "Once exfil is complete, submit the objective to close the operation.",
         "suggest": "submit"
       }
@@ -108,11 +140,10 @@
     "maxTrace": 42
   },
   "objective": {
-    "summary": "Exfiltrate /data/client_billing.csv from db-core and submit.",
-    "requiredNode": "db-core",
-    "exfilFiles": [
-      "/data/client_billing.csv"
-    ]
+    "summary": "Harvest the target's corporate email password via spear-phishing lure.",
+    "type": "phishing",
+    "requiredNode": "local",
+    "exfilFiles": []
   },
   "edges": [
     ["local", "gw-edge"],
@@ -130,7 +161,7 @@
           "exploitId": "weak-ssh",
           "noise": 2,
           "stagingOnly": true,
-          "vulnRef": "Staging SSH client — establish operator trust material before the edge gateway accepts your session (fiction; not a second compromise of local)"
+          "vulnRef": "Staging SSH client — establish operator trust material before the edge gateway accepts your session (not a second compromise of local)"
         }
       ],
       "noise": {
@@ -163,7 +194,7 @@
           "content": "Reminder: rotate the app maintenance artifact after the quarter close.",
           "artifact": {
             "id": "artifact-app-maint",
-            "description": "A fictional maintenance credential artifact that can unlock alternate access paths to app-api in this game."
+            "description": "A maintenance credential artifact that can unlock alternate access paths to app-api in this game."
           }
         },
         {

@@ -9,6 +9,18 @@ export const INFO_GLOSSARY = {
     exploit:
       "In this game: run help with no arguments to print the command list (paged if the terminal is short). Same information as this glossary entry, but interactive.",
   },
+  mail: {
+    about:
+      "Mission mail is in-world operator email embedded in a deployment package — briefings, legal boilerplate, and intel drops that do not require a separate mail client.",
+    exploit:
+      "In this game: mail lists threads from mission JSON (if present). mail read <id> opens the body in the pager. Read state persists in campaign snapshots on the Node build.",
+  },
+  chat: {
+    about:
+      "ShadowNet IM: your contract contact (procedural display name per save) reaches you through this channel — browser drawer or terminal pager — not a real messaging service.",
+    exploit:
+      "In this game: type chat to open ShadowNet IM (browser: drawer; terminal: inline channel). After boot you get a hint that you have an incoming message — run chat when you are ready; the drawer does not open by itself. Inside the channel you get quick reply options including /brief to request the mission brief. Type /exit to close the channel. Use chat close on web to hide the drawer. info chat shows this glossary entry.",
+  },
   clear: {
     about:
       "Clear traditionally wipes the visible screen so you can focus on the next output. In terminal UIs it often redraws the header or banner.",
@@ -59,7 +71,7 @@ export const INFO_GLOSSARY = {
   },
   info: {
     about:
-      "This command is an in-fiction glossary: short explanations of commands and concepts so you do not need external docs.",
+      "This command is an in-world glossary: short explanations of commands and concepts so you do not need external docs.",
     exploit:
       "In this game: type info <term> to open a paged article. Terms include every command name plus concepts like trace, SOC, and CVE.",
   },
@@ -67,13 +79,13 @@ export const INFO_GLOSSARY = {
     about:
       "SQL is the database query language. Unsafe string building is a common source of injection bugs.",
     exploit:
-      "In this game: sql with no args shows the SQL lab help; sql demo illustrates injection shape; sql translate \"…\" prints a fictional ssh/psql mapping—no database runs.",
+      "In this game: sql with no args shows the SQL lab help; sql demo illustrates injection shape; sql translate \"…\" prints a simulated ssh/psql mapping—no database runs.",
   },
   stash: {
     about:
       "A stash is where recovered credential material is tracked between steps.",
     exploit:
-      "In this game: stash lists fictional credential artifacts you picked up from intel files. Some exploits may require a specific artifact id.",
+      "In this game: stash lists credential artifacts you picked up from intel files. Some exploits may require a specific artifact id.",
   },
   ls: {
     about:
@@ -95,7 +107,7 @@ export const INFO_GLOSSARY = {
   },
   cover: {
     about:
-      "Cover actions reduce observable noise—log cleanup, timing, or misdirection in fiction.",
+      "Cover actions reduce observable noise—log cleanup, timing, or misdirection in the sim.",
     exploit:
       "In this game: cover lowers trace by a fixed amount. It does not cancel SOC countdowns; use spoof or laylow for alerts.",
   },
@@ -127,7 +139,7 @@ export const INFO_GLOSSARY = {
     about:
       "Quit ends the current session and returns control to the campaign shell or OS.",
     exploit:
-      "In this game: quit marks the session aborted in campaign mode; in the browser demo it closes the fictional campaign session message.",
+      "In this game: quit marks the session aborted in campaign mode; in the browser demo it closes the campaign session message.",
   },
   ssh: {
     about:
@@ -147,11 +159,16 @@ export const INFO_GLOSSARY = {
     exploit:
       "Exploitation (example): attackers abuse COPY/export features, weak roles, or SQL paths exposed through an app. Here, a postgres-style exploit is abstracted as a high-impact action—expect more trace than touching a static file.",
   },
+  phishing: {
+    about:
+      "Phishing is social engineering: messages or web pages that look like a bank, employer, or IT team so the victim enters passwords or codes on a fake site. The attacker steals what is typed — not by magic math, but by impersonation. Try: compose mail.",
+    exploit: "",
+  },
   soc: {
     about:
-      "SOC = Security Operations Center. Think: defenders monitoring logs/alerts. SOC events raise pressure and can add trace if you ignore them.",
+      "SOC = Security Operations Center. Think: defenders monitoring logs/alerts. SOC events raise pressure and can add trace if you ignore them. In the browser, SOC and Amanda security hints are delivered through ShadowNet IM (not duplicated as raw [SOC] lines in the stream).",
     exploit:
-      "Exploitation (example): repeated scans, loud exploits, or ignored alerts behave like tripping detections—use spoof or laylow to simulate cooling off before the fictional analysts escalate.",
+      "Exploitation (example): repeated scans, loud exploits, or ignored alerts behave like tripping detections—use spoof or laylow to simulate cooling off before analysts escalate.",
   },
   trace: {
     about:
@@ -167,7 +184,7 @@ export const INFO_GLOSSARY = {
   },
   "template-rce": {
     about:
-      "template-rce: shorthand for server-side template injection leading to RCE (remote code execution). In the real world, this can happen when user input is rendered in templates unsafely. Here it's a fictional exploit class.",
+      "template-rce: shorthand for server-side template injection leading to RCE (remote code execution). In the real world, this can happen when user input is rendered in templates unsafely. Here it's a game exploit class.",
     exploit:
       "Exploitation (example): after enum shows template-rce, you deploy that exploit id on the node to flip it to owned—think of it as user-controlled template data executing server-side, abstracted as one command.",
   },
@@ -179,13 +196,13 @@ export const INFO_GLOSSARY = {
   },
   "misconfig-copy": {
     about:
-      "misconfig-copy: shorthand for a database misconfiguration that allows an unsafe COPY/export style data access path. Here it's a fictional exploit class representing 'bad DB configuration'.",
+      "misconfig-copy: shorthand for a database misconfiguration that allows an unsafe COPY/export style data access path. Here it's a game exploit class representing 'bad DB configuration'.",
     exploit:
       "Exploitation (example): you abuse the mis-set export path to read rows or files the app didn't intend—represented here as a single exploit step with elevated trace, then you pivot to exfil objectives.",
   },
   artifact: {
     about:
-      "Credential artifacts are fictional puzzle items in this game. Reading certain intel files can grant an artifact, which may unlock alternate access paths defined by the mission JSON.",
+      "Credential artifacts are puzzle items in this game. Reading certain intel files can grant an artifact, which may unlock alternate access paths defined by the mission JSON.",
     exploit:
       "Exploitation (example): cat the note that references a key, stash lists the artifact, and a service may require that artifact before exploit succeeds—modeling 'use leaked material from host A on host B' without real secrets.",
   },
@@ -205,6 +222,6 @@ export const INFO_GLOSSARY = {
     about:
       "SQL injection happens when user-controlled text is pasted into a SQL command as code instead of as data. The fix is parameterized queries / prepared statements so the database never parses user input as SQL structure.",
     exploit:
-      "In this game, use sql demo and sql translate \"…\" to see a fictional mapping from your op shell to ssh/psql strings. Compare the naive concat line to the bind/parameter pattern—no real queries run.",
+      "In this game, use sql demo and sql translate \"…\" to see a simulated mapping from your op shell to ssh/psql strings. Compare the naive concat line to the bind/parameter pattern—no real queries run.",
   },
 };

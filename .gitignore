@@ -10,3 +10,6 @@ Thumbs.db
 web/test-results/
 web/playwright-report/
 playwright/.cache/
+
+# Storybook
+web/storybook-static/

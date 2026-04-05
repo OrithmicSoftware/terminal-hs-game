@@ -1,7 +1,7 @@
 {
   "name": "terminal-hs-game",
   "version": "0.1.0-alpha.1",
-  "description": "Fictional terminal hacking campaign (safe, educational). CLI + browser alpha.",
+  "description": "Educational terminal hacking campaign (safe, sandbox). CLI + browser alpha.",
   "type": "module",
   "private": true,
   "license": "MIT",
@@ -29,8 +29,16 @@
   "scripts": {
     "start": "node game.mjs",
     "game": "node game.mjs",
+    "game:clear": "node scripts/run-game-clear.mjs",
+    "start:clear": "node scripts/run-game-clear.mjs",
+    "clear": "npm run dev:clear --prefix web",
     "web:dev": "npm run dev --prefix web",
+    "web:dev:clear": "npm run dev:clear --prefix web",
     "web:build": "npm run build --prefix web",
-    "test:e2e": "npm run test:e2e --prefix web"
+    "test:e2e": "npm run test:e2e --prefix web",
+    "test:e2e:terminal": "node --test test/e2e-terminal.test.mjs",
+    "test:cli-e2e": "node --test test/cli-e2e.test.mjs",
+    "checkpoint:list": "node scripts/checkpoint-list.mjs",
+    "test": "node --test test/campaign-state.test.mjs test/debug-step.test.mjs test/engine-mail.test.mjs test/e2e-terminal.test.mjs test/cli-e2e.test.mjs"
   }
 }

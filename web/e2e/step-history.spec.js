@@ -1,19 +1,14 @@
 import { test, expect } from "@playwright/test";
+import { bootBrowserCampaignToPrompt } from "./boot-helpers.mjs";
 
 /**
- * Step history: each full-screen clear saves a snapshot; Alt+PgUp/PgDn browse
- * (see web/main.js). Playwright drives bundled Chromium for stable CI.
+ * Step history: each full-screen clear saves a snapshot; Ctrl+arrows / PgUp/PgDn or toolbar
+ * (Shift+Pg scrolls the terminal). See web/main.js.
  */
 test.describe("Web terminal step history", () => {
-  test("Alt+PageUp shows scan after probe; Alt+PageDown returns to probe", async ({ page }) => {
-    await page.goto("/");
-    await page.waitForLoadState("domcontentloaded");
-
-    /** Splash: wait for banner, then Enter hides boot and shows #cmd. */
-    await expect(page.locator("#term")).toContainText("Press Enter", { timeout: 90000 });
-    await page.keyboard.press("Enter");
+  test("PageUp shows scan after probe; PageDown returns; toolbar matches state", async ({ page }) => {
+    await bootBrowserCampaignToPrompt(page);
     const cmd = page.locator("input#cmd");
-    await cmd.waitFor({ state: "visible", timeout: 90000 });
     await cmd.fill("scan");
     await page.keyboard.press("Enter");
 
@@ -24,10 +19,27 @@ test.describe("Web terminal step history", () => {
     await page.keyboard.press("Enter");
     await expect(term).toContainText("Probe complete", { timeout: 60000 });
 
-    await page.keyboard.press("Alt+PageUp");
-    await expect(term).toContainText("Adjacent hosts");
+    await expect(page.locator("#step-history-prev")).toBeEnabled();
+    await expect(page.locator("#step-history-curr")).toBeDisabled();
+    await expect(page.locator("#step-history-next")).toBeDisabled();
 
-    await page.keyboard.press("Alt+PageDown");
+    await page.keyboard.press("PageUp");
+    await expect(term).toContainText("Adjacent hosts");
+    await expect(page.locator("#step-history-next")).toBeEnabled();
+    await expect(page.locator("#step-history-curr")).toBeEnabled();
+
+    await page.keyboard.press("PageDown");
+    await expect(term).toContainText("Probe complete");
+    await expect(page.locator("#step-history-curr")).toBeDisabled();
+
+    await page.locator("#step-history-prev").click();
+    await expect(term).toContainText("Adjacent hosts");
+    await page.locator("#step-history-curr").click();
+    await expect(term).toContainText("Probe complete");
+
+    await page.locator("#step-history-prev").click();
+    await expect(term).toContainText("Adjacent hosts");
+    await page.locator("#step-history-next").click();
     await expect(term).toContainText("Probe complete");
   });
 });

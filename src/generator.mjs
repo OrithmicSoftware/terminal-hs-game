@@ -24,7 +24,7 @@ function buildMission(index) {
   return {
     id,
     title: `Procedural File ${index + 1}: ${codename.toUpperCase()}`,
-    brief: `Port-sweep ${n1} → ${n2} → exfil from ${n3} (fictional CVE-class labels).`,
+    brief: `Port-sweep ${n1} → ${n2} → exfil from ${n3} (CVE-class labels).`,
     startNode: "local",
     security: { maxTrace: 34 + (index % 3) * 2 },
     objective: {

@@ -1,8 +1,21 @@
 import { execFileSync } from "node:child_process";
 import readline from "node:readline";
 import { tone } from "./colors.mjs";
+import { animSleep, requestAnimTurbo } from "./anim-sleep-core.mjs";
+import { isHktmDebug, stepBannerLine } from "./debug-step.mjs";
 
 readline.emitKeypressEvents(process.stdin);
+
+/** Node CLI / TTY only: Space arms ~100× animation turbo (see `anim-sleep-core.mjs`). The browser build does not use this — it has its own shell wiring in `web/main.js`. */
+if (typeof process !== "undefined" && process.stdin?.isTTY) {
+  process.stdin.on("keypress", (str, key) => {
+    if (!key || key.ctrl || key.meta) return;
+    const space = key.name === "space" || str === " ";
+    if (space) {
+      requestAnimTurbo();
+    }
+  });
+}
 
 const ANSI_SEQ = /\x1b\[[0-9;]*m/g;
 
@@ -36,8 +49,86 @@ export function setPagerHooks(hooks) {
   if (hooks?.resume) pagerHooks.resume = hooks.resume;
 }
 
-export function clearTerminalScreen() {
+/** Node `game.mjs` wires readline-based choice; tests / headless fall back to raw keypress. */
+let waitChoiceImpl = null;
+
+export function setWaitChoiceImpl(fn) {
+  waitChoiceImpl = typeof fn === "function" ? fn : null;
+}
+
+function waitForDigitKeypress(max) {
+  return new Promise((resolve) => {
+    const onKey = (str, key) => {
+      if (key?.ctrl && key.name === "c") {
+        process.stdin.removeListener("keypress", onKey);
+        process.exit(1);
+      }
+      const n = Number(str);
+      if (Number.isInteger(n) && n >= 1 && n <= max) {
+        process.stdin.removeListener("keypress", onKey);
+        resolve(n);
+      }
+    };
+    process.stdin.on("keypress", onKey);
+  });
+}
+
+/**
+ * Wait for user to pick a number 1–max.
+ * @param {number} max
+ * @param {string} [footerHint]
+ * @returns {Promise<number>}
+ */
+export async function waitForChoiceN(max, footerHint = "") {
+  if (waitChoiceImpl) {
+    return waitChoiceImpl(footerHint, max);
+  }
+  if (footerHint) console.log(tone(footerHint, "dim"));
+  if (!process.stdin.isTTY) return 1;
+  pagerHooks.pause();
+  try {
+    if (process.stdin.isTTY) process.stdin.setRawMode(true);
+    return await waitForDigitKeypress(max);
+  } finally {
+    if (process.stdin.isTTY) {
+      try {
+        process.stdin.setRawMode(false);
+      } catch {
+        /* ignore */
+      }
+    }
+    pagerHooks.resume();
+  }
+}
+
+/** @deprecated Use waitForChoiceN(3, footerHint) instead. */
+export async function waitForChoice3(footerHint = "") {
+  return waitForChoiceN(3, footerHint);
+}
+
+/**
+ * Clear the terminal. In DEBUG mode (default), prints `[STEP: name type=clear prev=…]` as the first line after home.
+ * @param {string} [stepName] — omit to clear without a step line (rare transitions).
+ */
+export function clearTerminalScreen(stepName) {
   process.stdout.write("\x1b[2J\x1b[H");
+  if (isHktmDebug() && typeof stepName === "string" && stepName.length > 0) {
+    console.log(tone(stepBannerLine(stepName, "clear"), "dim"));
+  }
+}
+
+/** First line of a screen that does not use `clearTerminalScreen` (e.g. splash before pixel art). */
+export function logScreenStep(stepName) {
+  if (isHktmDebug() && typeof stepName === "string" && stepName.length > 0) {
+    console.log(tone(stepBannerLine(stepName, "log"), "dim"));
+  }
+}
+
+/** DEBUG: `info` — `[STEP: …-after type=pause]` before `waitForEnterContinue` (pager logs `[STEP: … type=log]`). */
+export function logInfoPauseStep(stepName) {
+  if (isHktmDebug() && typeof stepName === "string" && stepName.length > 0) {
+    console.log(tone(stepBannerLine(`${stepName}-after`, "pause"), "dim"));
+  }
 }
 
 function chunkArray(arr, size) {
@@ -46,6 +137,19 @@ function chunkArray(arr, size) {
     out.push(arr.slice(i, i + size));
   }
   return out;
+}
+
+/** Discard buffered stdin so a pager does not treat the previous line’s Enter as “next page”. */
+export function drainStdinSync() {
+  if (!process.stdin.isTTY) return;
+  try {
+    let chunk;
+    while (process.stdin.readableLength > 0 && (chunk = process.stdin.read()) != null) {
+      /* discard */
+    }
+  } catch {
+    /* ignore */
+  }
 }
 
 /** Pager keys via readline keypress (arrows arrive whole; avoids split-escape bugs on Windows). */
@@ -72,7 +176,7 @@ function waitPagerKeyOnce() {
   });
 }
 
-/** Enter/Space advance only (no ↑/↓). q / Esc / Ctrl+C exit; other keys ignored. */
+/** Enter advances only (Space is free for animation turbo). q / Esc / Ctrl+C exit; other keys ignored. */
 function waitEnterPagerKeyOnce() {
   return new Promise((resolve) => {
     const onKey = (str, key) => {
@@ -81,7 +185,7 @@ function waitEnterPagerKeyOnce() {
         return resolve("quit");
       }
       if (!key) {
-        if (str === "\r" || str === "\n" || str === " ") {
+        if (str === "\r" || str === "\n") {
           process.stdin.removeListener("keypress", onKey);
           return resolve("next");
         }
@@ -92,7 +196,7 @@ function waitEnterPagerKeyOnce() {
         return;
       }
       const n = key.name;
-      if (n === "return" || n === "enter" || n === "space") {
+      if (n === "return" || n === "enter") {
         process.stdin.removeListener("keypress", onKey);
         return resolve("next");
       }
@@ -106,8 +210,8 @@ function waitEnterPagerKeyOnce() {
 }
 
 /**
- * When set (by `game.mjs`), boot / intro uses readline `line` instead of raw `keypress`.
- * Avoids readline + raw mode fighting on Windows / Cursor integrated terminal (instant exit).
+ * When set (by `game.mjs`), `waitForEnterContinue` delegates here so readline can stay paused
+ * while stdin is raw (Enter-only). Space does not dismiss — it only arms animation turbo.
  */
 let waitEnterContinueImpl = null;
 
@@ -115,11 +219,23 @@ export function setWaitEnterContinueImpl(fn) {
   waitEnterContinueImpl = typeof fn === "function" ? fn : null;
 }
 
-function waitForEnterContinueRaw(footerHint = "") {
+/**
+ * Wait for Enter to continue. Used by CLI boot and `game.mjs`.
+ * When `readlineInterface` is set (always from `game.mjs` via `waitForBootEnterLine`), we use readline
+ * only — raw mode + keypress is flaky on Windows (spurious newlines / immediate finish) and can destabilize stdin.
+ * @param {{ readlineInterface?: import("node:readline").Interface }} [options]
+ */
+export function waitForEnterContinueRaw(footerHint = "", options = {}) {
+  const rl = options.readlineInterface;
   return new Promise((resolve) => {
     if (!process.stdin.isTTY) {
       resolve();
       return;
+    }
+    try {
+      process.stdin.ref();
+    } catch {
+      /* ignore */
     }
     if (footerHint) console.log(tone(footerHint, "dim"));
     pagerHooks.pause();
@@ -139,6 +255,63 @@ function waitForEnterContinueRaw(footerHint = "") {
         setImmediate(() => resolve());
       });
     };
+
+    const runReadlineEnterWait = () => {
+      pagerHooks.resume();
+      let prevPrompt = "> ";
+      if (typeof rl.getPrompt === "function") {
+        try {
+          prevPrompt = rl.getPrompt();
+        } catch {
+          /* ignore */
+        }
+      }
+      try {
+        rl.resume();
+      } catch {
+        /* ignore */
+      }
+      /* Defer so stray buffered lines from pause/resume do not fire `line` before the user sees the hint. */
+      setImmediate(() => {
+        drainStdinSync();
+        rl.once("line", () => {
+          try {
+            rl.setPrompt(prevPrompt);
+          } catch {
+            /* ignore */
+          }
+          try {
+            rl.pause();
+          } catch {
+            /* ignore */
+          }
+          finish();
+        });
+        rl.setPrompt("");
+        try {
+          rl.prompt();
+        } catch {
+          try {
+            setImmediate(() => {
+              try {
+                rl.prompt();
+              } catch {
+                /* ignore — line listener may still fire on Enter */
+              }
+            });
+          } catch {
+            /* ignore */
+          }
+        }
+      });
+    };
+
+    /* Game shell always passes rl — prefer readline over raw+keypress (reliable on Windows external terminals). */
+    if (rl) {
+      runReadlineEnterWait();
+      return;
+    }
+
     try {
       process.stdin.setRawMode(true);
     } catch {
@@ -160,14 +333,14 @@ function waitForEnterContinueRaw(footerHint = "") {
         return;
       }
       if (!key) {
-        if (str === "\r" || str === "\n" || str === " ") {
+        if (str === "\r" || str === "\n") {
           process.stdin.removeListener("keypress", onKey);
           finish();
         }
         return;
       }
       const n = key.name;
-      if (n === "return" || n === "enter" || n === "space") {
+      if (n === "return" || n === "enter") {
         process.stdin.removeListener("keypress", onKey);
         finish();
       }
@@ -178,7 +351,7 @@ function waitForEnterContinueRaw(footerHint = "") {
   });
 }
 
-/** Pause readline, raw stdin, wait for Enter or Space (boot / intro) — or CLI override. */
+/** Pause readline, raw stdin, wait for Enter — or CLI override. */
 export function waitForEnterContinue(footerHint = "") {
   if (waitEnterContinueImpl) {
     return waitEnterContinueImpl(footerHint);
@@ -188,13 +361,15 @@ export function waitForEnterContinue(footerHint = "") {
 
 /**
  * Plain lines (e.g. help), chunked to terminal height with arrow navigation.
+ * @param {string} [stepBase] DEBUG step id prefix (one screen per page: `${stepBase}-${n}`).
  */
-export async function pagedPlainLines(lines, footerHint = "") {
+export async function pagedPlainLines(lines, footerHint = "", stepBase = "paged-plain") {
   const hint = footerHint || "↓ Enter/Space next  ↑ prev  q exit";
   const r = process.stdout.rows || 24;
   const maxLines = Math.max(1, r - 3);
   const chunks = chunkArray(lines, maxLines);
   if (!process.stdin.isTTY || chunks.length <= 1) {
+    logScreenStep(stepBase);
     for (const l of lines) console.log(l);
     return;
   }
@@ -202,8 +377,9 @@ export async function pagedPlainLines(lines, footerHint = "") {
   let page = 0;
   try {
     if (process.stdin.isTTY) process.stdin.setRawMode(true);
+    drainStdinSync();
     while (true) {
-      clearTerminalScreen();
+      clearTerminalScreen(`${stepBase}-${page + 1}`);
       for (const l of chunks[page]) {
         console.log(l);
       }
@@ -225,26 +401,29 @@ export async function pagedPlainLines(lines, footerHint = "") {
       }
     }
     pagerHooks.resume();
-    clearTerminalScreen();
+    clearTerminalScreen(`${stepBase}-exit`);
   }
 }
 
 /**
- * Like boxPaged but only Enter/Space advance (no ↑/↓ history). q / Esc exit.
+ * Like boxPaged but only Enter advances pages (no ↑/↓ history). q / Esc exit.
+ * @param {string} [stepBase] DEBUG step id prefix (one screen per page).
  */
-export async function boxEnterPaged(title, lines, width = uiState.width, footerHint = "") {
-  const hint = footerHint || "Enter/Space next page  q exit";
+export async function boxEnterPaged(title, lines, width = uiState.width, footerHint = "", stepBase = "box-enter-paged") {
+  const hint = footerHint || "Enter next page  q exit";
   const w = Math.max(12, Math.floor(width));
   const inner = w - 4;
   const flat = flattenBoxBodyLines(lines, inner);
   const rows = process.stdout.rows || 24;
   const maxBody = Math.max(4, rows - 6);
   if (!process.stdin.isTTY || flat.length <= maxBody) {
+    logScreenStep(stepBase);
     await box(title, lines, width);
     return;
   }
   const chunks = chunkArray(flat, maxBody);
   if (chunks.length <= 1) {
+    logScreenStep(stepBase);
     await box(title, lines, width);
     return;
   }
@@ -253,9 +432,10 @@ export async function boxEnterPaged(title, lines, width = uiState.width, footerH
   let page = 0;
   try {
     if (process.stdin.isTTY) process.stdin.setRawMode(true);
+    drainStdinSync();
     const titlePlain = stripAnsi(title);
     while (true) {
-      clearTerminalScreen();
+      clearTerminalScreen(`${stepBase}-${page + 1}`);
       const pageTitle = tone(`${titlePlain} (${page + 1}/${chunks.length})`, "bold");
       await box(pageTitle, chunks[page], width);
       console.log(tone(hint, "dim"));
@@ -273,7 +453,7 @@ export async function boxEnterPaged(title, lines, width = uiState.width, footerH
       }
     }
     pagerHooks.resume();
-    clearTerminalScreen();
+    clearTerminalScreen(`${stepBase}-exit`);
   }
 }
 
@@ -288,10 +468,6 @@ export function setUiOptions(options) {
 
 export function getUiOptions() {
   return { ...uiState };
-}
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 let lastBellAt = 0;
@@ -375,7 +551,7 @@ async function typeLine(line) {
     }
     // tiny pacing; keep it subtle
     // eslint-disable-next-line no-await-in-loop
-    await sleep(delay);
+    await animSleep(delay);
   }
   process.stdout.write("\n");
 }
@@ -407,7 +583,7 @@ export async function box(title, lines, width = uiState.width) {
         ? [""]
         : visibleLen(rawLine) <= inner
           ? [rawLine]
-          : wrap(stripAnsi(rawLine), inner);
+          : wrap(rawLine, inner);
     for (const line of rows) {
       const pad = Math.max(0, inner - visibleLen(line));
       const body = `${tone("│", frameTone)} ${line}${repeat(" ", pad)} ${tone("│", frameTone)}`;
@@ -417,11 +593,11 @@ export async function box(title, lines, width = uiState.width) {
   await emit(tone(bottom, frameTone));
 }
 
-/** Split a single token into chunks no longer than `width` (plain text). */
+/** Split a single token into chunks no longer than `width` visible characters. */
 function splitPlainOverflow(token, width) {
   if (width < 1) return [token];
+  if (visibleLen(token) <= width) return [token];
   const p = stripAnsi(token);
-  if (p.length <= width) return [p];
   const out = [];
   for (let i = 0; i < p.length; i += width) {
     out.push(p.slice(i, i + width));
@@ -471,7 +647,7 @@ function flattenBoxBodyLines(rawLines, inner) {
         ? [""]
         : visibleLen(rawLine) <= inner
           ? [rawLine]
-          : wrap(stripAnsi(rawLine), inner);
+          : wrap(rawLine, inner);
     for (const line of rows) {
       out.push(line);
     }
@@ -481,8 +657,9 @@ function flattenBoxBodyLines(rawLines, inner) {
 
 /**
  * Box with body split across pages so each view fits the terminal; ↑↓ Enter Space q.
+ * @param {string} [stepBase] DEBUG step id prefix (one screen per page).
  */
-export async function boxPaged(title, lines, width = uiState.width, footerHint = "") {
+export async function boxPaged(title, lines, width = uiState.width, footerHint = "", stepBase = "box-paged") {
   const hint = footerHint || "↓ Enter/Space next  ↑ prev  q exit";
   const w = Math.max(12, Math.floor(width));
   const inner = w - 4;
@@ -490,11 +667,13 @@ export async function boxPaged(title, lines, width = uiState.width, footerHint =
   const rows = process.stdout.rows || 24;
   const maxBody = Math.max(4, rows - 6);
   if (!process.stdin.isTTY || flat.length <= maxBody) {
+    logScreenStep(stepBase);
     await box(title, lines, width);
     return;
   }
   const chunks = chunkArray(flat, maxBody);
   if (chunks.length <= 1) {
+    logScreenStep(stepBase);
     await box(title, lines, width);
     return;
   }
@@ -503,9 +682,10 @@ export async function boxPaged(title, lines, width = uiState.width, footerHint =
   let page = 0;
   try {
     if (process.stdin.isTTY) process.stdin.setRawMode(true);
+    drainStdinSync();
     const titlePlain = stripAnsi(title);
     while (true) {
-      clearTerminalScreen();
+      clearTerminalScreen(`${stepBase}-${page + 1}`);
       const pageTitle = tone(`${titlePlain} (${page + 1}/${chunks.length})`, "bold");
       await box(pageTitle, chunks[page], width);
       console.log(tone(hint, "dim"));
@@ -526,6 +706,6 @@ export async function boxPaged(title, lines, width = uiState.width, footerHint =
       }
     }
     pagerHooks.resume();
-    clearTerminalScreen();
+    clearTerminalScreen(`${stepBase}-exit`);
   }
 }

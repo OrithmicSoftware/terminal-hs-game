@@ -2,6 +2,9 @@
  * Browser UI shim: no readline / raw stdin; output via `process.stdout.write` polyfill.
  */
 import { tone } from "./colors-browser.mjs";
+import { glitchPulse } from "./glitch-pulse.mjs";
+import { animSleep } from "./anim-sleep-core.mjs";
+import { isHktmDebug, stepBannerLine } from "./debug-step.mjs";
 
 const ANSI_SEQ = /\x1b\[[0-9;]*m/g;
 
@@ -35,9 +38,30 @@ export function setPagerHooks(hooks) {
   if (hooks?.resume) pagerHooks.resume = hooks.resume;
 }
 
-export function clearTerminalScreen() {
+/**
+ * Clear the terminal. In DEBUG mode (default), prints `[STEP: name type=clear prev=…]` as the first line after home.
+ * @param {string} [stepName]
+ */
+export function clearTerminalScreen(stepName) {
   if (typeof globalThis.__HKTM_CLEAR === "function") globalThis.__HKTM_CLEAR();
   else process.stdout.write("\x1b[2J\x1b[H");
+  if (isHktmDebug() && typeof stepName === "string" && stepName.length > 0) {
+    console.log(tone(stepBannerLine(stepName, "clear"), "dim"));
+  }
+}
+
+/** First line when a screen does not use `clearTerminalScreen` first (parity with Node `ui.mjs`). */
+export function logScreenStep(stepName) {
+  if (isHktmDebug() && typeof stepName === "string" && stepName.length > 0) {
+    console.log(tone(stepBannerLine(stepName, "log"), "dim"));
+  }
+}
+
+/** DEBUG: `info` command — parity with Node `ui.mjs`. */
+export function logInfoPauseStep(stepName) {
+  if (isHktmDebug() && typeof stepName === "string" && stepName.length > 0) {
+    console.log(tone(stepBannerLine(`${stepName}-after`, "pause"), "dim"));
+  }
 }
 
 function chunkArray(arr, size) {
@@ -50,13 +74,28 @@ function chunkArray(arr, size) {
 
 const enterWaiters = [];
 
+/** Mission 1 phishing: pick one of three complete lure packages (window keydown → `__hktmFlushChoiceWaiter`). */
+let choiceResolve = null;
+
 /** Resolves with next | prev | quit — mirrors Node `waitPagerKeyOnce` (arrows / Enter / Space / q). */
 let pagerKeyResolve = null;
 
 export function waitForEnterContinue(footerHint = "") {
   return new Promise((resolve) => {
     if (footerHint) console.log(tone(footerHint, "dim"));
-    enterWaiters.push(resolve);
+    try {
+      globalThis.__HKTM_ENTER_WAIT_BEGIN?.();
+    } catch {
+      /* ignore */
+    }
+    enterWaiters.push(() => {
+      try {
+        globalThis.__HKTM_ENTER_WAIT_END?.();
+      } catch {
+        /* ignore */
+      }
+      resolve();
+    });
   });
 }
 
@@ -65,10 +104,64 @@ export function __hktmFlushEnterWaiter() {
   if (r) r();
 }
 
+/** True while at least one `waitForEnterContinue` is pending (browser: hide `#cmd` row). */
+export function __hktmEnterWaitPending() {
+  return enterWaiters.length > 0;
+}
+
+/** Web build does not use Node `setWaitChoiceImpl`; export exists for parity with `ui.mjs`. */
+export function setWaitChoiceImpl(_) {
+  /* browser uses waitForChoice3 native implementation */
+}
+
+/**
+ * Wait for 1 / 2 / 3 (focus terminal; `#cmd` hidden via pager hooks).
+ * @param {string} [footerHint]
+ * @returns {Promise<1 | 2 | 3>}
+ */
+export function waitForChoice3(footerHint = "") {
+  if (footerHint) console.log(tone(footerHint, "dim"));
+  pagerHooks.pause();
+  try {
+    globalThis.__HKTM_CHOICE_WAIT_BEGIN?.();
+  } catch {
+    /* ignore */
+  }
+  return new Promise((resolve) => {
+    choiceResolve = (picked) => {
+      choiceResolve = null;
+      try {
+        globalThis.__HKTM_CHOICE_WAIT_END?.();
+      } catch {
+        /* ignore */
+      }
+      pagerHooks.resume();
+      resolve(picked);
+    };
+  });
+}
+
+export function __hktmChoiceWaiting() {
+  return choiceResolve !== null;
+}
+
+export function __hktmFlushChoiceWaiter(n) {
+  if (choiceResolve && n >= 1 && n <= 3) {
+    const finish = choiceResolve;
+    choiceResolve = null;
+    finish(n);
+  }
+}
+
 function waitForPagerKeyOnce() {
   return new Promise((resolve) => {
     pagerKeyResolve = resolve;
   });
+}
+
+/** True while a multi-page pager is waiting for Space/Enter/arrows (Space must advance pager, not skip typing). */
+export function isPagerKeyPending() {
+  return pagerKeyResolve !== null;
 }
 
 /**
@@ -111,6 +204,7 @@ export function handlePagerKeydown(e) {
     e.stopImmediatePropagation();
     if (k === "ArrowDown" || pageDown) hktmUiSelect();
     else hktmUiClick();
+    glitchPulse();
     const r = pagerKeyResolve;
     pagerKeyResolve = null;
     r("next");
@@ -120,6 +214,7 @@ export function handlePagerKeydown(e) {
     e.preventDefault();
     e.stopImmediatePropagation();
     hktmUiSelect();
+    glitchPulse();
     const r = pagerKeyResolve;
     pagerKeyResolve = null;
     r("prev");
@@ -137,12 +232,13 @@ export function handlePagerKeydown(e) {
   return false;
 }
 
-export async function pagedPlainLines(lines, footerHint = "") {
+export async function pagedPlainLines(lines, footerHint = "", stepBase = "paged-plain") {
   const hint = footerHint || "Enter / Space / n → next   ↑ / p / PgUp → prev   q / Esc → exit";
   const rows = Math.max(16, Math.floor(process?.stdout?.rows ?? 36));
   const maxLines = Math.max(1, rows - 3);
   const chunks = chunkArray(lines, maxLines);
   if (chunks.length <= 1) {
+    logScreenStep(stepBase);
     for (const l of lines) console.log(l);
     if (footerHint) console.log(tone(footerHint, "dim"));
     return;
@@ -151,7 +247,7 @@ export async function pagedPlainLines(lines, footerHint = "") {
   let page = 0;
   try {
     while (true) {
-      clearTerminalScreen();
+      clearTerminalScreen(`${stepBase}-${page + 1}`);
       for (const l of chunks[page]) {
         console.log(l);
       }
@@ -166,12 +262,8 @@ export async function pagedPlainLines(lines, footerHint = "") {
     }
   } finally {
     pagerHooks.resume();
-    clearTerminalScreen();
+    clearTerminalScreen(`${stepBase}-exit`);
   }
-}
-
-function sleep(ms) {
-  return new Promise((res) => setTimeout(res, ms));
 }
 
 function isWebUiOutput() {
@@ -182,25 +274,68 @@ function isWebUiOutput() {
   }
 }
 
+/** Set from web shell: Space skips the rest of the current typed line (see `typeLine`). */
+const typeRenderSkip = { requested: false };
+let typeLineDepth = 0;
+
+export function skipTypeRenderRequest() {
+  typeRenderSkip.requested = true;
+}
+
+/** True while `typeLine` is animating (character-by-character). */
+export function isTypeLineRendering() {
+  return typeLineDepth > 0;
+}
+
+function typeLineDelayMs() {
+  const raw = Math.max(0, Math.floor(1000 / uiState.cps / 2));
+  /* Web: cps≥20k → raw 0 → timers can run back-to-back without a keydown macrotask between chars; min 1ms so Space/Enter skip is reliable. */
+  if (isWebUiOutput() && uiState.typing) {
+    return Math.max(1, raw);
+  }
+  return raw;
+}
+
 async function typeLine(line) {
   const turboLine = !uiState.typing || (uiState.cps >= 20000 && !isWebUiOutput());
   if (turboLine) {
+    typeRenderSkip.requested = false;
     console.log(line);
     return;
   }
-  const delay = Math.max(1, Math.floor(1000 / uiState.cps));
-  for (let i = 0; i < line.length; i += 1) {
-    process.stdout.write(line[i]);
-    if (uiState.beep && typeof globalThis.__HKTM_TYPE === "function") {
-      try {
-        globalThis.__HKTM_TYPE();
-      } catch {
-        /* ignore */
+  typeLineDepth += 1;
+  try {
+    const delay = typeLineDelayMs();
+    for (let i = 0; i < line.length; i += 1) {
+      if (typeRenderSkip.requested) {
+        typeRenderSkip.requested = false;
+        process.stdout.write(line.slice(i));
+        process.stdout.write("\n");
+        return;
       }
+      process.stdout.write(line[i]);
+      if (uiState.beep && typeof globalThis.__HKTM_TYPE === "function") {
+        try {
+          globalThis.__HKTM_TYPE();
+        } catch {
+          /* ignore */
+        }
+      }
+      if (typeRenderSkip.requested) {
+        typeRenderSkip.requested = false;
+        if (i + 1 < line.length) {
+          process.stdout.write(line.slice(i + 1));
+        }
+        process.stdout.write("\n");
+        return;
+      }
+      await animSleep(delay);
     }
-    await sleep(delay);
+    process.stdout.write("\n");
+  } finally {
+    typeLineDepth -= 1;
+    typeRenderSkip.requested = false;
   }
-  process.stdout.write("\n");
 }
 
 export async function box(title, lines, width = uiState.width) {
@@ -298,13 +433,13 @@ function flattenBoxBodyLines(rawLines, inner) {
   return out;
 }
 
-export async function boxEnterPaged(title, lines, width = uiState.width, footerHint = "") {
-  clearTerminalScreen();
+export async function boxEnterPaged(title, lines, width = uiState.width, footerHint = "", stepBase = "box-enter-paged") {
+  clearTerminalScreen(`${stepBase}-single`);
   await box(title, lines, width);
   await waitForEnterContinue(footerHint);
 }
 
-export async function boxPaged(title, lines, width = uiState.width, footerHint = "") {
+export async function boxPaged(title, lines, width = uiState.width, footerHint = "", stepBase = "box-paged") {
   const hint = footerHint || "Enter / Space / n → next   ↑ / p / PgUp → prev   q / Esc → exit";
   const rows = Math.max(16, Math.floor(process?.stdout?.rows ?? 36));
   const w = Math.max(12, Math.floor(width));
@@ -312,11 +447,13 @@ export async function boxPaged(title, lines, width = uiState.width, footerHint =
   const flat = flattenBoxBodyLines(lines, inner);
   const maxBody = Math.max(4, rows - 6);
   if (flat.length <= maxBody) {
+    logScreenStep(stepBase);
     await box(title, lines, width);
     return;
   }
   const chunks = chunkArray(flat, maxBody);
   if (chunks.length <= 1) {
+    logScreenStep(stepBase);
     await box(title, lines, width);
     return;
   }
@@ -326,7 +463,7 @@ export async function boxPaged(title, lines, width = uiState.width, footerHint =
   const titlePlain = stripAnsi(title);
   try {
     while (true) {
-      clearTerminalScreen();
+      clearTerminalScreen(`${stepBase}-${page + 1}`);
       if (uiState.beep) {
         if (typeof globalThis.__HKTM_PAGE === "function") {
           try {
@@ -355,7 +492,7 @@ export async function boxPaged(title, lines, width = uiState.width, footerHint =
     }
   } finally {
     pagerHooks.resume();
-    clearTerminalScreen();
+    clearTerminalScreen(`${stepBase}-exit`);
   }
 }
 

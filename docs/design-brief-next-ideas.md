@@ -11,7 +11,7 @@
 - [ ] **Noise budget tutorial** — inline meter preview before first exploit.
 - [ ] **Locale-specific intel** — RU/EN file variants for cat/stash strings.
 - [x] **Postgres `COPY` mini-scene** — one-line fiction after successful `exploit misconfig-copy` (sim banner; no PROGRAM).
-- [ ] **Browser parity** — ship full campaign JSON in `web/public` and wire `campaign-save` to `localStorage` (today: mission 1 demo).
+- [x] **Browser parity** — full campaign in browser (m1 fetch + same procedural missions as Node); `hktm_campaign_save` in `localStorage` (2026-04).
 
 **Designers:** keep adding 3+ hooks per sprint — we will keep pulling the top P1 into the next engineering slice.
 

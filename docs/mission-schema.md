@@ -44,7 +44,7 @@ Every mission file lives in `missions/*.json`.
 - `files` (array):
   - `path` (string)
   - `content` (string)
-  - `artifact` (object, optional): grants a fictional credential artifact when the player reads the file
+  - `artifact` (object, optional): grants a credential artifact when the player reads the file
     - `id` (string)
     - `description` (string)
 
