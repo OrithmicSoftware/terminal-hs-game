@@ -820,23 +820,17 @@ body.hktm-glitch-pulse {
   display: inline-block;
   min-width: 1.25em;
   letter-spacing: 0.05em;
-  animation: hktm-chat-dots-blink 0.55s step-end infinite;
 }
 
-@keyframes hktm-chat-dots-blink {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.2;
-  }
+.hktm-chat-typing-dot {
+  display: inline-block;
+  transition: opacity 0.18s ease;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hktm-chat-typing-dots {
-    animation: none;
-    opacity: 0.85;
+  .hktm-chat-typing-dot {
+    transition: none;
+    opacity: 0.85 !important;
   }
 }
 
