@@ -1393,6 +1393,7 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
     );
     console.log("");
     if (mission.objective?.type === "phishing") {
+      logScreenStep("mission-complete-m1");
       console.log(tone("\nMission complete. Credential delivered to handler.", "green"));
       console.log("");
     }

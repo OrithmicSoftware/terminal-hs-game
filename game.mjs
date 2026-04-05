@@ -788,6 +788,7 @@ async function runTerminalClientChatGate() {
             console.log("\n".repeat(20));
           }
           await runTerminalLoadingSequence({ instant: true });
+          logScreenStep("mission-brief");
           await session.printBanner({ instant: true, scrollbackBrief: true });
           campaignState.shadowNetImIntroCompleted = true;
           saveCampaignState(campaignState);
