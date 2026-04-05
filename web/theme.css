@@ -593,7 +593,7 @@ header {
 
 @media (max-width: 640px) {
   .hktm-landing {
-    width: min(100% - 1rem, 1120px);
+    width: min(calc(100% - 1rem), 1120px);
     padding-top: 0.85rem;
   }
 
