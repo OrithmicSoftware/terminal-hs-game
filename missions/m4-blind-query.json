@@ -90,14 +90,14 @@
           "port": 8080,
           "exploitId": "sqli-search",
           "noise": 6,
-          "vulnRef": "OWASP A03:2021 — SQL injection via unparameterised /search?q= query (string concat)"
+          "vulnRef": "OWASP A03:2021 — SQL injection via unparameterized /search?q= query (string concat)"
         }
       ],
       "noise": { "enum": 3 },
       "files": [
         {
           "path": "/opt/api/app.js",
-          "content": "// Orion internal search API — VULNERABLE\nconst express = require('express');\nconst { Pool } = require('pg');\nconst pool = new Pool({ connectionString: process.env.DATABASE_URL });\n\napp.get('/search', async (req, res) => {\n  const q = req.query.q;\n  // BUG: string concatenation — no parameterisation!\n  const sql = \"SELECT * FROM customers WHERE name LIKE '%\" + q + \"%'\";\n  const result = await pool.query(sql);\n  res.json(result.rows);\n});\n\n// FIX (not implemented): use parameterised query\n// const sql = 'SELECT * FROM customers WHERE name LIKE $1';\n// const result = await pool.query(sql, [`%${q}%`]);\n\n[FICTION — educational code snippet; not a real running application]"
+          "content": "// Orion internal search API — VULNERABLE\nconst express = require('express');\nconst { Pool } = require('pg');\nconst pool = new Pool({ connectionString: process.env.DATABASE_URL });\n\napp.get('/search', async (req, res) => {\n  const q = req.query.q;\n  // BUG: string concatenation — no parameterization!\n  const sql = \"SELECT * FROM customers WHERE name LIKE '%\" + q + \"%'\";\n  const result = await pool.query(sql);\n  res.json(result.rows);\n});\n\n// FIX (not implemented): use parameterized query\n// const sql = 'SELECT * FROM customers WHERE name LIKE $1';\n// const result = await pool.query(sql, [`%${q}%`]);\n\n[FICTION — educational code snippet; not a real running application]"
         },
         {
           "path": "/opt/api/config.json",

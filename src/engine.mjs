@@ -2261,11 +2261,12 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
     }
 
     let hitCount = 0;
+    const patternLower = pattern.toLowerCase();
     for (const f of files) {
       const lines = f.content.split("\n");
       const matches = [];
       for (let i = 0; i < lines.length; i++) {
-        if (lines[i].toLowerCase().includes(pattern.toLowerCase())) {
+        if (lines[i].toLowerCase().includes(patternLower)) {
           matches.push({ lineNo: i + 1, text: lines[i] });
         }
       }
@@ -2326,7 +2327,7 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
     console.log(tone("\n── SQL Injection Analysis ──", "magenta"));
     console.log(`\n${tone("Endpoint:", "bold")} /search?q=${endpoint}`);
     console.log(`${tone("Payload:", "bold")} ${tone(payload, "cyan")}`);
-    console.log(`\n${tone("— Safe query (parameterised — not what the server uses):", "green")}`);
+    console.log(`\n${tone("— Safe query (parameterized — not what the server uses):", "green")}`);
     console.log(`  SELECT * FROM customers WHERE name LIKE $1`);
     console.log(`  ${tone(`-- bind: '%${payload}%'  (treated as data, never parsed as SQL)`, "dim")}`);
     console.log(`\n${tone("— Vulnerable query (string concat — what the server actually runs):", "red")}`);

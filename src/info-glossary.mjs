@@ -238,7 +238,7 @@ export const INFO_GLOSSARY = {
   },
   sqli: {
     about:
-      "SQL injection (SQLi) exploits applications that build SQL by concatenating user input. Classes include UNION-based (append extra SELECT), blind (infer data from true/false), and error-based (read DB errors). Defense: parameterised queries, least-privilege DB roles, WAF. Reference: OWASP Top 10 A03:2021.",
+      "SQL injection (SQLi) exploits applications that build SQL by concatenating user input. Classes include UNION-based (append extra SELECT), blind (infer data from true/false), and error-based (read DB errors). Defense: parameterized queries, least-privilege DB roles, WAF. Reference: OWASP Top 10 A03:2021.",
     exploit:
       "In this game: sqli <endpoint> <payload> simulates testing a SQL injection surface. The engine shows the safe query vs. the injected query side by side. Successful injection unlocks the DB node. Trace cost applies — injection queries are noisy.",
   },
