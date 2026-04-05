@@ -840,19 +840,44 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
     }
   }
 
-  /** One-line menu row: first sentence (if any), then truncate with "..." to fit the column. */
-  function previewPhishingOptionLabel(label, maxLen) {
+  /**
+   * Pull up to N sentence-like chunks (…[.!?]) from flattened text; remainder means more content exists.
+   */
+  function takeUpToSentences(flat, maxSentences) {
+    let rest = flat.trim();
+    const parts = [];
+    for (let i = 0; i < maxSentences && rest; i += 1) {
+      const m = rest.match(/^(.+?[.!?])(?:\s+|$)/);
+      if (m) {
+        parts.push(m[1].trim());
+        rest = rest.slice(m[0].length).trim();
+      } else {
+        parts.push(rest);
+        rest = "";
+      }
+    }
+    return { text: parts.join(" ").trim(), truncatedBySentence: rest.length > 0 };
+  }
+
+  /**
+   * One-line menu / verdict preview: 1 sentence (subject/from) or 2 sentences (body) when present,
+   * then "..." if more text remains or if hard-truncated to maxLen.
+   */
+  function previewPhishingOptionLabel(label, maxLen, options = {}) {
+    const maxSentences = options.maxSentences ?? 1;
     const flat = String(label).replace(/\s+/g, " ").trim();
-    const m = flat.match(/^(.+?[.!?])(?:\s|$)/);
-    let s = m ? m[1].trim() : flat;
+    const { text: base, truncatedBySentence } = takeUpToSentences(flat, maxSentences);
+    let s = base;
+    if (truncatedBySentence) s = `${s}...`;
     if (s.length > maxLen) s = `${s.slice(0, Math.max(0, maxLen - 3)).trim()}...`;
     return s;
   }
 
   /** @param {boolean} [dimmed] — already-declined option (grayed out in the menu). */
-  function logPhishingOption(n, option, cw, dimmed = false) {
+  function logPhishingOption(n, option, cw, dimmed = false, stepKind = "subject") {
     const inner = Math.max(24, cw - 6);
-    const line = previewPhishingOptionLabel(option.label, inner);
+    const maxSentences = stepKind === "body" ? 2 : 1;
+    const line = previewPhishingOptionLabel(option.label, inner, { maxSentences });
     const numTone = dimmed ? "dim" : "cyan";
     const textTone = dimmed ? "dim" : "yellow";
     console.log(`  ${tone(`[${n}]`, numTone)} ${tone(line, textTone)}`);
@@ -875,9 +900,25 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
       clearTerminalScreen(`compose-mail-${stepKind}-approved`, "clear");
       const head = stepKindTitle(stepKind);
       const fb = choice.feedback;
+      const maxSentences = stepKind === "body" ? 2 : 1;
+      const pickedPreview = previewPhishingOptionLabel(choice.label, Math.max(40, cw - 4), {
+        maxSentences,
+      });
       console.log("");
-      console.log(tone(`${head} approved.`, "green"));
-      console.log("");
+      if (stepKind === "body") {
+        console.log(tone(`${head} approved.`, "green"));
+        console.log("");
+        for (const row of wrap(pickedPreview, cw)) {
+          console.log(tone(row, "green"));
+        }
+        console.log("");
+      } else {
+        const headline = `${head} approved: ${pickedPreview}`;
+        for (const row of wrap(headline, cw)) {
+          console.log(tone(row, "green"));
+        }
+        console.log("");
+      }
       for (const p of fb.lines) {
         for (const row of wrap(p, cw)) {
           console.log(tone(row, "dim"));
@@ -907,9 +948,25 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
       const head = stepKindTitle(stepKind);
       const fb = choice.feedback;
       const missionWhy = stripDeclinedLead(rejectReason);
+      const maxSentences = stepKind === "body" ? 2 : 1;
+      const pickedPreview = previewPhishingOptionLabel(choice.label, Math.max(40, cw - 4), {
+        maxSentences,
+      });
       console.log("");
-      console.log(tone(`${head} declined.`, "red"));
-      console.log("");
+      if (stepKind === "body") {
+        console.log(tone(`${head} declined.`, "red"));
+        console.log("");
+        for (const row of wrap(pickedPreview, cw)) {
+          console.log(tone(row, "red"));
+        }
+        console.log("");
+      } else {
+        const headline = `${head} declined: ${pickedPreview}`;
+        for (const row of wrap(headline, cw)) {
+          console.log(tone(row, "red"));
+        }
+        console.log("");
+      }
       if (missionWhy) console.log(tone(missionWhy, "yellow"));
       if (missionWhy) console.log("");
       for (const p of fb.lines) {
@@ -971,7 +1028,7 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
         console.log("");
         console.log(tone(`${stepLabel}:`, "bold"));
         for (let i = 0; i < options.length; i += 1) {
-          logPhishingOption(i + 1, options[i], cw, rejected.has(i));
+          logPhishingOption(i + 1, options[i], cw, rejected.has(i), stepKind);
         }
         console.log("");
         let idx;
@@ -1050,7 +1107,7 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
       fromChoice = fromPick.choice;
     }
 
-    console.log("");
+    clearTerminalScreen("compose-mail-prepare");
     await waitForEnterContinue("Preparation ready. Press ENTER to compose and send");
 
     // Web + non-animated / non-TTY runs use short delays; interactive terminal with animations gets very slow compose.
@@ -1336,6 +1393,7 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
     );
     console.log("");
     if (mission.objective?.type === "phishing") {
+      logScreenStep("mission-complete-m1");
       console.log(tone("\nMission complete. Credential delivered to handler.", "green"));
       console.log("");
     }
@@ -1462,7 +1520,7 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
         lines.push(
           "",
           ...wrap(
-            `${tone("Hint:", "dim")} ${highlightCommandHints("Run compose mail on local to draft the lure (info phishing). Open ShadowNet IM (chat, /exit) for handler comms. Network tools unlock after you deliver the lure.")}`,
+            `${tone("Hint:", "dim")} ${highlightCommandHints("Run mail on local to draft the lure (info phishing). Open ShadowNet IM (chat, /exit) for handler comms. Network tools unlock after you deliver the lure.")}`,
             cw,
           ),
         );

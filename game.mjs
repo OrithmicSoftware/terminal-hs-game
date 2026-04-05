@@ -764,12 +764,12 @@ async function runTerminalClientChatGate() {
           eraseReadlineInputLine();
           if (briefShown) {
             await showTypingThenLine(
-              `Brief's in your terminal. Start with mail — info phishing if you need the theory. — ${alias.signoff}`,
+              t("chat_gate_exit_after_brief").replace("%s", alias.signoff),
               "chat",
             );
           } else {
             await showTypingThenLine(
-              `Channel on standby. Type chat anytime to reopen. — ${alias.signoff}`,
+              t("chat_gate_exit_standby").replace("%s", alias.signoff),
               "chat",
             );
           }
@@ -788,6 +788,7 @@ async function runTerminalClientChatGate() {
             console.log("\n".repeat(20));
           }
           await runTerminalLoadingSequence({ instant: true });
+          logScreenStep("mission-brief");
           await session.printBanner({ instant: true, scrollbackBrief: true });
           campaignState.shadowNetImIntroCompleted = true;
           saveCampaignState(campaignState);
