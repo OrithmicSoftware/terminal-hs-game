@@ -132,7 +132,7 @@ test("no Teaching score in compose-mail output", async () => {
   });
   const cap = captureConsoleLog();
   try {
-    await session.execute("compose mail");
+    await session.execute("mail");
   } finally {
     cap.restore();
     setWaitEnterContinueImpl(null);
@@ -153,7 +153,7 @@ test("post-harvest: ShadowNet IM notification after harvest", async () => {
   });
   const cap = captureConsoleLog();
   try {
-    await session.execute("compose mail");
+    await session.execute("mail");
   } finally {
     cap.restore();
     setWaitEnterContinueImpl(null);

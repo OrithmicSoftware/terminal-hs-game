@@ -52,6 +52,11 @@ flowchart LR
     E --> F["boot-mission-banner<br/>type=clear"]
     F --> G["command-clear …<br/>per command"]
   end
+  subgraph infoChat["info chat → back"]
+    F -->|"info chat"| H["info-chat …<br/>type=info pager"]
+    H -->|"q / exit pager"| I["kernel-loading<br/>type=log replay"]
+    I --> F
+  end
 ```
 
 ### Mission 1 — all branches (cold start with chat gate)
@@ -106,15 +111,15 @@ flowchart TD
 - **compose mail step retries:** Each step of the phishing wizard re-emits its `type=form` scene on every wrong pick; `compose-mail`, `compose-mail-body`, and `compose-mail-from` may each appear multiple times before the player selects the correct option.
 - **mail read:** `mail read <id>` emits a paged scene `mail-read-<id>` (e.g. `mail-read-OPS-GR-001`); the mail list itself uses only `command-clear`.
 
-**Restore after `info`:** `post-splash` (clear) → mission banner (instant, no typing replay).
+**Restore after `info` (normal mission shell):** `post-splash` (clear) → mission banner (instant, no typing replay).
+
+**Chat gate → `info chat` → back (diagram `H` → `I` → `F`):** While the incoming-message gate is active, restore does **not** emit `post-splash` (plain clear only). After you leave the `info chat` pager (`q` / pager exit), `runTerminalLoadingSequence({ instant: true })` logs `[SCENE: kernel-loading type=log prev=<semantic> animate=false]` where `<semantic>` is the last scene id with a trailing `-exit` removed (e.g. `info-chat-exit` → `prev=info-chat`). That **kernel-loading replay** brings you back to the mission banner / shell — not a second `post-splash`.
 
 **Phishing beat (m1):** `compose-outbound` → `smtp-handshake` (clears between stages) → `mission-complete-m1` (log, no clear).
 
 **Paginated UI:** Pagers emit `<stepBase>-1`, `-2`, … per page and `<stepBase>-exit` when leaving (help, mail read, debrief, ShadowNet `chat-contract`, `info-<term>`, tutorial pager, etc.).
 
 **Browser campaign:** Additional clears for `next-mission-banner`, `reset-mission-banner`, `ui-pip-banner`, `ui-plain-banner`.
-
-**Chat gate → `info` → back:** Restore does **not** emit `post-splash` (plain clear only). `runTerminalLoadingSequence({ instant: true })` logs `[SCENE: kernel-loading type=log prev=<semantic> animate=false]` where `<semantic>` is the last scene id with a trailing `-exit` removed (e.g. `info-chat-exit` → `prev=info-chat`).
 
 **Checkpoints / game.mjs:** Names like `checkpoint-mission-shell`, `retry-banner`, `chat-gate-open`, `boot-mission-banner` — see `game.mjs` `clearTerminal(...)` calls.
 

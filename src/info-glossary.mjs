@@ -161,7 +161,7 @@ export const INFO_GLOSSARY = {
   },
   phishing: {
     about:
-      "Phishing is social engineering: messages or web pages that look like a bank, employer, or IT team so the victim enters passwords or codes on a fake site. The attacker steals what is typed — not by magic math, but by impersonation. Try: compose mail.",
+      "Phishing is social engineering: messages or web pages that look like a bank, employer, or IT team so the victim enters passwords or codes on a fake site. The attacker steals what is typed — not by magic math, but by impersonation. Try: mail (bare mail on local in Ghost Proxy).",
     exploit: "",
   },
   soc: {

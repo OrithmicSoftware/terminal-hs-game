@@ -92,14 +92,15 @@ test("if action=info chat then scene=info-chat; if action=info <unknown> then sc
 // Branch 2: mail (list) → no paged scene
 //           mail read <id> → mail-read-<id> scene
 // ---------------------------------------------------------------------------
-test("if action=mail then no pager scene; if action=mail read OPS-GR-001 then scene=mail-read-OPS-GR-001", async () => {
-  // Branch A — list: showMailList emits no scene line
+test("if action=mail list then no pager scene; if action=mail read OPS-GR-001 then scene=mail-read-OPS-GR-001", async () => {
+  // Branch A — list: showMailList emits no scene line (use "mail list" because
+  // bare "mail" on m1 pre-phishing routes to the compose flow).
   const session1 = createMissionSession(loadM1(), null, { contactAliasSeed: "scenes-mail-a" });
-  const scenesA = await capturingScenes(() => session1.execute("mail"));
+  const scenesA = await capturingScenes(() => session1.execute("mail list"));
 
   assert.ok(
     !scenesA.some((l) => l.includes("mail-read")),
-    `'mail' (list) must not emit a mail-read-* scene; got:\n${scenesA.join("\n")}`,
+    `'mail list' must not emit a mail-read-* scene; got:\n${scenesA.join("\n")}`,
   );
 
   // Branch B — read: boxPaged emits scene via logScreenStep in non-TTY
