@@ -593,6 +593,26 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
       amandaTracePressure: false,
       amandaTraceCritical: false,
       amandaSocPersonal: false,
+      /* M2 triggers */
+      m2OnCorpJump: false,
+      m2RsyncComplete: false,
+      m2DsnFound: false,
+      m2SshkeyFound: false,
+      amandaM2Worried: false,
+      amandaM2Sshkey: false,
+      /* M3 triggers */
+      m3BastionConnect: false,
+      m3InternalOwned: false,
+      m3RoutesFound: false,
+      amandaM3Arc: false,
+      amandaM3RevelationTease: false,
+      /* M4 triggers */
+      m4ApiFound: false,
+      m4SqliSuccess: false,
+      m4CustomerDataExfil: false,
+      amandaM4Confrontation: false,
+      amandaM4RevealTease: false,
+      m4SocEscalation: false,
     },
     phishingBeatDone: false,
   };
@@ -1366,6 +1386,16 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
       state.ghostTriggers.amandaSocPersonal = true;
       webGhostChatTrigger("amanda_soc_personal", {});
     }
+    /* ── M2: Amanda worried at 40% trace ── */
+    if (mission.id === "m2-datafall" && !state.ghostTriggers.amandaM2Worried && ratio >= 0.4) {
+      state.ghostTriggers.amandaM2Worried = true;
+      webGhostChatTrigger("amanda_m2_worried", {});
+    }
+    /* ── M4: Amanda confrontation on first trace activity ── */
+    if (mission.id === "m4-blind-query" && !state.ghostTriggers.amandaM4Confrontation && state.turns >= 1) {
+      state.ghostTriggers.amandaM4Confrontation = true;
+      webGhostChatTrigger("amanda_m4_confrontation", {});
+    }
   }
 
   function showStatus() {
@@ -1428,6 +1458,10 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
       `  ${tone("ls", "cyan")}                   list files on current node (owned only)`,
       `  ${tone("cat <path>", "cyan")}           read file on current node`,
       `  ${tone("exfil <path>", "cyan")}         exfiltrate file to your rig`,
+      `  ${tone("rsync <node>:<path>", "cyan")}  pull remote directory to local dump`,
+      `  ${tone("grep <pattern>", "cyan")}       search files on current node for pattern`,
+      `  ${tone("sqli <ep> <payload>", "cyan")}  test SQL injection surface`,
+      `  ${tone("ssh-keyscan <host>", "cyan")}   show SSH host-key fingerprint`,
       `  ${tone("cover", "cyan")}                reduce trace`,
       `  ${tone("spoof", "cyan")}                suppress active SOC alert`,
       `  ${tone("laylow", "cyan")}               spend turn to wait and cool down`,
@@ -1771,6 +1805,18 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
       state.ghostTriggers.onGw = true;
       webGhostChatTrigger("connect_gw", {});
     }
+    /* ── M2 ghost: connect corp-jump ── */
+    if (target === "corp-jump" && !state.ghostTriggers.m2OnCorpJump) {
+      state.ghostTriggers.m2OnCorpJump = true;
+      webGhostChatTrigger("m2_on_corp_jump", {});
+    }
+    /* ── M3 ghost: connect nexus-bastion ── */
+    if (target === "nexus-bastion" && !state.ghostTriggers.m3BastionConnect) {
+      state.ghostTriggers.m3BastionConnect = true;
+      webGhostChatTrigger("m3_bastion_connect", {});
+      webGhostChatTrigger("amanda_m3_arc", {});
+      state.ghostTriggers.amandaM3Arc = true;
+    }
     console.log(`${tone("Connected to", "green")} ${tone(target, "blue")}`);
     return 0;
   }
@@ -1928,6 +1974,97 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
         );
       }
     }
+    if (exploitId === "credential-login") {
+      console.log(
+        tone(
+          "[sim] SSH session — authenticated with stolen password (credential stuffing). No MFA challenge.",
+          "dim",
+        ),
+      );
+      console.log(
+        `${tone("Tip:", "dim")} ${highlightCommandHints("Use rsync to pull files from connected hosts, or scan to discover adjacent nodes.")}`,
+      );
+    }
+    if (exploitId === "weak-ssh-key") {
+      console.log(
+        tone(
+          "[sim] SSH session — authenticated with stolen private key. Server trusted key in authorized_keys; no passphrase protection.",
+          "dim",
+        ),
+      );
+    }
+    if (exploitId === "exposed-api") {
+      console.log(
+        tone(
+          "[sim] API surface exposed — no authentication required on internal subnet. Direct access to /search endpoint.",
+          "dim",
+        ),
+      );
+    }
+    if (exploitId === "sqli-search") {
+      console.log(
+        tone(
+          "[sim] SQL injection — /search?q= endpoint confirmed vulnerable. String concatenation; no prepared statements.",
+          "dim",
+        ),
+      );
+      /* Auto-grant sqli-api-access artifact */
+      if (!state.artifacts.has("sqli-api-access")) {
+        state.artifacts.add("sqli-api-access");
+        console.log(
+          `${tone("ARTIFACT ACQUIRED:", "bold")} ${tone("sqli-api-access", "yellow")} — DB accessible through injection channel.`,
+        );
+      }
+      const need = mission.objective?.exfilFiles ?? [];
+      if (need.length > 0) {
+        console.log(
+          `${tone("Next step:", "yellow")} ${tone("connect db-internal", "cyan")} → ${tone("exploit sqli-dump", "cyan")} → ${tone(`exfil ${need[0]}`, "cyan")}`,
+        );
+      }
+      /* ── M4 ghost: sqli success ── */
+      if (!state.ghostTriggers.m4SqliSuccess) {
+        state.ghostTriggers.m4SqliSuccess = true;
+        webGhostChatTrigger("m4_sqli_success", {});
+      }
+    }
+    if (exploitId === "sqli-dump") {
+      console.log(
+        tone(
+          "[sim] UNION SELECT on customer table — excessive DB role privileges; no row-level security.",
+          "dim",
+        ),
+      );
+      const need = mission.objective?.exfilFiles ?? [];
+      if (need.length > 0) {
+        const first = need[0];
+        console.log(
+          `${tone("Next step:", "yellow")} ${tone(`exfil ${first}`, "cyan")} ${tone("(pull evidence to your rig), then", "dim")} ${tone("submit", "cyan")} ${tone("to finish the objective.", "dim")}`,
+        );
+      }
+    }
+
+    /* ── Mission-specific node-ownership ghost triggers ── */
+
+    /* M3: corp-internal owned */
+    if (n.id === "corp-internal" && !state.ghostTriggers.m3InternalOwned) {
+      state.ghostTriggers.m3InternalOwned = true;
+      webGhostChatTrigger("m3_internal_owned", {});
+      if (!state.ghostTriggers.amandaM3RevelationTease) {
+        state.ghostTriggers.amandaM3RevelationTease = true;
+        webGhostChatTrigger("amanda_m3_revelation_tease", {});
+      }
+    }
+    /* M4: api-internal owned (enum shows the API) */
+    if (n.id === "api-internal" && !state.ghostTriggers.m4ApiFound) {
+      state.ghostTriggers.m4ApiFound = true;
+      webGhostChatTrigger("m4_api_found", {});
+    }
+    /* M4: db-internal owned */
+    if (n.id === "db-internal" && !state.ghostTriggers.amandaM4RevealTease) {
+      state.ghostTriggers.amandaM4RevealTease = true;
+      webGhostChatTrigger("amanda_m4_reveal_tease", {});
+    }
+
     notifyBell();
     return risk;
   }
@@ -1970,6 +2107,22 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
           t("pager_help_line"),
           "artifact-acquired",
         );
+
+        /* ── M2 artifact-specific ghost triggers ── */
+        if (id === "ssh-key-mchen") {
+          if (!state.ghostTriggers.m2SshkeyFound) {
+            state.ghostTriggers.m2SshkeyFound = true;
+            webGhostChatTrigger("m2_sshkey_found", {});
+            webGhostChatTrigger("amanda_m2_sshkey", {});
+            state.ghostTriggers.amandaM2Sshkey = true;
+          }
+        }
+        if (id === "dsn-ops-db") {
+          if (!state.ghostTriggers.m2DsnFound) {
+            state.ghostTriggers.m2DsnFound = true;
+            webGhostChatTrigger("m2_dsn_found", {});
+          }
+        }
       }
     }
     return 1;
@@ -1989,7 +2142,266 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
     state.exfiltrated.add(filePath);
     addTrace(3);
     console.log(`${tone("Exfil success:", "green")} ${filePath}`);
+
+    /* ── M4 ghost: customer data exfil ── */
+    if (mission.id === "m4-blind-query" && filePath === "/data/customer_credentials.csv") {
+      if (!state.ghostTriggers.m4CustomerDataExfil) {
+        state.ghostTriggers.m4CustomerDataExfil = true;
+        webGhostChatTrigger("m4_customer_data_exfil", {});
+      }
+    }
+
+    /* ── M3 ghost: routes exfil ── */
+    if (mission.id === "m3-dark-channel" && filePath === "/opt/api/routes.txt") {
+      if (!state.ghostTriggers.m3RoutesFound) {
+        state.ghostTriggers.m3RoutesFound = true;
+        webGhostChatTrigger("m3_routes_found", {});
+      }
+    }
+
     return 3;
+  }
+
+  /* ────────────────────────────────────────────────────────────────
+   *  rsync — pull remote directory tree to local dump
+   * ──────────────────────────────────────────────────────────────── */
+
+  function runRsyncCommand(raw) {
+    const arg = String(raw ?? "").trim();
+    if (!arg) {
+      console.log(`Usage: ${tone("rsync <node>:<remote-path> [local-path]", "cyan")}`);
+      console.log(tone("Pull a remote directory tree. Requires owned target node.", "dim"));
+      return 0;
+    }
+    /* Parse rsync <node>:<path> [local-path] */
+    const colonMatch = arg.match(/^(\S+?):(\S+)(?:\s+(\S+))?$/);
+    if (!colonMatch) {
+      console.log(`Usage: ${tone("rsync <node>:<remote-path> [local-path]", "cyan")}`);
+      return 0;
+    }
+    const [, targetNodeId, remotePath] = colonMatch;
+    if (!nodeById.has(targetNodeId)) {
+      console.log(`Unknown node: ${targetNodeId}`);
+      return 0;
+    }
+    if (!state.ownedNodes.has(targetNodeId)) {
+      console.log(`${tone("Access denied.", "red")} Node ${tone(targetNodeId, "blue")} not owned — compromise it first.`);
+      return 0;
+    }
+    const targetNode = node(targetNodeId);
+    const matchFiles = targetNode.files.filter((f) => f.path.startsWith(remotePath));
+    if (matchFiles.length === 0) {
+      console.log(`No files matched under ${tone(remotePath, "yellow")} on ${tone(targetNodeId, "blue")}.`);
+      return 0;
+    }
+
+    /* Simulate rsync transfer output */
+    const totalBytes = matchFiles.reduce((acc, f) => acc + (f.content?.length ?? 0), 0);
+    console.log(tone("receiving incremental file list", "dim"));
+    for (const f of matchFiles) {
+      console.log(`  ${f.path}`);
+    }
+    console.log(
+      `\n${tone("sent", "dim")} 48 bytes  ${tone("received", "dim")} ${(totalBytes / 1024).toFixed(1)}K bytes`,
+    );
+    console.log(tone(`total size is ${(totalBytes / 1024).toFixed(1)}K  speedup is 1.00`, "dim"));
+    console.log(`\n${tone("Rsync complete:", "green")} ${matchFiles.length} file(s) synced from ${tone(targetNodeId, "blue")} to local dump.`);
+
+    /* Copy files to local node so ls/cat/grep can access them */
+    const localNode = node("local");
+    for (const f of matchFiles) {
+      if (!localNode.files.some((lf) => lf.path === f.path)) {
+        localNode.files.push({ ...f });
+      }
+    }
+
+    addTrace(3);
+
+    /* ── M2 ghost: rsync complete ── */
+    if (mission.id === "m2-datafall" && !state.ghostTriggers.m2RsyncComplete) {
+      state.ghostTriggers.m2RsyncComplete = true;
+      webGhostChatTrigger("m2_rsync_complete", {});
+    }
+
+    console.log(
+      `${tone("Tip:", "dim")} ${highlightCommandHints("Use ls and cat to browse the dump, or grep <pattern> to search for secrets.")}`,
+    );
+    return 3;
+  }
+
+  /* ────────────────────────────────────────────────────────────────
+   *  grep — search files on current node for a pattern
+   * ──────────────────────────────────────────────────────────────── */
+
+  function runGrepCommand(raw) {
+    const arg = String(raw ?? "").trim();
+    if (!arg) {
+      console.log(`Usage: ${tone("grep <pattern> [path]", "cyan")}`);
+      console.log(tone("Search files on the current node for matching lines. No trace cost.", "dim"));
+      return 0;
+    }
+    const n = node(state.currentNode);
+    if (!state.ownedNodes.has(n.id)) {
+      console.log("Access denied. Compromise node first.");
+      return 0;
+    }
+
+    /* Parse: grep <pattern> [path] */
+    const parts = arg.match(/^(\S+)(?:\s+(\S+))?$/);
+    const pattern = parts ? parts[1] : arg;
+    const pathFilter = parts ? parts[2] : null;
+
+    const files = pathFilter
+      ? n.files.filter((f) => f.path.startsWith(pathFilter) || f.path === pathFilter)
+      : n.files;
+
+    if (files.length === 0) {
+      console.log("No files to search.");
+      return 0;
+    }
+
+    let hitCount = 0;
+    for (const f of files) {
+      const lines = f.content.split("\n");
+      const matches = [];
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i].toLowerCase().includes(pattern.toLowerCase())) {
+          matches.push({ lineNo: i + 1, text: lines[i] });
+        }
+      }
+      if (matches.length > 0) {
+        console.log(`\n${tone(f.path, "yellow")}:`);
+        for (const m of matches) {
+          console.log(`  ${tone(String(m.lineNo), "dim")}:${highlightCommandHints(m.text)}`);
+        }
+        hitCount += matches.length;
+      }
+    }
+
+    if (hitCount === 0) {
+      console.log(`No matches for ${tone(pattern, "cyan")} in ${files.length} file(s).`);
+    } else {
+      console.log(`\n${tone(`${hitCount} match(es)`, "green")} across ${files.length} file(s).`);
+    }
+
+    /* grep is a local operation — no trace cost */
+    return 0;
+  }
+
+  /* ────────────────────────────────────────────────────────────────
+   *  sqli — SQL injection demo / attack surface testing
+   * ──────────────────────────────────────────────────────────────── */
+
+  function runSqliCommand(raw) {
+    const arg = String(raw ?? "").trim();
+    if (!arg) {
+      console.log(tone("SQL injection lab (simulated injection surface)", "bold"));
+      console.log(`  ${tone("sqli <endpoint> <payload>", "cyan")}  — test injection against a named endpoint`);
+      console.log(`  ${tone(`sqli search ' OR 1=1--`, "cyan")}       — classic tautology injection example`);
+      console.log(
+        `\n${tone("How it works:", "dim")} The vulnerable endpoint builds SQL by pasting your input into the query.`,
+      );
+      console.log(
+        `${tone("Defense:", "dim")} Parameterised queries / prepared statements — input is data, not SQL code.`,
+      );
+      console.log(highlightCommandHints("See also: info sqli, info sql-injection, sql demo"));
+      return 0;
+    }
+
+    const n = node(state.currentNode);
+    if (!state.ownedNodes.has(n.id)) {
+      console.log("Access denied. Compromise node first.");
+      return 0;
+    }
+
+    /* Parse: sqli <endpoint> <payload> */
+    const endpointMatch = arg.match(/^(\S+)\s+(.+)$/s);
+    if (!endpointMatch) {
+      console.log(`Usage: ${tone("sqli <endpoint> <payload>", "cyan")}`);
+      return 0;
+    }
+    const [, endpoint, payload] = endpointMatch;
+
+    /* Display safe vs injected query side-by-side */
+    console.log(tone("\n── SQL Injection Analysis ──", "magenta"));
+    console.log(`\n${tone("Endpoint:", "bold")} /search?q=${endpoint}`);
+    console.log(`${tone("Payload:", "bold")} ${tone(payload, "cyan")}`);
+    console.log(`\n${tone("— Safe query (parameterised — not what the server uses):", "green")}`);
+    console.log(`  SELECT * FROM customers WHERE name LIKE $1`);
+    console.log(`  ${tone(`-- bind: '%${payload}%'  (treated as data, never parsed as SQL)`, "dim")}`);
+    console.log(`\n${tone("— Vulnerable query (string concat — what the server actually runs):", "red")}`);
+    console.log(`  SELECT * FROM customers WHERE name LIKE '%${payload}%'`);
+
+    /* Check if payload looks like a valid injection */
+    const injectionPatterns = ["'", "OR", "UNION", "--", ";", "1=1", "DROP", "SELECT"];
+    const looksLikeInjection = injectionPatterns.some((p) => payload.toUpperCase().includes(p));
+
+    if (looksLikeInjection) {
+      console.log(`\n${tone("⚠ Injection detected!", "yellow")} Your payload alters the SQL structure.`);
+      console.log(
+        tone("The query now returns all rows instead of filtering by name.", "dim"),
+      );
+
+      /* Grant sqli-api-access artifact if on api-internal */
+      if (n.id === "api-internal" && !state.artifacts.has("sqli-api-access")) {
+        state.artifacts.add("sqli-api-access");
+        console.log(
+          `\n${tone("ARTIFACT ACQUIRED:", "bold")} ${tone("sqli-api-access", "yellow")} — injection surface confirmed; DB accessible via API session.`,
+        );
+      }
+
+      addTrace(5);
+      return 5;
+    }
+
+    console.log(`\n${tone("No injection effect.", "dim")} Your payload is treated as a normal search term.`);
+    console.log(highlightCommandHints(`Try: sqli search ' OR 1=1--`));
+    addTrace(1);
+    return 1;
+  }
+
+  /* ────────────────────────────────────────────────────────────────
+   *  ssh-keyscan — show simulated SSH host-key fingerprint
+   * ──────────────────────────────────────────────────────────────── */
+
+  function runSshKeyscan(raw) {
+    const target = String(raw ?? "").trim();
+    if (!target) {
+      console.log(`Usage: ${tone("ssh-keyscan <host>", "cyan")}`);
+      console.log(tone("Show SSH host-key fingerprint table. Verify before connecting to avoid MITM.", "dim"));
+      return 0;
+    }
+    if (!nodeById.has(target)) {
+      console.log("Unknown host.");
+      return 0;
+    }
+    const targetNode = node(target);
+    const hasSsh = targetNode.services.some(
+      (s) => s.name === "ssh" || s.name === "sshd",
+    );
+    if (!hasSsh) {
+      console.log(`No SSH service detected on ${tone(target, "blue")}.`);
+      return 0;
+    }
+
+    /* Generate deterministic fake fingerprint from node id */
+    let h = 2166136261;
+    for (let i = 0; i < target.length; i += 1) {
+      h = Math.imul(h ^ target.charCodeAt(i), 16777619);
+    }
+    const fp = (h >>> 0).toString(16).padStart(8, "0");
+    const fpFull = `SHA256:${fp}${[...target].map((c) => c.charCodeAt(0).toString(16)).join("").slice(0, 32)}`;
+
+    console.log(`\n${tone("# ssh-keyscan " + target, "dim")}`);
+    console.log(`${target} ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA...`);
+    console.log(`\n${tone("Host key fingerprint:", "bold")}`);
+    console.log(`  ED25519 ${fpFull}`);
+    console.log(
+      `\n${tone("Tip:", "dim")} Compare this fingerprint with known-good records before connecting. ${tone("(TOFU — Trust On First Use)", "dim")}`,
+    );
+
+    addTrace(1);
+    return 1;
   }
 
   function cover() {
@@ -2263,6 +2675,21 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
       case "exfil":
         await loading("Staging exfil bundle...", 360);
         risk = exfil(arg);
+        break;
+      case "rsync":
+        await loading("Syncing remote directory...", 380, { tickKind: "rsync" });
+        risk = runRsyncCommand(arg);
+        break;
+      case "grep":
+        risk = runGrepCommand(arg);
+        break;
+      case "sqli":
+        await loading("Testing injection surface...", 280, { tickKind: "sqli" });
+        risk = runSqliCommand(arg);
+        break;
+      case "ssh-keyscan":
+        await loading("Scanning host keys...", 180);
+        risk = runSshKeyscan(arg);
         break;
       case "cover":
         await loading("Scrubbing artifacts...", 260);
