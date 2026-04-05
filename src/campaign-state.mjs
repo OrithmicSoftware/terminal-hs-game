@@ -24,6 +24,8 @@ export function createInitialCampaignState(missions) {
     typing: true,
     beep: false,
     seenTerminalBoot: false,
+    /** After first ShadowNet IM `/exit`, suppress boot "incoming message" hint on future sessions. */
+    shadowNetImIntroCompleted: false,
     operatorRegionId: "",
     operatorCodename: "",
     missions: missions.map((m) => ({
@@ -63,6 +65,7 @@ export function ensureCampaignConsistency(state, missions) {
     state.contactAliasSeed = newContactAliasSeed();
   }
   if (typeof state.seenTerminalBoot !== "boolean") state.seenTerminalBoot = false;
+  if (typeof state.shadowNetImIntroCompleted !== "boolean") state.shadowNetImIntroCompleted = false;
   if (typeof state.operatorRegionId !== "string") state.operatorRegionId = "";
   if (typeof state.operatorCodename !== "string") state.operatorCodename = "";
   return state;

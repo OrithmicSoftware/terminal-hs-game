@@ -15,8 +15,9 @@ const RST = "\x1b[0m";
  *   maxLen?: number,
  *   pause?: () => void,
  *   resume?: () => void,
+ *   skipResumeAfterCleanup?: boolean,
  *   readlineInterface?: import("readline").Interface & { _ttyWrite?: (s: string | undefined, key: object) => void },
- * }} [opts]
+ * }} [opts] — `skipResumeAfterCleanup`: omit `resume` in cleanup between consecutive ghost prompts (avoids an extra blank line).
  * @returns {Promise<string>}
  */
 export function readLineWithGhostDefault(promptPlain, ghostDefault, opts = {}) {
@@ -63,8 +64,10 @@ export function readLineWithGhostDefault(promptPlain, ghostDefault, opts = {}) {
     const cleanup = () => {
       stdin.removeListener("keypress", onKeypress);
       rl._ttyWrite = origTtyWrite;
-      opts.resume?.();
       stdout.write("\n");
+      if (!opts.skipResumeAfterCleanup) {
+        opts.resume?.();
+      }
     };
 
     const finish = (value) => {

@@ -4,7 +4,12 @@
 import { glitchPulse } from "../src/glitch-pulse.mjs";
 import { playChatSwipeClose, playChatSwipeOpen, playUiClick } from "./ui-sounds.mjs";
 import { isE2eUrl } from "./intro-flow.mjs";
-import { CLIENT_CHAT_TRIGGERS, getInitialGateMessages, getMissionBriefChatMessages } from "../src/client-chat.mjs";
+import {
+  CLIENT_CHAT_TRIGGERS,
+  getInitialGateMessages,
+  getMissionBriefChatMessages,
+  isM2HandoffContract,
+} from "../src/client-chat.mjs";
 import { t } from "../src/i18n.mjs";
 import { resolveContactAlias } from "../src/contact-alias.mjs";
 import { animSleep } from "../src/anim-sleep-core.mjs";
@@ -166,9 +171,17 @@ export async function postMissionBriefingToChat(mission, ctx) {
   if (lastBriefedMissionId === mission.id) return;
   lastBriefedMissionId = mission.id;
   ghostChatSeeded = true;
+  const missionIndex = ctx.missionIndex ?? 0;
+  const m2Handoff = isM2HandoffContract(mission, missionIndex);
   const lines = getMissionBriefChatMessages(mission, ctx);
   glitchPulse();
   let i = 0;
+  if (m2Handoff) {
+    await appendMessageAnimated("client", t("chat_contract_post_m1_congrats"), { forced: true });
+    i += 1;
+    await appendMessageAnimated("client", t("chat_contract_post_m1_next_op"), { forced: false });
+    i += 1;
+  }
   for (const text of lines) {
     await appendMessageAnimated("client", text, { forced: i === 0 });
     i += 1;

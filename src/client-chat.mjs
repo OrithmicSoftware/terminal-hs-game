@@ -4,6 +4,7 @@
  */
 
 import { formatContactTemplate } from "./contact-alias.mjs";
+import { t } from "./i18n.mjs";
 
 /**
  * In-mission pings (same text in terminal stream and browser drawer).
@@ -98,20 +99,36 @@ export function formatContactChatLine(id, alias) {
 }
 
 /**
+ * First mission after m1 (campaign index 1): new ShadowNet IM session with handoff copy + next contract.
+ * @param {object} mission
+ * @param {number} missionIndex
+ */
+export function isM2HandoffContract(mission, missionIndex) {
+  return missionIndex === 1 && mission?.id !== "m1-ghost-proxy";
+}
+
+/**
  * Full contract thread for `chat` (terminal boxPaged + browser can mirror).
  * @param {object} mission
  * @param {ReturnType<import("./contact-alias.mjs").resolveContactAlias>} alias
+ * @param {{ missionIndex?: number, missionTotal?: number }} [ctx]
  */
-export function getContactContractLines(mission, alias) {
+export function getContactContractLines(mission, alias, ctx = {}) {
   const story = mission.story ?? {};
   const handler = story.handler?.name ?? "Handler";
   const region = story.region ?? "—";
-  return [
+  const missionIndex = ctx.missionIndex ?? 0;
+  const intro = [
     `FROM: ${alias.displayName} (encrypted uplink)`,
     `Handler cut-out: ${handler} · Region context: ${region}`,
     "",
     `Contract: «${mission.title}»`,
     "",
+  ];
+  const handoff = isM2HandoffContract(mission, missionIndex)
+    ? [t("chat_contract_post_m1_congrats"), "", t("chat_contract_post_m1_next_op"), ""]
+    : [];
+  const body = [
     mission.brief,
     "",
     `Objective: ${mission.objective.summary}`,
@@ -120,6 +137,7 @@ export function getContactContractLines(mission, alias) {
     "",
     "You took this op through this channel. No real networks; payment is the story. Use `chat` anytime to reread the contract.",
   ];
+  return [...intro, ...handoff, ...body];
 }
 
 /**
@@ -162,6 +180,7 @@ export function getMissionBriefChatMessages(mission, ctx) {
   }
   msgs.push(`Objective: ${mission.objective.summary}`);
   msgs.push(`Trace cap (sim): ${mission.security?.maxTrace ?? "—"}`);
-  msgs.push("Check mail list for handler comms and intel before you start. chat reopens the full contract anytime.");
+  msgs.push(t("brief_next_hint_phish_or_compose"));
+  msgs.push(t("brief_mail_and_chat_closure"));
   return msgs;
 }

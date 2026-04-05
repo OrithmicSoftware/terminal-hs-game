@@ -13,7 +13,7 @@ import {
   DEFAULT_OPERATOR_CODENAME,
 } from "./operator-regions.mjs";
 import { generateOperatorNickname } from "./operator-nickname.mjs";
-import { resetStepDebugChain } from "./debug-step.mjs";
+import { getLastSceneName, resetSceneDebugChain } from "./debug-scene.mjs";
 import { clearTerminalScreen, drainStdinSync, logInfoPauseStep, logScreenStep, waitForEnterContinue, wrap } from "./ui.mjs";
 import { printCliPixelBanner } from "./cli-pixel-banner.mjs";
 import { animSleep } from "./anim-sleep-core.mjs";
@@ -73,7 +73,7 @@ export async function runTerminalIntroSequence(ctx) {
     return;
   }
 
-  resetStepDebugChain();
+  resetSceneDebugChain();
 
   // 1) Splash — every process start (readline: Enter dismisses; same copy as web “any key”)
   if (!skipSplash) {
@@ -136,9 +136,17 @@ function applyNonInteractiveDefaultsIfNeeded(campaignState, save) {
   save();
 }
 
-/** Faux kernel lines + `[STEP: kernel-loading type=log]` — same as first interactive boot after splash/survey. */
-export async function runTerminalLoadingSequence() {
-  logScreenStep("kernel-loading");
+/**
+ * Faux kernel lines + `[SCENE: kernel-loading type=log …]`.
+ * @param {{ instant?: boolean }} [options] — `instant`: no pacing delays; debug line includes `animate=false` and `prev=` from the last scene (pager `…-exit` → base id).
+ */
+export async function runTerminalLoadingSequence(options = {}) {
+  const instant = options.instant === true;
+  const prevSemantic = getLastSceneName().replace(/-exit$/, "");
+  logScreenStep("kernel-loading", {
+    animate: instant ? false : undefined,
+    prevOverride: instant ? prevSemantic : undefined,
+  });
   const v = getPackageVersion();
   const lines = [
     t("terminal_loading_kernel").replace("%s", v),
@@ -151,13 +159,16 @@ export async function runTerminalLoadingSequence() {
   console.log("");
   console.log(tone(t("terminal_loading_skip_hint"), "dim"));
   let i = 0;
+  const stepMs = instant ? 0 : 300;
+  const handshakeMs = instant ? 0 : 480;
+  const tailMs = instant ? 0 : 520;
   for (const line of lines) {
     console.log(tone(line, i === 4 ? "yellow" : "dim"));
     i += 1;
     // Match web terminal-loading.mjs pacing (handshake line slightly slower).
-    await animSleep(i === 4 ? 480 : 300);
+    await animSleep(i === 4 ? handshakeMs : stepMs);
   }
-  await animSleep(520);
+  await animSleep(tailMs);
 }
 
 /**
@@ -180,7 +191,7 @@ async function runTerminalOperatorProfile(readLine, readLineGhost, campaignState
   const regionPrompt = t("terminal_setup_region_prompt").replace("%s", DEFAULT_OPERATOR_REGION_ID);
   let regionId = "";
   while (!regionId) {
-    const raw = await readGhost(regionPrompt, "1", { maxLen: 8 });
+    const raw = await readGhost(regionPrompt, "1", { maxLen: 8, skipResumeAfterCleanup: true });
     const trimmed = String(raw ?? "").trim();
     if (trimmed === "") {
       regionId = DEFAULT_OPERATOR_REGION_ID;

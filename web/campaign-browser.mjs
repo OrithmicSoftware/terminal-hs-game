@@ -473,6 +473,8 @@ export async function bootBrowserCampaign() {
     if (trimmed === "tutorial") {
       if (!campaignState.tutorialEnabled) {
         console.log(t("tutorial_off_hint"));
+      } else if (!mission.tutorial?.steps?.length) {
+        console.log(t("tutorial_no_steps"));
       } else {
         await session.showTutorialHint?.();
       }
@@ -539,7 +541,7 @@ export async function bootBrowserCampaign() {
     await session.execute(line);
     persistCurrentSnapshot();
 
-    if (campaignState.tutorialEnabled) {
+    if (campaignState.tutorialEnabled && mission.tutorial?.steps?.length) {
       await session.showTutorialHint?.();
     }
 

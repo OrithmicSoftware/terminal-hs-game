@@ -177,9 +177,9 @@ test("post-harvest: ShadowNet IM notification after harvest", async () => {
     blob.includes("to open."),
     `expected chat open hint in notification:\n${blob.slice(notifIdx, notifIdx + 200)}`,
   );
-  assert.ok(blob.includes("Next:"), `expected Next: line after notification:\n${blob.slice(0, 2000)}`);
+  const stripped = blob.replace(/\x1b\[[0-9;?]*m/g, "");
   assert.ok(
-    blob.includes("info chat"),
-    `expected info chat as alternate next action:\n${blob.slice(0, 2000)}`,
+    />\s+New message/.test(stripped),
+    `expected terminal > prefix before IM notification:\n${blob.slice(0, 2000)}`,
   );
 });

@@ -17,6 +17,7 @@ import {
   setWaitEnterContinueImpl,
   setWaitChoiceImpl,
   logScreenStep,
+  logInfoPauseStep,
 } from "./src/ui.mjs";
 import { tone, highlightCommandHints } from "./src/colors.mjs";
 import { setLanguage, t } from "./src/i18n.mjs";
@@ -33,9 +34,10 @@ import { CHECKPOINT_IDS, formatCheckpointListForCli } from "./src/checkpoints.mj
 const BOOT_INTRO_CHECKPOINTS = new Set(["splash", "operator-survey", "kernel-loading"]);
 import { DEFAULT_OPERATOR_REGION_ID } from "./src/operator-regions.mjs";
 import { generateOperatorNickname } from "./src/operator-nickname.mjs";
-import { installRuntimeStepLogFromEnv } from "./src/debug-step-runtime-log.mjs";
+import { installRuntimeSceneLogFromEnv } from "./src/debug-scene-runtime-log.mjs";
+import { logRuntimeAction } from "./src/debug-scene.mjs";
 
-installRuntimeStepLogFromEnv();
+installRuntimeSceneLogFromEnv();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -110,8 +112,11 @@ function shouldClearScreen(line) {
   ]);
   if (campaignExact.has(lower)) return true;
   const [a] = lower.split(/\s+/);
-  /* `info` logs its own [STEP … type=log] + pause; skip pre-command clear so HKTM_DEBUG is not noisy. */
+  /* `info` logs its own [SCENE … type=log] + pause; skip pre-command clear so HKTM_DEBUG is not noisy. */
   if (a === "info") return false;
+  /* Compose-mail / sendmail phishing wizard clears each step with [SCENE … type=form]. */
+  if (lower.startsWith("compose mail")) return false;
+  if (a === "sendmail") return false;
   const mission = new Set([
     "help",
     "clear",
@@ -380,13 +385,13 @@ function activateMission(state, missionIndex) {
         await runDefaultRestore();
         return;
       }
+      // Full clear without a post-splash SCENE line so `prev=` stays on the info pager (e.g. info-chat), not post-splash.
       if (process.stdout.isTTY) {
-        clearTerminalScreen("post-splash");
+        clearTerminalScreen();
       } else {
         console.log("\n".repeat(20));
-        logScreenStep("post-splash");
       }
-      await runTerminalLoadingSequence();
+      await runTerminalLoadingSequence({ instant: true });
       printIncomingMessageHint();
     },
   });
@@ -513,6 +518,7 @@ function readLineForSetup(prompt) {
 function readLineForSetupGhost(promptPlain, ghostDefault, options = {}) {
   return readLineWithGhostDefault(promptPlain, ghostDefault, {
     maxLen: options.maxLen ?? 32,
+    skipResumeAfterCleanup: options.skipResumeAfterCleanup === true,
     readlineInterface: rl,
     pause: () => {
       try {
@@ -722,30 +728,11 @@ async function runTerminalClientChatGate() {
   }
 
   async function printBriefInChat() {
-    const lines = getMissionBriefChatMessages(mission, {
-      missionIndex: campaignState.currentMissionIndex,
-      missionTotal: campaign.length,
-    });
     const prefix = `${tone(`[${tag}]`, "cyan")} `;
     await showTypingIndicator();
     console.log(`${prefix}${chatLine("Uploading brief…")}`);
     await animSleep(400);
-
-    const inner = w - 4;
-    const title = ` MISSION BRIEF — ${mission.title} `;
-    const top = tone(`┌${"─".repeat(w - 2)}┐`, "dim");
-    const hdr = tone(`├──${title}${"─".repeat(Math.max(0, w - 5 - title.length))}┤`, "dim");
-    const bot = tone(`└${"─".repeat(w - 2)}┘`, "dim");
-    console.log(top);
-    console.log(hdr);
-    for (const rawLine of lines) {
-      const rows = rawLine === "" ? [""] : wrap(rawLine, inner);
-      for (const row of rows) {
-        const pad = " ".repeat(Math.max(0, inner - row.length));
-        console.log(`${tone("│", "dim")} ${tone(row, "yellow")}${pad} ${tone("│", "dim")}`);
-      }
-    }
-    console.log(bot);
+    await session.printBanner({ instant: true });
     briefShown = true;
   }
 
@@ -764,6 +751,13 @@ async function runTerminalClientChatGate() {
     }
   }
 
+  /** Cursor is on the line below the prompt; move up and clear the submitted prompt+input line. */
+  function eraseReadlineInputLine() {
+    if (process.stdout.isTTY) {
+      process.stdout.write("\x1b[1A\r\x1b[2K");
+    }
+  }
+
   return new Promise((resolve) => {
     function onChatLine(raw) {
       const msg = String(raw ?? "").trim();
@@ -772,6 +766,7 @@ async function runTerminalClientChatGate() {
       if (lower === "/exit" || lower === "exit") {
         chatLineConsumer = null;
         void (async () => {
+          eraseReadlineInputLine();
           if (briefShown) {
             await showTypingThenLine(
               `Brief's in your terminal. Start with compose mail — info phishing if you need the theory. — ${alias.signoff}`,
@@ -785,14 +780,25 @@ async function runTerminalClientChatGate() {
           }
           console.log("");
           choicePending = true;
-          console.log(tone("Press Enter to continue.", "dim"));
-          rl.once("line", () => {
+          logInfoPauseStep("chat-gate-exit");
+          try {
+            drainStdinSync();
+            await waitForEnterContinue(t("press_enter_continue"));
+          } finally {
             choicePending = false;
-            clearTerminal("chat-gate-exit");
-            try { rl.setPrompt(""); } catch { /* ignore */ }
-            try { rl.pause(); } catch { /* ignore */ }
-            resolve();
-          });
+          }
+          if (process.stdout.isTTY) {
+            clearTerminalScreen();
+          } else {
+            console.log("\n".repeat(20));
+          }
+          await runTerminalLoadingSequence({ instant: true });
+          printMissionBriefTerminal(campaignState, mission);
+          campaignState.shadowNetImIntroCompleted = true;
+          saveCampaignState(campaignState);
+          try { rl.setPrompt(""); } catch { /* ignore */ }
+          try { rl.pause(); } catch { /* ignore */ }
+          resolve();
         })();
         return;
       }
@@ -800,6 +806,7 @@ async function runTerminalClientChatGate() {
       if (lower === "/brief") {
         chatLineConsumer = null;
         void (async () => {
+          eraseReadlineInputLine();
           console.log(`${tone("[YOU]", "magenta")} /brief`);
           await printBriefInChat();
           console.log("");
@@ -817,9 +824,10 @@ async function runTerminalClientChatGate() {
       const quick = quickReplies.find((r) => r.key === msg);
       if (quick) {
         chatLineConsumer = null;
+        eraseReadlineInputLine();
+        console.log(`${tone("[YOU]", "magenta")} ${quick.text}`);
+        quick.used = true;
         void (async () => {
-          console.log(`${tone("[YOU]", "magenta")} ${quick.text}`);
-          quick.used = true;
           if (quick.response) {
             const rows = wrap(quick.response, w);
             await showTypingThenLines(rows, "chat");
@@ -832,6 +840,7 @@ async function runTerminalClientChatGate() {
       }
 
       if (msg) {
+        eraseReadlineInputLine();
         console.log(`${tone("[YOU]", "magenta")} ${msg}`);
       }
       chatLineConsumer = null;
@@ -851,6 +860,8 @@ async function runTerminalClientChatGate() {
 
 rl.on("line", async (line) => {
   if (rlClosed) return;
+  const inputKind = choicePending ? "choice" : chatLineConsumer ? "chat" : operatorLineResolver ? "operator" : "shell";
+  logRuntimeAction(inputKind, String(line ?? ""));
   if (choicePending) return;
   if (operatorLineResolver) {
     const fn = operatorLineResolver;
@@ -996,6 +1007,8 @@ rl.on("line", async (line) => {
   if (trimmed === "tutorial") {
     if (!campaignState.tutorialEnabled) {
       console.log(t("tutorial_off_hint"));
+    } else if (!mission.tutorial?.steps?.length) {
+      console.log(t("tutorial_no_steps"));
     } else {
       await session.showTutorialHint?.();
     }
@@ -1081,7 +1094,7 @@ rl.on("line", async (line) => {
   await session.execute(line);
   persistCurrentSnapshot();
 
-  if (campaignState.tutorialEnabled) {
+  if (campaignState.tutorialEnabled && mission.tutorial?.steps?.length) {
     await session.showTutorialHint?.();
   }
 
@@ -1210,7 +1223,7 @@ async function main() {
       });
       applyOperatorProfileFromState(campaignState);
 
-      if (chatGateOnBoot) {
+      if (chatGateOnBoot && !campaignState.shadowNetImIntroCompleted) {
         printIncomingMessageHint();
       } else {
         clearTerminal("boot-mission-banner");

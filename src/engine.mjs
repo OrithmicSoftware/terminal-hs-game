@@ -12,6 +12,7 @@ import {
   logInfoPauseStep,
   logScreenStep,
   waitForEnterContinue,
+  setUiOptions,
 } from "./ui.mjs";
 import { animateEventLabel, SOUND_TEST_EVENT_LABELS } from "./sound-test.mjs";
 import {
@@ -24,7 +25,12 @@ import {
 import { t } from "./i18n.mjs";
 import { INFO_GLOSSARY } from "./info-glossary.mjs";
 import { resolveContactAlias, formatContactTemplate } from "./contact-alias.mjs";
-import { CLIENT_CHAT_TRIGGERS, getContactContractLines, getMissionBriefChatMessages } from "./client-chat.mjs";
+import {
+  CLIENT_CHAT_TRIGGERS,
+  getContactContractLines,
+  getMissionBriefChatMessages,
+  isM2HandoffContract,
+} from "./client-chat.mjs";
 import { animSleep, resetAnimTurbo, isAnimTurbo } from "./anim-sleep-core.mjs";
 
 /** Web build sets `process.env.HKTM_WEB=1` (see web/main.js). */
@@ -534,14 +540,18 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
         : `${n} new messages in ShadowNet IM.`;
     console.log("");
     console.log(
-      `${tone(label, "green")} ${tone("Type ", "dim")}${tone("chat", "cyan")}${tone(" to open.", "dim")}`,
+      `${tone(">", "dim")} ${tone(label, "green")} ${tone("Type ", "dim")}${tone("chat", "cyan")}${tone(" to open.", "dim")}`,
     );
   }
 
   async function showContactChatSession() {
-    if (!isWebUi()) clearTerminalScreen("chat-session-open");
+    const m2Handoff = isM2HandoffContract(mission, missionIndex);
+    const openScene = m2Handoff ? "chat-session-m2-handoff-open" : "chat-session-open";
+    const contractScene = m2Handoff ? "chat-contract-m2-handoff" : "chat-contract";
+    const closeScene = m2Handoff ? "chat-session-m2-handoff-close" : "chat-session-close";
+    if (!isWebUi()) clearTerminalScreen(openScene);
     const flat = [];
-    for (const line of getContactContractLines(mission, contactAlias)) {
+    for (const line of getContactContractLines(mission, contactAlias, { missionIndex, missionTotal })) {
       if (line === "") flat.push("");
       else flat.push(...wrap(line, textWrapWidth()));
     }
@@ -550,9 +560,9 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
       flat,
       getUiOptions().width,
       t("pager_help_line"),
-      "chat-contract",
+      contractScene,
     );
-    if (!isWebUi()) clearTerminalScreen("chat-session-close");
+    if (!isWebUi()) clearTerminalScreen(closeScene);
     if (isWebUi()) globalThis.__HKTM_GHOST_CHAT_OPEN?.({ forced: false });
   }
 
@@ -831,8 +841,9 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
       return "Declined: this option is not valid for the mission's single accepted lure path.";
     }
 
-    async function pickCorrectOption(stepLabel, stepKind, options, checkCorrect, subjectIdx = null) {
+    async function pickCorrectOption(stepLabel, stepKind, options, checkCorrect, subjectIdx = null, formSceneName = "compose-mail") {
       for (;;) {
+        clearTerminalScreen(formSceneName, "form");
         console.log("");
         console.log(tone(`${stepLabel}:`, "bold"));
         for (let i = 0; i < options.length; i += 1) {
@@ -890,6 +901,7 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
         bodies,
         (idx) => idx === requiredBodyIdx,
         subjectIdx,
+        "compose-mail-body",
       );
       bodyIdx = bodyPick.idx;
       bodyChoice = bodyPick.choice;
@@ -900,6 +912,8 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
         "from",
         PHISHING_FROM,
         (idx) => idx === PHISHING_COMPOSE_ANSWER.fromIdx,
+        null,
+        "compose-mail-from",
       );
       fromIdx = fromPick.idx;
       fromChoice = fromPick.choice;
@@ -1195,15 +1209,10 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
       console.log("");
     }
     webGhostChatTrigger("post_phish_next_mission", {});
+    // Do not clearTerminalScreen here — it erases [HARVEST]/[LOCAL SECRETS] from view. Flush only.
+    flushChatNotification();
     if (!isWebUi()) {
-      // Do not clearTerminalScreen here — it erases [HARVEST]/[LOCAL SECRETS] from view. Flush only.
-      flushChatNotification();
-      console.log(
-        `${tone("Next:", "dim")} ${tone("chat", "cyan")} ${tone("or", "dim")} ${tone("info chat", "cyan")}${tone(".", "dim")}`,
-      );
       console.log("");
-    } else {
-      flushChatNotification();
     }
   }
 
@@ -1263,7 +1272,11 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
     return runPhishingOutboundCommand(argRaw, "compose");
   }
 
-  async function printBanner() {
+  /**
+   * @param {{ instant?: boolean }} [options] — `instant`: skip typing animation (e.g. restore after `info`).
+   */
+  async function printBanner(options = {}) {
+    const instant = options.instant === true;
     const story = mission.story ?? {};
     const cw = textWrapWidth();
     const handler = story.handler?.name ? `${story.handler.name}` : "Handler";
@@ -1288,7 +1301,7 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
       ...wrap(`${tone("OBJECTIVE:", "magenta")} ${highlightCommandHints(mission.objective.summary)}`, cw),
       ...wrap(`${tone("TRACE BUDGET:", "magenta")} ${String(mission.security.maxTrace)}`, cw),
       "",
-      ...wrap(highlightCommandHints("Type help for commands. Type tutorial for guided mode."), cw),
+      ...wrap(highlightCommandHints("Type help for commands."), cw),
     ];
     if (mission.id === "m1-ghost-proxy") {
       lines.push(
@@ -1299,8 +1312,14 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
         ),
       );
     }
-    console.log("");
-    await box(tone(mission.title, "bold"), lines, getUiOptions().width);
+    const prevUi = getUiOptions();
+    if (instant) setUiOptions({ typing: false });
+    try {
+      console.log("");
+      await box(tone(mission.title, "bold"), lines, getUiOptions().width);
+    } finally {
+      if (instant) setUiOptions({ typing: prevUi.typing });
+    }
   }
 
   function getAlarmLevel() {
@@ -1540,7 +1559,7 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
         console.log("\n".repeat(20));
         logScreenStep("post-splash");
       }
-      await printBanner();
+      await printBanner({ instant: true });
       showStatus();
     };
 
@@ -1560,6 +1579,7 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
   async function info(termRaw) {
     const term = String(termRaw ?? "").trim().toLowerCase();
     if (!term) {
+      clearTerminalScreen("info-usage", "info");
       console.log(`${tone("Usage:", "dim")} ${highlightCommandHints("info <term>. Example: info probe")}`);
       printKnownInfoTerms();
       await finalizeInfoAfterContent("info-usage");
@@ -1568,6 +1588,7 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
 
     const entry = INFO_GLOSSARY[term] ?? null;
     if (!entry) {
+      clearTerminalScreen("info-unknown", "info");
       console.log("Unknown term.");
       printKnownInfoTerms();
       await finalizeInfoAfterContent("info-unknown");
@@ -1585,6 +1606,7 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
       getUiOptions().width,
       t("pager_help_line"),
       `info-${term}`,
+      { stepDebugKind: "info" },
     );
     await finalizeInfoAfterContent(`info-${term}`);
   }
@@ -2317,9 +2339,13 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
     flushChatNotification();
   }
 
+  /**
+   * Guided hints from `mission.tutorial.steps` (mission JSON). Shipped missions may use an empty
+   * `steps` array while content is reworked; matching logic stays for future steps. Each step uses
+   * `when` plus optional `nodeId`, `gate`, `path`, `title`, `text`, `suggest`.
+   */
   async function showTutorialHint() {
     if (!mission.tutorial?.steps?.length) {
-      console.log("No tutorial is available for this mission.");
       return;
     }
 

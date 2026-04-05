@@ -36,6 +36,7 @@ const dictionaries = {
     tutorial_enabled: "Tutorial enabled.",
     tutorial_disabled: "Tutorial disabled.",
     tutorial_off_hint: "Tutorial is off. Use 'tutorial on' to enable it.",
+    tutorial_no_steps: "No tutorial steps are defined for this mission yet.",
     campaign_saved_goodbye: "Campaign saved. Goodbye.",
     campaign_reset: "Campaign reset. Starting fresh.",
     mission_resolved_hint: "Mission resolved. Use 'retry' or 'quit'.",
@@ -67,6 +68,13 @@ const dictionaries = {
     brief_slash_hint_chat:
       "Tip: type /brief in ShadowNet IM to re-read this contract in the drawer.",
     brief_slash_unavailable: "No mission brief in this session yet.",
+    brief_next_hint_phish_or_compose: "Next: info phishing or compose mail.",
+    brief_mail_and_chat_closure:
+      "Check mail list for handler comms and intel before you start. chat reopens the full contract anytime.",
+    chat_contract_post_m1_congrats:
+      "You crushed the staging phish — clean harvest. Handler's crediting your cut-out wallet; payout shows as queued (story-only; sim ledger).",
+    chat_contract_post_m1_next_op:
+      "New task: that mailbox secret isn't a trophy — it's leverage. Use it to reach a corporate-facing account, download sensitive data, and exfil before they rotate access. Trace budget is still yours to spend.",
     terminal_setup_region_title: "Select uplink region:",
     terminal_setup_region_prompt: "Region number (1–6, Enter for %s): ",
     terminal_setup_region_invalid: "Invalid — enter 1–6, or Enter alone for default.",
@@ -125,6 +133,7 @@ const dictionaries = {
     tutorial_enabled: "Обучение включено.",
     tutorial_disabled: "Обучение выключено.",
     tutorial_off_hint: "Обучение выключено. Включите: 'tutorial on'.",
+    tutorial_no_steps: "Для этой миссии пока нет шагов обучения.",
     campaign_saved_goodbye: "Кампания сохранена. До связи.",
     campaign_reset: "Кампания сброшена. Начинаем заново.",
     mission_resolved_hint: "Миссия завершена. Используйте: 'retry' или 'quit'.",
@@ -156,6 +165,13 @@ const dictionaries = {
     brief_slash_hint_chat:
       "Подсказка: введите /brief в ShadowNet IM, чтобы снова открыть контракт в панели.",
     brief_slash_unavailable: "Бриф миссии пока недоступен.",
+    brief_next_hint_phish_or_compose: "Дальше: команды info phishing или compose mail.",
+    brief_mail_and_chat_closure:
+      "Проверьте mail list на письма хэндлера и разведку перед стартом. chat снова открывает полный контракт.",
+    chat_contract_post_m1_congrats:
+      "Стейджинг-фишинг прошёл чисто — хороший урожай. Хэндлер зачисляет выплату на ваш cut-out-кошелёк; в симе статус «в очереди» (только сюжет).",
+    chat_contract_post_m1_next_op:
+      "Новая задача: почтовый секрет — не сувенир, а рычаг. Используйте его, чтобы зайти в корпоративную учётку, скачать чувствительные данные и эксфилить до ротации доступа. Бюджет трейса по-прежнему ваш.",
     terminal_setup_region_title: "Выберите регион uplink:",
     terminal_setup_region_prompt: "Номер региона (1–6, Enter — %s): ",
     terminal_setup_region_invalid: "Неверно — введите 1–6 или один Enter для значения по умолчанию.",

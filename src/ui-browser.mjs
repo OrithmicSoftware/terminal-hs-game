@@ -4,7 +4,7 @@
 import { tone } from "./colors-browser.mjs";
 import { glitchPulse } from "./glitch-pulse.mjs";
 import { animSleep } from "./anim-sleep-core.mjs";
-import { isHktmDebug, stepBannerLine } from "./debug-step.mjs";
+import { isHktmDebug, sceneBannerLine } from "./debug-scene.mjs";
 
 const ANSI_SEQ = /\x1b\[[0-9;]*m/g;
 
@@ -39,28 +39,30 @@ export function setPagerHooks(hooks) {
 }
 
 /**
- * Clear the terminal. In DEBUG mode (default), prints `[STEP: name type=clear prev=…]` as the first line after home.
+ * Clear the terminal. In DEBUG mode (default), prints `[SCENE: name type=clear|info prev=…]` as the first line after home.
  * @param {string} [stepName]
+ * @param {"clear" | "info" | "form"} [kind]
  */
-export function clearTerminalScreen(stepName) {
+export function clearTerminalScreen(stepName, kind = "clear") {
   if (typeof globalThis.__HKTM_CLEAR === "function") globalThis.__HKTM_CLEAR();
   else process.stdout.write("\x1b[2J\x1b[H");
   if (isHktmDebug() && typeof stepName === "string" && stepName.length > 0) {
-    console.log(tone(stepBannerLine(stepName, "clear"), "dim"));
+    const k = kind === "info" ? "info" : kind === "form" ? "form" : "clear";
+    console.log(tone(sceneBannerLine(stepName, k), "dim"));
   }
 }
 
 /** First line when a screen does not use `clearTerminalScreen` first (parity with Node `ui.mjs`). */
-export function logScreenStep(stepName) {
+export function logScreenStep(stepName, options = {}) {
   if (isHktmDebug() && typeof stepName === "string" && stepName.length > 0) {
-    console.log(tone(stepBannerLine(stepName, "log"), "dim"));
+    console.log(tone(sceneBannerLine(stepName, "log", options), "dim"));
   }
 }
 
 /** DEBUG: `info` command — parity with Node `ui.mjs`. */
 export function logInfoPauseStep(stepName) {
   if (isHktmDebug() && typeof stepName === "string" && stepName.length > 0) {
-    console.log(tone(stepBannerLine(`${stepName}-after`, "pause"), "dim"));
+    console.log(tone(sceneBannerLine(`${stepName}-after`, "pause"), "dim"));
   }
 }
 
@@ -439,7 +441,8 @@ export async function boxEnterPaged(title, lines, width = uiState.width, footerH
   await waitForEnterContinue(footerHint);
 }
 
-export async function boxPaged(title, lines, width = uiState.width, footerHint = "", stepBase = "box-paged") {
+export async function boxPaged(title, lines, width = uiState.width, footerHint = "", stepBase = "box-paged", options = {}) {
+  const stepDebugKind = options.stepDebugKind === "info" ? "info" : "log";
   const hint = footerHint || "Enter / Space / n → next   ↑ / p / PgUp → prev   q / Esc → exit";
   const rows = Math.max(16, Math.floor(process?.stdout?.rows ?? 36));
   const w = Math.max(12, Math.floor(width));
@@ -447,13 +450,15 @@ export async function boxPaged(title, lines, width = uiState.width, footerHint =
   const flat = flattenBoxBodyLines(lines, inner);
   const maxBody = Math.max(4, rows - 6);
   if (flat.length <= maxBody) {
-    logScreenStep(stepBase);
+    if (stepDebugKind === "info") clearTerminalScreen(stepBase, "info");
+    else logScreenStep(stepBase);
     await box(title, lines, width);
     return;
   }
   const chunks = chunkArray(flat, maxBody);
   if (chunks.length <= 1) {
-    logScreenStep(stepBase);
+    if (stepDebugKind === "info") clearTerminalScreen(stepBase, "info");
+    else logScreenStep(stepBase);
     await box(title, lines, width);
     return;
   }
@@ -461,9 +466,10 @@ export async function boxPaged(title, lines, width = uiState.width, footerHint =
   pagerHooks.pause();
   let page = 0;
   const titlePlain = stripAnsi(title);
+  const pageKind = stepDebugKind === "info" ? "info" : "clear";
   try {
     while (true) {
-      clearTerminalScreen(`${stepBase}-${page + 1}`);
+      clearTerminalScreen(`${stepBase}-${page + 1}`, pageKind);
       if (uiState.beep) {
         if (typeof globalThis.__HKTM_PAGE === "function") {
           try {

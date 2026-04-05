@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import readline from "node:readline";
 import { tone } from "./colors.mjs";
 import { animSleep, requestAnimTurbo } from "./anim-sleep-core.mjs";
-import { isHktmDebug, stepBannerLine } from "./debug-step.mjs";
+import { isHktmDebug, sceneBannerLine } from "./debug-scene.mjs";
 
 readline.emitKeypressEvents(process.stdin);
 
@@ -107,27 +107,29 @@ export async function waitForChoice3(footerHint = "") {
 }
 
 /**
- * Clear the terminal. In DEBUG mode (default), prints `[STEP: name type=clear prev=…]` as the first line after home.
+ * Clear the terminal. In DEBUG mode (default), prints `[SCENE: name type=clear|info prev=…]` as the first line after home.
  * @param {string} [stepName] — omit to clear without a step line (rare transitions).
+ * @param {"clear" | "info" | "form"} [kind] — `info` for glossary / `info` command screens; `form` for compose-mail wizard steps (blank page + debug line).
  */
-export function clearTerminalScreen(stepName) {
+export function clearTerminalScreen(stepName, kind = "clear") {
   process.stdout.write("\x1b[2J\x1b[H");
   if (isHktmDebug() && typeof stepName === "string" && stepName.length > 0) {
-    console.log(tone(stepBannerLine(stepName, "clear"), "dim"));
+    const k = kind === "info" ? "info" : kind === "form" ? "form" : "clear";
+    console.log(tone(sceneBannerLine(stepName, k), "dim"));
   }
 }
 
 /** First line of a screen that does not use `clearTerminalScreen` (e.g. splash before pixel art). */
-export function logScreenStep(stepName) {
+export function logScreenStep(stepName, options = {}) {
   if (isHktmDebug() && typeof stepName === "string" && stepName.length > 0) {
-    console.log(tone(stepBannerLine(stepName, "log"), "dim"));
+    console.log(tone(sceneBannerLine(stepName, "log", options), "dim"));
   }
 }
 
-/** DEBUG: `info` — `[STEP: …-after type=pause]` before `waitForEnterContinue` (pager logs `[STEP: … type=log]`). */
+/** DEBUG: `info` — `[SCENE: …-after type=pause]` before `waitForEnterContinue` (pager logs `[SCENE: … type=log]`). */
 export function logInfoPauseStep(stepName) {
   if (isHktmDebug() && typeof stepName === "string" && stepName.length > 0) {
-    console.log(tone(stepBannerLine(`${stepName}-after`, "pause"), "dim"));
+    console.log(tone(sceneBannerLine(`${stepName}-after`, "pause"), "dim"));
   }
 }
 
@@ -658,8 +660,10 @@ function flattenBoxBodyLines(rawLines, inner) {
 /**
  * Box with body split across pages so each view fits the terminal; ↑↓ Enter Space q.
  * @param {string} [stepBase] DEBUG step id prefix (one screen per page).
+ * @param {{ stepDebugKind?: "log" | "info" }} [options] — `info`: full clear + `type=info` steps (glossary pager).
  */
-export async function boxPaged(title, lines, width = uiState.width, footerHint = "", stepBase = "box-paged") {
+export async function boxPaged(title, lines, width = uiState.width, footerHint = "", stepBase = "box-paged", options = {}) {
+  const stepDebugKind = options.stepDebugKind === "info" ? "info" : "log";
   const hint = footerHint || "↓ Enter/Space next  ↑ prev  q exit";
   const w = Math.max(12, Math.floor(width));
   const inner = w - 4;
@@ -667,13 +671,15 @@ export async function boxPaged(title, lines, width = uiState.width, footerHint =
   const rows = process.stdout.rows || 24;
   const maxBody = Math.max(4, rows - 6);
   if (!process.stdin.isTTY || flat.length <= maxBody) {
-    logScreenStep(stepBase);
+    if (stepDebugKind === "info") clearTerminalScreen(stepBase, "info");
+    else logScreenStep(stepBase);
     await box(title, lines, width);
     return;
   }
   const chunks = chunkArray(flat, maxBody);
   if (chunks.length <= 1) {
-    logScreenStep(stepBase);
+    if (stepDebugKind === "info") clearTerminalScreen(stepBase, "info");
+    else logScreenStep(stepBase);
     await box(title, lines, width);
     return;
   }
@@ -684,8 +690,9 @@ export async function boxPaged(title, lines, width = uiState.width, footerHint =
     if (process.stdin.isTTY) process.stdin.setRawMode(true);
     drainStdinSync();
     const titlePlain = stripAnsi(title);
+    const pageKind = stepDebugKind === "info" ? "info" : "clear";
     while (true) {
-      clearTerminalScreen(`${stepBase}-${page + 1}`);
+      clearTerminalScreen(`${stepBase}-${page + 1}`, pageKind);
       const pageTitle = tone(`${titlePlain} (${page + 1}/${chunks.length})`, "bold");
       await box(pageTitle, chunks[page], width);
       console.log(tone(hint, "dim"));
