@@ -33,7 +33,7 @@ function typingDelayMs() {
   } catch {
     /* ignore */
   }
-  return 520 + Math.random() * 420;
+  return 1500 + Math.random() * 1500;
 }
 
 function contactAliasOrFallback() {
@@ -111,11 +111,38 @@ export async function appendMessageAnimated(role, text, opts = {}) {
   }
 
   const { div, body } = buildMessageShell(role, opts);
-  body.innerHTML = `<span class="hktm-chat-typing"><span class="hktm-chat-typing-label">${escapeHtml(t("chat_typing"))}</span><span class="hktm-chat-typing-dots">...</span></span>`;
+  const typingSpan = document.createElement("span");
+  typingSpan.className = "hktm-chat-typing";
+  const label = document.createElement("span");
+  label.className = "hktm-chat-typing-label";
+  label.textContent = t("chat_typing");
+  typingSpan.appendChild(label);
+  const dotsContainer = document.createElement("span");
+  dotsContainer.className = "hktm-chat-typing-dots";
+  const dots = [];
+  for (let i = 0; i < 3; i++) {
+    const dot = document.createElement("span");
+    dot.className = "hktm-chat-typing-dot";
+    dot.textContent = ".";
+    dotsContainer.appendChild(dot);
+    dots.push(dot);
+  }
+  typingSpan.appendChild(dotsContainer);
+  body.appendChild(typingSpan);
   logEl.appendChild(div);
   scrollLogToEnd();
 
-  await animSleep(typingDelayMs());
+  const blinkInterval = setInterval(() => {
+    for (const dot of dots) {
+      dot.style.opacity = Math.random() > 0.4 ? "1" : "0.15";
+    }
+  }, 280);
+
+  try {
+    await animSleep(typingDelayMs());
+  } finally {
+    clearInterval(blinkInterval);
+  }
   body.textContent = text;
   scrollLogToEnd();
 }
