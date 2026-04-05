@@ -191,7 +191,7 @@ async function runTerminalOperatorProfile(readLine, readLineGhost, campaignState
   const regionPrompt = t("terminal_setup_region_prompt").replace("%s", DEFAULT_OPERATOR_REGION_ID);
   let regionId = "";
   while (!regionId) {
-    const raw = await readGhost(regionPrompt, "1", { maxLen: 8, skipResumeAfterCleanup: true });
+    const raw = await readGhost(regionPrompt, "1", { maxLen: 8 });
     const trimmed = String(raw ?? "").trim();
     if (trimmed === "") {
       regionId = DEFAULT_OPERATOR_REGION_ID;
@@ -204,9 +204,8 @@ async function runTerminalOperatorProfile(readLine, readLineGhost, campaignState
       console.log(tone(t("terminal_setup_region_invalid"), "yellow"));
     }
   }
-  /* Clear the in-progress prompt line, then print once with resolved region id (not the digit). */
-  process.stdout.write("\r\x1b[K");
-  console.log(`${tone(regionPrompt, "cyan")}${tone(regionId, "green")}`);
+  /* One-line confirmation with resolved id (do not re-print the long prompt — in-place clear is unreliable when the prompt wraps). */
+  console.log(tone(t("terminal_setup_region_resolved").replace("%s", regionId), "green"));
   const suggestedNickname = generateOperatorNickname();
   const nameRaw = await readGhost(t("terminal_setup_codename_prompt"), suggestedNickname, { maxLen: 32 });
   const codename = String(nameRaw ?? "").trim() || suggestedNickname;

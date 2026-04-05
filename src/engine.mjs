@@ -905,7 +905,7 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
         maxSentences,
       });
       console.log("");
-      if (stepKind === "body" || stepKind === "from") {
+      if (stepKind === "body") {
         console.log(tone(`${head} approved.`, "green"));
         console.log("");
         for (const row of wrap(pickedPreview, cw)) {
@@ -913,7 +913,7 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
         }
         console.log("");
       } else {
-        const headline = `${head} approved — ${pickedPreview}`;
+        const headline = `${head} approved: ${pickedPreview}`;
         for (const row of wrap(headline, cw)) {
           console.log(tone(row, "green"));
         }
@@ -953,7 +953,7 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
         maxSentences,
       });
       console.log("");
-      if (stepKind === "body" || stepKind === "from") {
+      if (stepKind === "body") {
         console.log(tone(`${head} declined.`, "red"));
         console.log("");
         for (const row of wrap(pickedPreview, cw)) {
@@ -961,7 +961,7 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
         }
         console.log("");
       } else {
-        const headline = `${head} declined — ${pickedPreview}`;
+        const headline = `${head} declined: ${pickedPreview}`;
         for (const row of wrap(headline, cw)) {
           console.log(tone(row, "red"));
         }
@@ -1107,7 +1107,7 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
       fromChoice = fromPick.choice;
     }
 
-    console.log("");
+    clearTerminalScreen("compose-mail-prepare");
     await waitForEnterContinue("Preparation ready. Press ENTER to compose and send");
 
     // Web + non-animated / non-TTY runs use short delays; interactive terminal with animations gets very slow compose.
@@ -1519,7 +1519,7 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
         lines.push(
           "",
           ...wrap(
-            `${tone("Hint:", "dim")} ${highlightCommandHints("Run compose mail on local to draft the lure (info phishing). Open ShadowNet IM (chat, /exit) for handler comms. Network tools unlock after you deliver the lure.")}`,
+            `${tone("Hint:", "dim")} ${highlightCommandHints("Run mail on local to draft the lure (info phishing). Open ShadowNet IM (chat, /exit) for handler comms. Network tools unlock after you deliver the lure.")}`,
             cw,
           ),
         );
