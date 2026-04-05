@@ -42,6 +42,6 @@
     "checkpoint:list": "node scripts/checkpoint-list.mjs",
     "repo:github-meta": "node scripts/github-repo-meta.mjs",
     "repo:gh-edit": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/gh-repo-edit-meta.ps1",
-    "test": "node --test test/campaign-state.test.mjs test/debug-scene.test.mjs test/engine-mail.test.mjs test/e2e-terminal.test.mjs test/e2e-scenes.test.mjs test/cli-e2e.test.mjs test/ghost-chat-animation.test.mjs"
+    "test": "node --test test/campaign-state.test.mjs test/debug-scene.test.mjs test/engine-mail.test.mjs test/e2e-terminal.test.mjs test/e2e-scenes.test.mjs test/cli-e2e.test.mjs test/ghost-chat-animation.test.mjs test/web-landing.test.mjs"
   }
 }
