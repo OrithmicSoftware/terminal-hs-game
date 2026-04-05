@@ -13,3 +13,6 @@ playwright/.cache/
 
 # Storybook
 web/storybook-static/
+
+# Vite build output
+web/dist/
