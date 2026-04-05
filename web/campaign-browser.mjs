@@ -97,13 +97,21 @@ function saveCampaignStateToLs(state) {
 }
 
 async function loadCampaignMissions() {
-  const res = await fetch(`/missions/m1-ghost-proxy.json?v=${encodeURIComponent(String(Date.now()))}`, {
-    cache: "no-store",
-  });
-  if (!res.ok) throw new Error("mission fetch failed");
-  const m1 = await res.json();
+  const ts = encodeURIComponent(String(Date.now()));
+  const [r1, r2, r3, r4] = await Promise.all([
+    fetch(`/missions/m1-ghost-proxy.json?v=${ts}`, { cache: "no-store" }),
+    fetch(`/missions/m2-datafall.json?v=${ts}`, { cache: "no-store" }),
+    fetch(`/missions/m3-dark-channel.json?v=${ts}`, { cache: "no-store" }),
+    fetch(`/missions/m4-blind-query.json?v=${ts}`, { cache: "no-store" }),
+  ]);
+  if (!r1.ok) throw new Error("mission fetch failed: m1");
+  const m1 = await r1.json();
+  const handcrafted = [m1];
+  if (r2.ok) handcrafted.push(await r2.json());
+  if (r3.ok) handcrafted.push(await r3.json());
+  if (r4.ok) handcrafted.push(await r4.json());
   const procedural = generateProceduralMissions(5);
-  return [m1, ...procedural];
+  return [...handcrafted, ...procedural];
 }
 
 function activateMission(state, missions, missionIndex) {

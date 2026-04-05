@@ -57,8 +57,21 @@ Every mission file lives in `missions/*.json`.
 - `exploit <id>`: run the staged exploit for a service enum showed; can own the host, unlock gated connects (`stagingOnly`), or depend on `requiresArtifacts` / file intel for alternate paths
 - `stash`: list collected artifacts
 - `ls`, `cat <path>`, `exfil <path>`: file intel loop
+- `rsync <node>:<path> [local-path]`: pull a remote directory tree onto local node (noise 3; files become accessible via `ls`/`cat`/`grep`)
+- `grep <pattern> [path]`: search files on current node for matching lines (no trace cost — local operation)
+- `sqli <endpoint> <payload>`: test SQL injection surface; shows safe vs. injected query side by side (noise 1–5)
+- `ssh-keyscan <host>`: show simulated SSH host-key fingerprint table (noise 1; educational: verify before connecting)
 - `cover`: reduce trace
 - `submit`: validates objective
+
+## Handcrafted missions
+
+| File | ID | Title | Nodes | Trace cap | Key mechanic |
+|------|-----|-------|-------|-----------|-------------|
+| `m1-ghost-proxy.json` | `m1-ghost-proxy` | Operation Ghost Proxy | local → gw-edge → app-api → db-core | 42 | Spear-phishing lure designer |
+| `m2-datafall.json` | `m2-datafall` | Operation Datafall | local → corp-jump → file-share | 32 | rsync + grep for secret discovery |
+| `m3-dark-channel.json` | `m3-dark-channel` | Operation Dark Channel | local → nexus-bastion → corp-internal | 36 | SSH key-based auth exploit |
+| `m4-blind-query.json` | `m4-blind-query` | Operation Blind Query | local → api-internal → db-internal | 40 | SQL injection attack chain |
 
 ## Balance tips
 
