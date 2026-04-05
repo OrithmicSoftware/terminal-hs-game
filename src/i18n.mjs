@@ -68,7 +68,7 @@ const dictionaries = {
     brief_slash_hint_chat:
       "Tip: type /brief in ShadowNet IM to re-read this contract in the drawer.",
     brief_slash_unavailable: "No mission brief in this session yet.",
-    brief_next_hint_phish_or_compose: "Next: info phishing or compose mail.",
+    brief_next_hint_phish_or_compose: "Next: info phishing or mail (bare mail on local for the lure).",
     brief_mail_and_chat_closure:
       "Check mail list for handler comms and intel before you start. chat reopens the full contract anytime.",
     chat_contract_post_m1_congrats:
@@ -95,7 +95,21 @@ const dictionaries = {
     chat_reply_3_label: "What's the risk?",
     chat_reply_3: "What happens if I get caught?",
     chat_reply_3_response:
-      "Trace hits the ceiling, SOC locks the segment, and your session burns. You lose the contract — no payout, no debrief. The sim resets but the log doesn't forget. Keep your trace low and use cover/spoof when it climbs."
+      "Trace hits the ceiling, SOC locks the segment, and your session burns. You lose the contract — no payout, no debrief. The sim resets but the log doesn't forget. Keep your trace low and use cover/spoof when it climbs.",
+    chat_exit_standby: "Channel on standby. Type chat anytime to reopen. — %s",
+    chat_im_thread_continue: "— New op (same channel) —",
+    m1_help_tier0_footer:
+      "ShadowNet IM (chat, then /exit) opens handler comms. Network tools unlock after you deliver the spear-phishing lure.",
+    m1_help_tier1_footer:
+      "Network tools (scan, probe, connect, enum, exploit, …) unlock after you deliver the spear-phishing lure.",
+    m1_tool_lock_tier0:
+      "That command is locked until you finish the ShadowNet IM handshake — type chat, then /exit when you're ready.",
+    m1_tool_lock_tier1:
+      "That command unlocks after you deliver the spear-phishing lure (bare mail on local).",
+    m1_info_locked_tier0:
+      "That glossary entry is locked for now — try info chat or info help.",
+    m1_tutorial_locked_tier0:
+      "Tutorial hints unlock after you finish the ShadowNet IM handshake (chat, then /exit).",
   },
   ru: {
     boot_title: "ЗАГРУЗКА",
@@ -165,7 +179,7 @@ const dictionaries = {
     brief_slash_hint_chat:
       "Подсказка: введите /brief в ShadowNet IM, чтобы снова открыть контракт в панели.",
     brief_slash_unavailable: "Бриф миссии пока недоступен.",
-    brief_next_hint_phish_or_compose: "Дальше: команды info phishing или compose mail.",
+    brief_next_hint_phish_or_compose: "Дальше: info phishing или mail (голый mail на local для письма).",
     brief_mail_and_chat_closure:
       "Проверьте mail list на письма хэндлера и разведку перед стартом. chat снова открывает полный контракт.",
     chat_contract_post_m1_congrats:
@@ -192,8 +206,22 @@ const dictionaries = {
     chat_reply_3_label: "Какой риск?",
     chat_reply_3: "Что будет, если поймают?",
     chat_reply_3_response:
-      "Трейс дойдёт до потолка, SOC закроет сегмент, и сессия сгорит. Контракт потерян — без выплаты, без дебрифа. Симуляция перезапустится, но лог ничего не забывает. Держи трейс низко, используй cover/spoof когда растёт."
-  }
+      "Трейс дойдёт до потолка, SOC закроет сегмент, и сессия сгорит. Контракт потерян — без выплаты, без дебрифа. Симуляция перезапустится, но лог ничего не забывает. Держи трейс низко, используй cover/spoof когда растёт.",
+    chat_exit_standby: "Канал в ожидании. Введите chat, чтобы снова открыть. — %s",
+    chat_im_thread_continue: "— Новая задача (тот же канал) —",
+    m1_help_tier0_footer:
+      "ShadowNet IM (chat, затем /exit) открывает связь с хэндлером. Сетевые команды откроются после доставки фишингового письма.",
+    m1_help_tier1_footer:
+      "Сетевые команды (scan, probe, connect, enum, exploit, …) откроются после отправки фишингового письма.",
+    m1_tool_lock_tier0:
+      "Команда откроется после доставки фишингового письма (голый mail на local).",
+    m1_tool_lock_tier1:
+      "Команда откроется после доставки фишингового письма (mail на local).",
+    m1_info_locked_tier0:
+      "Эта статья пока недоступна — попробуйте info chat или info help.",
+    m1_tutorial_locked_tier0:
+      "Подсказки обучения откроются после рукопожатия в ShadowNet IM (chat, затем /exit).",
+  },
 };
 
 let currentLang = "en";

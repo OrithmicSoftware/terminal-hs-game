@@ -17,7 +17,7 @@ const RST = "\x1b[0m";
  *   resume?: () => void,
  *   skipResumeAfterCleanup?: boolean,
  *   readlineInterface?: import("readline").Interface & { _ttyWrite?: (s: string | undefined, key: object) => void },
- * }} [opts] — `skipResumeAfterCleanup`: omit `resume` in cleanup between consecutive ghost prompts (avoids an extra blank line).
+ * }} [opts] — `skipResumeAfterCleanup`: between chained ghost prompts, omit cleanup newline + `resume` so the next prompt redraws on the same row (no double blank gap).
  * @returns {Promise<string>}
  */
 export function readLineWithGhostDefault(promptPlain, ghostDefault, opts = {}) {
@@ -64,8 +64,9 @@ export function readLineWithGhostDefault(promptPlain, ghostDefault, opts = {}) {
     const cleanup = () => {
       stdin.removeListener("keypress", onKeypress);
       rl._ttyWrite = origTtyWrite;
-      stdout.write("\n");
+      /* Chained ghost prompts: skip newline so the next redraw (\r\x1b[K) clears this line — avoids a double blank gap. */
       if (!opts.skipResumeAfterCleanup) {
+        stdout.write("\n");
         opts.resume?.();
       }
     };

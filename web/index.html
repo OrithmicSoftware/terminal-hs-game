@@ -346,7 +346,7 @@
         audition all UI sounds. Optional Fallout-style UI (selection / browse / click): drop
         <code>ui_select.wav</code>, <code>ui_browse.wav</code>, <code>ui_click.wav</code> in
         <code>/sounds/fallout_terminal/</code> or use built-in synth.
-        Mission 1 (Ghost Proxy): on <code>local</code>, run <code>compose mail</code> (To pre-filled; <code>sendmail</code> under the hood) for the spear-phish flow, then <code>enum</code> / <code>exploit weak-ssh</code> before the gateway hop.
+        Mission 1 (Ghost Proxy): on <code>local</code>, run bare <code>mail</code> for the spear-phish flow (SMTP transcript shows <code>sendmail</code>); then <code>enum</code> / <code>exploit weak-ssh</code> before the gateway hop.
         While a line is rendering with typing animation, <kbd>Space</kbd> skips the rest of that line (not during pagers — Space still advances pages there).
         Node: <code>npm start</code>. Step history (after clears): <kbd>Ctrl+←</kbd> / <kbd>Ctrl+→</kbd> / <kbd>Ctrl+↓</kbd> or <kbd>PgUp</kbd> / <kbd>PgDn</kbd>; <kbd>Shift+PgUp</kbd> / <kbd>Shift+PgDn</kbd> scrolls the terminal when the output is taller than the panel.
       </p>

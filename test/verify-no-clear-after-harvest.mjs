@@ -27,7 +27,7 @@ const session = createMissionSession(mission, null, {
   composeMailReadyCheckpoint: true,
 });
 
-await session.execute("compose mail");
+await session.execute("mail");
 setWaitEnterContinueImpl(null);
 process.stdout.write = origWrite;
 

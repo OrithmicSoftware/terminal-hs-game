@@ -503,6 +503,65 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
   /** @type {undefined | ((runDefault: () => Promise<void>) => Promise<void>)} */
   const afterInfoRestore = sessionOptions.afterInfoRestore;
 
+  /** Campaign / browser pass an explicit boolean; omit in tests → no progressive lock. */
+  const shadowNetImIntroCompletedOpt = sessionOptions.shadowNetImIntroCompleted;
+  const skipM1ToolLock = sessionOptions.skipM1ToolLock === true;
+
+  function shouldApplyM1ToolLock() {
+    if (mission.id !== "m1-ghost-proxy" || skipM1ToolLock) return false;
+    return shadowNetImIntroCompletedOpt !== undefined;
+  }
+
+  /**
+   * @returns {null | 0 | 1 | 2} null = full command set (non-m1, tests, or skip)
+   */
+  function getM1ToolTier() {
+    if (!shouldApplyM1ToolLock()) return null;
+    if (state.phishingBeatDone) return 2;
+    if (shadowNetImIntroCompletedOpt === true) return 1;
+    if (isWebUi() && globalThis.__HKTM_SHADOW_NET_IM_INTRO_COMPLETED === true) return 1;
+    return 0;
+  }
+
+  /**
+   * @param {string} c
+   * @param {string} arg
+   */
+  function isM1CommandUnlocked(c, arg) {
+    const tier = getM1ToolTier();
+    if (tier === null || tier === 2) return true;
+    const a = String(arg ?? "").trim().toLowerCase();
+    /* Tier 0/1 (before phishing beat): mail + compose so the brief is actionable without IM first. */
+    if (tier === 0 || tier === 1) {
+      if (c === "help" || c === "clear" || c === "chat" || c === "info" || c === "quit") return true;
+      if (c === "mail" || c === "sendmail" || c === "/brief" || c === "status") return true;
+      if (c === "compose" && a.startsWith("mail")) return true;
+      if (c === "test" && a === "sound") return true;
+      return false;
+    }
+  }
+
+  /** Tab-completion filter for progressive m1 unlock (game readline). */
+  function isTabCommandAllowed(cmd) {
+    const tier = getM1ToolTier();
+    if (tier === null || tier === 2) return true;
+    const lower = String(cmd ?? "").toLowerCase().trim();
+    const tier01Base =
+      ["help", "clear", "chat", "chat close", "quit"].includes(lower) ||
+      lower === "info" ||
+      lower.startsWith("info ");
+    const tier01Mail =
+      tier01Base ||
+      lower.startsWith("mail") ||
+      lower.startsWith("compose mail") ||
+      lower === "/brief" ||
+      lower === "status" ||
+      lower.startsWith("status ") ||
+      lower.startsWith("test ");
+    if (tier === 0 || tier === 1) return tier01Mail;
+    return true;
+  }
+
   let pendingChatNotifications = 0;
 
   function webGhostChatTrigger(id, extra = {}) {
@@ -544,28 +603,6 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
     );
   }
 
-  async function showContactChatSession() {
-    const m2Handoff = isM2HandoffContract(mission, missionIndex);
-    const openScene = m2Handoff ? "chat-session-m2-handoff-open" : "chat-session-open";
-    const contractScene = m2Handoff ? "chat-contract-m2-handoff" : "chat-contract";
-    const closeScene = m2Handoff ? "chat-session-m2-handoff-close" : "chat-session-close";
-    if (!isWebUi()) clearTerminalScreen(openScene);
-    const flat = [];
-    for (const line of getContactContractLines(mission, contactAlias, { missionIndex, missionTotal })) {
-      if (line === "") flat.push("");
-      else flat.push(...wrap(line, textWrapWidth()));
-    }
-    await boxPaged(
-      tone(`${contactAlias.tag} — ShadowNet IM`, "bold"),
-      flat,
-      getUiOptions().width,
-      t("pager_help_line"),
-      contractScene,
-    );
-    if (!isWebUi()) clearTerminalScreen(closeScene);
-    if (isWebUi()) globalThis.__HKTM_GHOST_CHAT_OPEN?.({ forced: false });
-  }
-
   const state = {
     mission,
     nodeById,
@@ -595,6 +632,7 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
       amandaSocPersonal: false,
     },
     phishingBeatDone: false,
+    contactContractShownInTerminal: false,
   };
 
   if (initialSnapshot) {
@@ -639,6 +677,33 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
   }
   if (isCiE2E() && mission.id === "m1-ghost-proxy") {
     state.phishingBeatDone = true;
+  }
+  state.contactContractShownInTerminal = initialSnapshot?.contactContractShownInTerminal === true;
+
+  async function showContactChatSession() {
+    const m2Handoff = isM2HandoffContract(mission, missionIndex);
+    const openScene = m2Handoff ? "chat-session-m2-handoff-open" : "chat-session-open";
+    const contractScene = m2Handoff ? "chat-contract-m2-handoff" : "chat-contract";
+    const closeScene = m2Handoff ? "chat-session-m2-handoff-close" : "chat-session-close";
+    if (!isWebUi()) clearTerminalScreen(openScene);
+    const flat = [];
+    for (const line of getContactContractLines(mission, contactAlias, { missionIndex, missionTotal })) {
+      if (line === "") flat.push("");
+      else flat.push(...wrap(line, textWrapWidth()));
+    }
+    const webSkipContractPager = isWebUi() && state.contactContractShownInTerminal;
+    if (!webSkipContractPager) {
+      await boxPaged(
+        tone(`${contactAlias.tag} — ShadowNet IM`, "bold"),
+        flat,
+        getUiOptions().width,
+        t("pager_help_line"),
+        contractScene,
+      );
+      if (isWebUi()) state.contactContractShownInTerminal = true;
+    }
+    if (!isWebUi()) clearTerminalScreen(closeScene);
+    if (isWebUi()) globalThis.__HKTM_GHOST_CHAT_OPEN?.({ forced: false });
   }
 
   function addTrace(amount) {
@@ -775,13 +840,22 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
     }
   }
 
-  function logPhishingOption(n, option, cw) {
+  /** One-line menu row: first sentence (if any), then truncate with "..." to fit the column. */
+  function previewPhishingOptionLabel(label, maxLen) {
+    const flat = String(label).replace(/\s+/g, " ").trim();
+    const m = flat.match(/^(.+?[.!?])(?:\s|$)/);
+    let s = m ? m[1].trim() : flat;
+    if (s.length > maxLen) s = `${s.slice(0, Math.max(0, maxLen - 3)).trim()}...`;
+    return s;
+  }
+
+  /** @param {boolean} [dimmed] — already-declined option (grayed out in the menu). */
+  function logPhishingOption(n, option, cw, dimmed = false) {
     const inner = Math.max(24, cw - 6);
-    const lines = wrap(option.label, inner);
-    console.log(`  ${tone(`[${n}]`, "cyan")} ${tone(lines[0], "yellow")}`);
-    for (let i = 1; i < lines.length; i += 1) {
-      console.log(`      ${tone(lines[i], "yellow")}`);
-    }
+    const line = previewPhishingOptionLabel(option.label, inner);
+    const numTone = dimmed ? "dim" : "cyan";
+    const textTone = dimmed ? "dim" : "yellow";
+    console.log(`  ${tone(`[${n}]`, numTone)} ${tone(line, textTone)}`);
   }
 
   async function runPhishingLureSequence() {
@@ -790,13 +864,20 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
       ? "Press 1, 2, or 3."
       : "Type 1, 2, or 3 and press Enter.";
 
-    function printVerdict(stepLabel, choice, cw) {
+    function stepKindTitle(stepKind) {
+      if (stepKind === "subject") return "Subject";
+      if (stepKind === "body") return "Body";
+      return "From";
+    }
+
+    /** Correct pick: headline, feedback lines, real-world example, then caller pauses. */
+    function printApproved(stepKind, choice, cw) {
+      clearTerminalScreen(`compose-mail-${stepKind}-approved`, "clear");
+      const head = stepKindTitle(stepKind);
       const fb = choice.feedback;
-      const vColors = { strong: "green", weak: "yellow", risky: "red" };
-      const vc = vColors[fb.verdict] ?? "dim";
       console.log("");
-      console.log(`${tone(stepLabel + ":", "bold")} ${tone(choice.label, "cyan")}`);
-      console.log(`${tone("Verdict:", "dim")} ${tone(fb.verdict, vc)}`);
+      console.log(tone(`${head} approved.`, "green"));
+      console.log("");
       for (const p of fb.lines) {
         for (const row of wrap(p, cw)) {
           console.log(tone(row, "dim"));
@@ -804,11 +885,53 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
       }
       if (fb.history) {
         console.log("");
-        console.log(tone(fb.history.label, "bold"));
+        console.log(tone("Real-world example", "bold"));
+        console.log(tone(fb.history.label, "magenta"));
         for (const row of wrap(fb.history.detail, cw)) {
           console.log(tone(row, "dim"));
         }
       }
+      console.log("");
+    }
+
+    /** Strip leading "Declined:" so it does not repeat the Subject/Body/From declined headline. */
+    function stripDeclinedLead(s) {
+      return String(s ?? "")
+        .replace(/^Declined:\s*/i, "")
+        .trim();
+    }
+
+    /** Wrong pick: headline, mission reason, feedback + optional history, then caller pauses. */
+    function printDeclined(stepKind, choice, rejectReason, cw) {
+      clearTerminalScreen(`compose-mail-${stepKind}-declined`, "clear");
+      const head = stepKindTitle(stepKind);
+      const fb = choice.feedback;
+      const missionWhy = stripDeclinedLead(rejectReason);
+      console.log("");
+      console.log(tone(`${head} declined.`, "red"));
+      console.log("");
+      if (missionWhy) console.log(tone(missionWhy, "yellow"));
+      if (missionWhy) console.log("");
+      for (const p of fb.lines) {
+        for (const row of wrap(p, cw)) {
+          console.log(tone(row, "dim"));
+        }
+      }
+      if (fb.history) {
+        console.log("");
+        console.log(tone("Real-world example", "bold"));
+        console.log(tone(fb.history.label, "magenta"));
+        for (const row of wrap(fb.history.detail, cw)) {
+          console.log(tone(row, "dim"));
+        }
+      }
+      console.log("");
+      console.log(
+        tone(
+          "Only one option passes this simulation gate. Pick the mission-correct lure component to continue.",
+          "dim",
+        ),
+      );
       console.log("");
     }
 
@@ -842,28 +965,36 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
     }
 
     async function pickCorrectOption(stepLabel, stepKind, options, checkCorrect, subjectIdx = null, formSceneName = "compose-mail") {
+      const rejected = new Set();
       for (;;) {
         clearTerminalScreen(formSceneName, "form");
         console.log("");
         console.log(tone(`${stepLabel}:`, "bold"));
         for (let i = 0; i < options.length; i += 1) {
-          logPhishingOption(i + 1, options[i], cw);
+          logPhishingOption(i + 1, options[i], cw, rejected.has(i));
         }
         console.log("");
-        const pick = await waitForChoice3(pickHint);
-        const idx = Math.min(2, Math.max(0, pick - 1));
+        let idx;
+        for (;;) {
+          const pick = await waitForChoice3(pickHint);
+          idx = Math.min(2, Math.max(0, pick - 1));
+          if (rejected.has(idx)) {
+            console.log("");
+            console.log(tone("That option was already declined. Pick a different number.", "yellow"));
+            console.log("");
+            continue;
+          }
+          break;
+        }
         const choice = options[idx];
-        printVerdict(stepLabel.replace(/^Step \d\/\d —\s*/, ""), choice, cw);
         if (checkCorrect(idx)) {
+          printApproved(stepKind, choice, cw);
+          await waitForEnterContinue(t("press_enter_continue"));
           return { idx, choice };
         }
-        console.log(tone(rejectExplain(stepKind, idx, subjectIdx), "red"));
-        console.log(
-          tone(
-            "Only one option passes this simulation gate. Pick the mission-correct lure component to continue.",
-            "dim",
-          ),
-        );
+        printDeclined(stepKind, choice, rejectExplain(stepKind, idx, subjectIdx), cw);
+        await waitForEnterContinue(t("press_enter_continue"));
+        rejected.add(idx);
       }
     }
 
@@ -1217,7 +1348,8 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
   }
 
   /**
-   * @param {"sendmail" | "compose"} tool
+   * Spear-phish outbound: user-facing entry is `mail` (SMTP log still shows sendmail).
+   * @param {"sendmail" | "mail"} tool — `sendmail` hidden CLI alias; same behavior as `mail`.
    */
   async function runPhishingOutboundCommand(argRaw, tool) {
     if (mission.id !== "m1-ghost-proxy") {
@@ -1225,23 +1357,12 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
       return 0;
     }
     const raw = String(argRaw ?? "").trim();
-    if (tool === "sendmail") {
-      if (raw) {
-        console.log(
-          `Usage: ${tone("sendmail", "cyan")} — send a spear-phishing lure. Or use ${tone("compose mail", "cyan")}.`,
-        );
-        return 0;
-      }
-    } else if (raw.toLowerCase() !== "mail") {
-      console.log(
-        `Usage: ${tone("compose mail", "cyan")} — draft and send a spear-phishing lure from your rig.`,
-      );
+    if (tool === "sendmail" && raw) {
+      console.log(`Usage: ${tone("sendmail", "cyan")} — no arguments.`);
       return 0;
     }
     if (state.currentNode !== "local") {
-      console.log(
-        `Run ${tone(tool === "compose" ? "compose mail" : "sendmail", "cyan")} from your operator rig (${tone("local", "blue")}).`,
-      );
+      console.log(`Run ${tone("mail", "cyan")} from your operator rig (${tone("local", "blue")}).`);
       return 0;
     }
     if (state.phishingBeatDone) {
@@ -1269,14 +1390,46 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
   }
 
   async function runComposeMailCommand(argRaw) {
-    return runPhishingOutboundCommand(argRaw, "compose");
+    return runPhishingOutboundCommand(argRaw, "mail");
   }
 
   /**
-   * @param {{ instant?: boolean }} [options] — `instant`: skip typing animation (e.g. restore after `info`).
+   * After harvest / objective success — not the active-mission brief (see `printBanner`).
+   * @param {{ instant?: boolean }} [options]
+   */
+  async function printMissionSuccessBanner(options = {}) {
+    const instant = options.instant === true;
+    const cw = textWrapWidth();
+    const prevUi = getUiOptions();
+    if (instant) setUiOptions({ typing: false });
+    try {
+      console.log("");
+      const blurb =
+        mission.objective?.type === "phishing"
+          ? "Objective achieved — staging spear-phish delivered."
+          : "Mission objective complete.";
+      const lines = [
+        ...wrap(tone(blurb, "green"), cw),
+        "",
+        ...wrap(highlightCommandHints(t("mission_success_interaction_hint")), cw),
+      ];
+      await box(tone(mission.title, "bold"), lines, getUiOptions().width);
+    } finally {
+      if (instant) setUiOptions({ typing: prevUi.typing });
+    }
+  }
+
+  /**
+   * @param {{ instant?: boolean, scrollbackBrief?: boolean }} [options] — `instant`: skip typing animation.
+   *   `scrollbackBrief`: after ShadowNet IM exit / kernel replay — boxed BRIEF/OBJECTIVE plus tiered next-step hints; omits trace budget and “Type help” (those stay on `clear`/full banner).
    */
   async function printBanner(options = {}) {
     const instant = options.instant === true;
+    const scrollbackBrief = options.scrollbackBrief === true;
+    if (state.finished && state.result === "success") {
+      await printMissionSuccessBanner({ instant });
+      return;
+    }
     const story = mission.story ?? {};
     const cw = textWrapWidth();
     const handler = story.handler?.name ? `${story.handler.name}` : "Handler";
@@ -1299,18 +1452,51 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
       "",
       ...wrap(`${tone("BRIEF:", "magenta")} ${highlightCommandHints(mission.brief)}`, cw),
       ...wrap(`${tone("OBJECTIVE:", "magenta")} ${highlightCommandHints(mission.objective.summary)}`, cw),
-      ...wrap(`${tone("TRACE BUDGET:", "magenta")} ${String(mission.security.maxTrace)}`, cw),
-      "",
-      ...wrap(highlightCommandHints("Type help for commands."), cw),
     ];
-    if (mission.id === "m1-ghost-proxy") {
+
+    const m1Tier = getM1ToolTier();
+    const m1Locked = shouldApplyM1ToolLock() && m1Tier !== null;
+
+    function pushM1NextStepHints() {
+      if (m1Locked && m1Tier === 0) {
+        lines.push(
+          "",
+          ...wrap(
+            `${tone("Hint:", "dim")} ${highlightCommandHints("Run compose mail on local to draft the lure (info phishing). Open ShadowNet IM (chat, /exit) for handler comms. Network tools unlock after you deliver the lure.")}`,
+            cw,
+          ),
+        );
+        return;
+      }
+      if (mission.id !== "m1-ghost-proxy") return;
+      if (m1Locked && m1Tier === 2) {
+        lines.push(
+          "",
+          ...wrap(
+            `${tone("Hint:", "dim")} ${highlightCommandHints("Scan and probe from your rig, then connect and enum for exploit ids.")}`,
+            cw,
+          ),
+        );
+      } else if (!m1Locked || m1Tier === 1) {
+        lines.push(
+          "",
+          ...wrap(
+            `${tone("Hint:", "dim")} ${highlightCommandHints("Run mail on local to draft and send the spear-phishing lure. info phishing for the theory.")}`,
+            cw,
+          ),
+        );
+      }
+    }
+
+    if (scrollbackBrief || (m1Locked && m1Tier === 0)) {
+      pushM1NextStepHints();
+    } else {
       lines.push(
+        ...wrap(`${tone("TRACE BUDGET:", "magenta")} ${String(mission.security.maxTrace)}`, cw),
         "",
-        ...wrap(
-          `${tone("Hint:", "dim")} ${highlightCommandHints("Run compose mail on local to draft the spear-phishing lure. info phishing for the theory.")}`,
-          cw,
-        ),
+        ...wrap(highlightCommandHints("Type help for commands."), cw),
       );
+      pushM1NextStepHints();
     }
     const prevUi = getUiOptions();
     if (instant) setUiOptions({ typing: false });
@@ -1404,6 +1590,29 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
   }
 
   async function help() {
+    const tier = getM1ToolTier();
+    if (shouldApplyM1ToolLock() && (tier === 0 || tier === 1)) {
+      const lines = [
+        tone("Commands", "bold"),
+        `  ${tone("help", "cyan")}                 show commands`,
+        `  ${tone("clear", "cyan")}                clear screen and reprint header/status`,
+        `  ${tone("status", "cyan")}               show current status (alarm level + trace; security pings in ShadowNet IM on web)`,
+        `  ${tone("mail", "cyan")}                 ${tone("mail list", "dim")} | ${tone("mail read <id>", "cyan")} | bare ${tone("mail", "cyan")} on ${tone("local", "blue")} — spear-phishing lure`,
+        `  ${tone("compose mail", "cyan")}         draft lure (multi-step; from ${tone("local", "blue")})`,
+        `  ${tone("chat", "cyan")}                 ShadowNet IM`,
+        `  ${tone("/brief", "cyan")}               current mission brief`,
+        `  ${tone("info <term>", "cyan")}           glossary: commands + concepts (try: info help)`,
+        `  ${tone("test sound", "cyan")}            audition all UI sounds`,
+        `  ${tone("quit", "cyan")}                 exit campaign`,
+        "",
+        tone(t(tier === 0 ? "m1_help_tier0_footer" : "m1_help_tier1_footer"), "dim"),
+        "",
+        tone(t("screen_help"), "dim"),
+      ];
+      await pagedPlainLines(lines, t("pager_help_line"), "help");
+      return;
+    }
+
     const lines = [
       tone("Commands", "bold"),
       `  ${tone("help", "cyan")}                 show commands`,
@@ -1412,16 +1621,18 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
       `  ${tone("map", "cyan")}                  show discovered network graph`,
       `  ${tone("scan", "cyan")}                 list adjacent hosts`,
       `  ${tone("probe <host>", "cyan")}         remote port sweep (open ports; no exploit ids)`,
-      `  ${tone("mail", "cyan")}                 mission inbox (if deployed) | ${tone("mail read <id>", "cyan")}`,
-      `  ${tone("chat", "cyan")}                 ShadowNet IM | ${tone("chat close", "cyan")}`,
+      `  ${tone("mail", "cyan")}                 ${
+        mission.id === "m1-ghost-proxy"
+          ? `${tone("mail list", "dim")} | ${tone("mail read <id>", "cyan")} | bare ${tone("mail", "cyan")} on ${tone("local", "blue")} — spear-phishing lure`
+          : `mission inbox (if deployed) | ${tone("mail read <id>", "cyan")}`
+      }`,
+      `  ${tone("chat", "cyan")}                 ShadowNet IM`,
       `  ${tone("/brief", "cyan")}               current mission brief`,
       `  ${tone("test sound", "cyan")}            audition all UI sounds`,
       `  ${tone("connect <node>", "cyan")}       move to discovered adjacent node`,
       `  ${tone("enum", "cyan")}                 on-host: map ports → exploit ids + vuln class`,
       `  ${tone("enum -f / --force", "cyan")}    re-scan (costs trace again; use if you need fresh output)`,
       `  ${tone("exploit <id>", "cyan")}         run exploit on current node`,
-      `  ${tone("compose mail", "cyan")}         ${mission.id === "m1-ghost-proxy" ? "draft a spear-phishing lure" : "—"}`,
-      `  ${tone("sendmail", "cyan")}             ${mission.id === "m1-ghost-proxy" ? "send a spear-phishing lure" : "—"}`,
       `  ${tone("info <term>", "cyan")}           glossary: commands + concepts (try: info help)`,
       `  ${tone("sql", "cyan")}                    SQL lab: ${tone("sql demo", "dim")} | ${tone(`sql translate "text"`, "dim")}`,
       `  ${tone("stash", "cyan")}                list collected credential artifacts`,
@@ -1543,7 +1754,12 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
   }
 
   function printKnownInfoTerms() {
-    const keys = Object.keys(INFO_GLOSSARY).sort();
+    let keys = Object.keys(INFO_GLOSSARY).sort();
+    const tier = getM1ToolTier();
+    if (shouldApplyM1ToolLock() && tier === 0) {
+      const allow = new Set(["chat", "help", "info", "mail", "phishing"]);
+      keys = keys.filter((k) => allow.has(k));
+    }
     const cw = textWrapWidth();
     console.log(tone("Known terms:", "dim"));
     for (const line of wrap(highlightCommandHints(keys.join(", ")), cw)) {
@@ -1553,11 +1769,13 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
 
   async function restoreShellAfterInfoPause() {
     const runDefaultRestore = async () => {
+      const shellScene =
+        state.finished && state.result === "success" ? "mission-success-shell" : "post-splash";
       if (process.stdout.isTTY) {
-        clearTerminalScreen("post-splash");
+        clearTerminalScreen(shellScene, "clear");
       } else {
         console.log("\n".repeat(20));
-        logScreenStep("post-splash");
+        logScreenStep(shellScene);
       }
       await printBanner({ instant: true });
       showStatus();
@@ -1578,6 +1796,17 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
 
   async function info(termRaw) {
     const term = String(termRaw ?? "").trim().toLowerCase();
+    const tier = getM1ToolTier();
+    if (shouldApplyM1ToolLock() && tier === 0 && term) {
+      const allow = new Set(["chat", "help", "info", "mail", "phishing"]);
+      if (!allow.has(term)) {
+        clearTerminalScreen("info-usage", "info");
+        console.log(tone(t("m1_info_locked_tier0"), "yellow"));
+        printKnownInfoTerms();
+        await finalizeInfoAfterContent("info-locked-t0");
+        return;
+      }
+    }
     if (!term) {
       clearTerminalScreen("info-usage", "info");
       console.log(`${tone("Usage:", "dim")} ${highlightCommandHints("info <term>. Example: info probe")}`);
@@ -1895,7 +2124,7 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
       !state.phishingBeatDone
     ) {
       console.log(
-        `${tone("Exploit blocked.", "yellow")} ${highlightCommandHints("Complete the spear-phish step first: compose mail — deliver the lure and harvest the password.")}`,
+        `${tone("Exploit blocked.", "yellow")} ${highlightCommandHints("Complete the spear-phish step first: mail on local — deliver the lure and harvest the password.")}`,
       );
       return 0;
     }
@@ -2097,6 +2326,13 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
       }
     }
 
+    const m1TierGate = getM1ToolTier();
+    if (shouldApplyM1ToolLock() && m1TierGate !== null && m1TierGate !== 2 && !isM1CommandUnlocked(c, arg)) {
+      /* Tier 0/1: mail/compose are allowed; remaining locks are network tools until phishing beat. */
+      console.log(tone(t("m1_tool_lock_tier1"), "yellow"));
+      return;
+    }
+
     state.lastCommand = c;
     state.lastArg = arg;
 
@@ -2195,9 +2431,15 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
       case "sendmail":
         risk = await runSendmailCommand(arg);
         break;
-      case "compose":
-        risk = await runComposeMailCommand(arg);
+      case "compose": {
+        const composeArg = String(arg ?? "").trim().toLowerCase();
+        if (composeArg === "mail" || composeArg.startsWith("mail ")) {
+          risk = await runPhishingOutboundCommand("", "mail");
+        } else {
+          console.log(`Usage: ${tone("mail", "cyan")} — draft and send a spear-phishing lure from your rig.`);
+        }
         break;
+      }
       case "info":
         await info(arg);
         skipStatusAfter = true;
@@ -2218,18 +2460,56 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
         break;
       }
       case "mail": {
+        const mailArg = String(arg ?? "").trim();
+        const ml = mailArg.toLowerCase();
+        if (mission.id === "m1-ghost-proxy" && !state.phishingBeatDone) {
+          if (ml.startsWith("read ")) {
+            const mid = mailArg.slice(5).trim();
+            if (!mid) {
+              console.log(`Usage: ${tone("mail read <id>", "cyan")}`);
+              risk = 0;
+              break;
+            }
+            if (!state.mail.length) {
+              console.log(tone("No mission mail channel on this deployment.", "dim"));
+              risk = 0;
+              break;
+            }
+            await readMailMessage(mid);
+            risk = 0;
+            break;
+          }
+          if (ml === "list" || ml === "inbox") {
+            if (!state.mail.length) {
+              console.log(tone("No mission mail channel on this deployment.", "dim"));
+              risk = 0;
+              break;
+            }
+            await showMailList();
+            risk = 0;
+            break;
+          }
+          if (!mailArg) {
+            risk = await runPhishingOutboundCommand("", "mail");
+            break;
+          }
+          console.log(
+            `Usage: ${tone("mail", "cyan")} — spear-phishing lure  |  ${tone("mail list", "cyan")}  |  ${tone("mail read <id>", "cyan")}`,
+          );
+          risk = 0;
+          break;
+        }
         if (!state.mail.length) {
           console.log(tone("No mission mail channel on this deployment.", "dim"));
           risk = 0;
           break;
         }
-        const mailArg = String(arg ?? "").trim();
-        if (!mailArg || mailArg.toLowerCase() === "list") {
+        if (!mailArg || ml === "list") {
           await showMailList();
           risk = 0;
           break;
         }
-        if (mailArg.toLowerCase().startsWith("read ")) {
+        if (ml.startsWith("read ")) {
           const mid = mailArg.slice(5).trim();
           if (!mid) {
             console.log(`Usage: ${tone("mail read <id>", "cyan")}`);
@@ -2459,6 +2739,7 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
       mailState: state.mail.map((m) => ({ id: m.id, read: m.read })),
       ghostTriggers: { ...state.ghostTriggers },
       phishingBeatDone: Boolean(state.phishingBeatDone),
+      contactContractShownInTerminal: Boolean(state.contactContractShownInTerminal),
     };
   }
 
@@ -2470,5 +2751,7 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
     execute,
     serialize,
     showTutorialHint,
+    getM1ToolTier,
+    isTabCommandAllowed,
   };
 }

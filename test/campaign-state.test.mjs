@@ -16,6 +16,8 @@ test("createInitialCampaignState locks missions and activates first", () => {
   assert.equal(s.missions.length, 3);
   assert.equal(s.missions[0].status, "locked");
   assert.equal(s.missions[1].status, "locked");
+  assert.deepEqual(s.ghostChatMessages, []);
+  assert.equal(s.ghostChatLastBriefedMissionId, null);
 });
 
 test("ensureCampaignConsistency repairs schema and preserves length", () => {
@@ -36,6 +38,8 @@ test("ensureCampaignConsistency repairs schema and preserves length", () => {
   const out = ensureCampaignConsistency(s, fakeMissions);
   assert.equal(out.schemaVersion, 2);
   assert.equal(out.language, "en");
+  assert.deepEqual(out.ghostChatMessages, []);
+  assert.equal(out.ghostChatLastBriefedMissionId, null);
 });
 
 test("ensureCampaignConsistency adds contactAliasSeed when missing", () => {

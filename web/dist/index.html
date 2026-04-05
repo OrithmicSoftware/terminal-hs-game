@@ -4,11 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0a0f0c" />
-    <meta name="hktm-git-version" content="v0.1.0-alpha.1-3-g42f7bd5-dirty" />
+    <meta name="hktm-git-version" content="v0.1.0-alpha.1-6-g389168e-dirty" />
     <title>Hacker Terminal Game (browser alpha)</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" sizes="any" />
     <link rel="apple-touch-icon" href="/favicon.svg" />
-    <script type="module" crossorigin src="/assets/index-CdW7F3_m.js"></script>
+    <script type="module" crossorigin src="/assets/index-B77h7WKs.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-DQUj8nfy.css">
   </head>
   <body>
@@ -26,7 +26,7 @@
           decoding="async"
         />
         <div class="hktm-splash-title">TERMINAL HACKSIM</div>
-        <span class="hktm-splash-version" title="Git revision">v0.1.0-alpha.1-3-g42f7bd5-dirty</span>
+        <span class="hktm-splash-version" title="Git revision">v0.1.0-alpha.1-6-g389168e-dirty</span>
       </div>
       <p class="hktm-splash-sub">
         The grids went dark — the truth went behind glass. Pick a sector. Dig for what’s real.
@@ -168,7 +168,7 @@
             decoding="async"
           />
           <span class="title">TERMINAL HACKSIM</span>
-          <span class="hktm-git-version" title="Git revision">v0.1.0-alpha.1-3-g42f7bd5-dirty</span>
+          <span class="hktm-git-version" title="Git revision">v0.1.0-alpha.1-6-g389168e-dirty</span>
           <span class="badge">browser α</span>
         </div>
         <span class="header-actions">
@@ -345,7 +345,7 @@
         audition all UI sounds. Optional Fallout-style UI (selection / browse / click): drop
         <code>ui_select.wav</code>, <code>ui_browse.wav</code>, <code>ui_click.wav</code> in
         <code>/sounds/fallout_terminal/</code> or use built-in synth.
-        Mission 1 (Ghost Proxy): on <code>local</code>, run <code>compose mail</code> (To pre-filled; <code>sendmail</code> under the hood) for the spear-phish flow, then <code>enum</code> / <code>exploit weak-ssh</code> before the gateway hop.
+        Mission 1 (Ghost Proxy): on <code>local</code>, run bare <code>mail</code> for the spear-phish flow (SMTP transcript shows <code>sendmail</code>); then <code>enum</code> / <code>exploit weak-ssh</code> before the gateway hop.
         While a line is rendering with typing animation, <kbd>Space</kbd> skips the rest of that line (not during pagers — Space still advances pages there).
         Node: <code>npm start</code>. Step history (after clears): <kbd>Ctrl+←</kbd> / <kbd>Ctrl+→</kbd> / <kbd>Ctrl+↓</kbd> or <kbd>PgUp</kbd> / <kbd>PgDn</kbd>; <kbd>Shift+PgUp</kbd> / <kbd>Shift+PgDn</kbd> scrolls the terminal when the output is taller than the panel.
       </p>
