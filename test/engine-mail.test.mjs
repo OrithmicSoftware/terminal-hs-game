@@ -60,3 +60,13 @@ test("serialize round-trips phishingBeatDone", () => {
   const session2 = createMissionSession(miniMission, snap);
   assert.equal(session2.state.phishingBeatDone, true);
 });
+
+test("serialize round-trips contactContractShownInTerminal", () => {
+  const session = createMissionSession(miniMission);
+  assert.equal(session.state.contactContractShownInTerminal, false);
+  session.state.contactContractShownInTerminal = true;
+  const snap = session.serialize();
+  assert.equal(snap.contactContractShownInTerminal, true);
+  const session2 = createMissionSession(miniMission, snap);
+  assert.equal(session2.state.contactContractShownInTerminal, true);
+});

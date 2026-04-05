@@ -24,6 +24,8 @@ import {
   syncGhostChatContactAlias,
   postMissionBriefingToChat,
   clearMissionBriefingCache,
+  hydrateGhostChatFromCampaign,
+  resetGhostChatLogForNewCampaign,
 } from "./ghost-chat.mjs";
 import { resolveContactAlias } from "../src/contact-alias.mjs";
 import { BOOT_RENDER_CPS } from "../src/boot-constants.mjs";
@@ -117,7 +119,11 @@ function activateMission(state, missions, missionIndex) {
     contactAliasSeed: state.contactAliasSeed,
     missionIndex,
     missionTotal: missions.length,
+    shadowNetImIntroCompleted: state.shadowNetImIntroCompleted,
+    /* Playwright uses ?e2e=1 — same idea as CLI HKTM_SKIP_CHAT_GATE=1 for automated runs. */
+    skipM1ToolLock: isE2eUrl(),
   });
+  globalThis.__HKTM_SHADOW_NET_IM_INTRO_COMPLETED = state.shadowNetImIntroCompleted;
   return { mission, session };
 }
 
@@ -190,6 +196,43 @@ export async function bootBrowserCampaign() {
   applyUi(campaignState);
 
   let { mission, session } = activateMission(campaignState, missions, campaignState.currentMissionIndex);
+
+  let ghostChatSaveTimer = null;
+  function flushGhostChatSaveSoon() {
+    if (ghostChatSaveTimer) clearTimeout(ghostChatSaveTimer);
+    ghostChatSaveTimer = setTimeout(() => {
+      ghostChatSaveTimer = null;
+      saveCampaignStateToLs(campaignState);
+    }, 400);
+  }
+
+  globalThis.__HKTM_APPEND_GHOST_CHAT_ENTRY = (entry) => {
+    if (!Array.isArray(campaignState.ghostChatMessages)) campaignState.ghostChatMessages = [];
+    campaignState.ghostChatMessages.push(entry);
+    if (campaignState.ghostChatMessages.length > 400) {
+      campaignState.ghostChatMessages.splice(0, campaignState.ghostChatMessages.length - 400);
+    }
+    flushGhostChatSaveSoon();
+  };
+
+  globalThis.__HKTM_SYNC_GHOST_BRIEF_MISSION_ID = (id) => {
+    campaignState.ghostChatLastBriefedMissionId = typeof id === "string" ? id : null;
+    saveCampaignStateToLs(campaignState);
+  };
+
+  globalThis.__HKTM_CLEAR_GHOST_BRIEF_ID_FOR_RETRY = () => {
+    campaignState.ghostChatLastBriefedMissionId = null;
+    saveCampaignStateToLs(campaignState);
+  };
+
+  hydrateGhostChatFromCampaign(campaignState);
+
+  globalThis.__HKTM_ON_SHADOW_NET_IM_EXIT = () => {
+    campaignState.shadowNetImIntroCompleted = true;
+    globalThis.__HKTM_SHADOW_NET_IM_INTRO_COMPLETED = true;
+    saveCampaignStateToLs(campaignState);
+  };
+
   let appClosing = false;
   let sessionEnded = false;
 
@@ -220,6 +263,12 @@ export async function bootBrowserCampaign() {
   }
 
   await waitForInitialBriefGate({ enabled: needsInitialBriefGate });
+
+  if (needsInitialBriefGate) {
+    campaignState.shadowNetImIntroCompleted = true;
+    globalThis.__HKTM_SHADOW_NET_IM_INTRO_COMPLETED = true;
+    saveCampaignStateToLs(campaignState);
+  }
 
   if (needsInitialBriefGate && inputRow) {
     inputRow.style.display = "none";
@@ -280,7 +329,7 @@ export async function bootBrowserCampaign() {
           await waitForEnterContinue(t("press_enter_continue"));
         });
         printOperationFooter(campaignState, missions);
-        postMissionBriefingToChat(mission, {
+        await postMissionBriefingToChat(mission, {
           missionIndex: campaignState.currentMissionIndex,
           missionTotal: missions.length,
         });
@@ -318,6 +367,7 @@ export async function bootBrowserCampaign() {
     applyUi(campaignState);
     saveCampaignStateToLs(campaignState);
     clearMissionBriefingCache();
+    resetGhostChatLogForNewCampaign();
     ({ mission, session } = activateMission(campaignState, missions, campaignState.currentMissionIndex));
     refreshMissionBriefAccessor();
     try {

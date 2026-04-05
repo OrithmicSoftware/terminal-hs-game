@@ -183,7 +183,6 @@ async function runTerminalOperatorProfile(readLine, readLineGhost, campaignState
       return readLine(prompt);
     });
 
-  console.log("");
   console.log(tone(t("terminal_setup_region_title"), "bold"));
   REGIONS.forEach((r, idx) => {
     console.log(`  ${idx + 1}. ${tone(r.id, "cyan")} — ${r.name} ${tone(`(${r.flavor})`, "dim")}`);
