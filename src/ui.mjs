@@ -660,10 +660,11 @@ function flattenBoxBodyLines(rawLines, inner) {
 /**
  * Box with body split across pages so each view fits the terminal; ↑↓ Enter Space q.
  * @param {string} [stepBase] DEBUG step id prefix (one screen per page).
- * @param {{ stepDebugKind?: "log" | "info" }} [options] — `info`: full clear + `type=info` steps (glossary pager).
+ * @param {{ stepDebugKind?: "log" | "info", clearOnExit?: boolean }} [options] — `info`: full clear + `type=info` steps (glossary pager).
  */
 export async function boxPaged(title, lines, width = uiState.width, footerHint = "", stepBase = "box-paged", options = {}) {
   const stepDebugKind = options.stepDebugKind === "info" ? "info" : "log";
+  const clearOnExit = options.clearOnExit !== false;
   const hint = footerHint || "↓ Enter/Space next  ↑ prev  q exit";
   const w = Math.max(12, Math.floor(width));
   const inner = w - 4;
@@ -713,6 +714,8 @@ export async function boxPaged(title, lines, width = uiState.width, footerHint =
       }
     }
     pagerHooks.resume();
-    clearTerminalScreen(`${stepBase}-exit`);
+    if (clearOnExit) {
+      clearTerminalScreen(`${stepBase}-exit`);
+    }
   }
 }

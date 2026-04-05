@@ -549,6 +549,7 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
     const openScene = m2Handoff ? "chat-session-m2-handoff-open" : "chat-session-open";
     const contractScene = m2Handoff ? "chat-contract-m2-handoff" : "chat-contract";
     const closeScene = m2Handoff ? "chat-session-m2-handoff-close" : "chat-session-close";
+    const preserveChatOnSuccess = !isWebUi() && state.finished && state.result === "success";
     if (!isWebUi()) clearTerminalScreen(openScene);
     const flat = [];
     for (const line of getContactContractLines(mission, contactAlias, { missionIndex, missionTotal })) {
@@ -561,8 +562,9 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
       getUiOptions().width,
       t("pager_help_line"),
       contractScene,
+      { clearOnExit: !preserveChatOnSuccess },
     );
-    if (!isWebUi()) clearTerminalScreen(closeScene);
+    if (!isWebUi() && !preserveChatOnSuccess) clearTerminalScreen(closeScene);
     if (isWebUi()) globalThis.__HKTM_GHOST_CHAT_OPEN?.({ forced: false });
   }
 

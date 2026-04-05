@@ -84,6 +84,16 @@ test("sceneBannerLine: pause does not advance prev chain (post-splash follows pa
   assert.equal(sceneBannerLine("post-splash", "clear"), "[SCENE: post-splash type=clear prev=info-chat]");
 });
 
+test("sceneBannerLine: preserved chat screen keeps contract as previous scene", () => {
+  resetSceneDebugChain();
+  sceneBannerLine("chat-session-open", "clear");
+  sceneBannerLine("chat-contract", "log");
+  assert.equal(
+    sceneBannerLine("next-screen", "clear"),
+    "[SCENE: next-screen type=clear prev=chat-contract]",
+  );
+});
+
 test("sceneBannerLine: animate=false and prevOverride", () => {
   resetSceneDebugChain();
   sceneBannerLine("info-chat-exit", "clear");

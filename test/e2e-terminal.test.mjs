@@ -9,6 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createMissionSession } from "../src/engine.mjs";
+import { setRuntimeSceneAppender } from "../src/debug-scene.mjs";
 import { setWaitEnterContinueImpl } from "../src/ui.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -182,4 +183,49 @@ test("post-harvest: ShadowNet IM notification after harvest", async () => {
     />\s+New message/.test(stripped),
     `expected terminal > prefix before IM notification:\n${blob.slice(0, 2000)}`,
   );
+});
+
+test("post-harvest: chat shows contract content and does not clear it away on success", async () => {
+  const mission = JSON.parse(fs.readFileSync(m1Path, "utf8"));
+  const sceneLines = [];
+  setWaitEnterContinueImpl(() => Promise.resolve());
+  setRuntimeSceneAppender((line) => sceneLines.push(line));
+  const prevDebug = process.env.HKTM_DEBUG;
+  process.env.HKTM_DEBUG = "1";
+  const session = createMissionSession(mission, null, {
+    contactAliasSeed: "e2e-terminal-post-success-chat",
+    composeMailReadyCheckpoint: true,
+  });
+  try {
+    await session.execute("compose mail");
+    const cap = captureConsoleLog();
+    try {
+      await session.execute("chat");
+    } finally {
+      cap.restore();
+    }
+    const blob = cap.lines.join("\n");
+    assert.ok(
+      blob.includes("ShadowNet IM"),
+      `expected chat title after successful mission:\n${blob.slice(0, 2000)}`,
+    );
+    assert.ok(
+      blob.includes("Contract: «Operation Ghost Proxy»"),
+      `expected contract body after successful mission:\n${blob.slice(0, 2000)}`,
+    );
+    assert.ok(
+      blob.includes("Objective:"),
+      `expected objective text after successful mission chat:\n${blob.slice(0, 2000)}`,
+    );
+    assert.equal(
+      sceneLines.some((line) => line.includes("chat-session-close")),
+      false,
+      `chat should remain visible after mission success; unexpected close scene:\n${sceneLines.join("\n")}`,
+    );
+  } finally {
+    setWaitEnterContinueImpl(null);
+    setRuntimeSceneAppender(null);
+    if (prevDebug === undefined) delete process.env.HKTM_DEBUG;
+    else process.env.HKTM_DEBUG = prevDebug;
+  }
 });
