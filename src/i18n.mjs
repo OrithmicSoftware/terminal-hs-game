@@ -96,7 +96,14 @@ const dictionaries = {
     chat_reply_3: "What happens if I get caught?",
     chat_reply_3_response:
       "Trace hits the ceiling, SOC locks the segment, and your session burns. You lose the contract — no payout, no debrief. The sim resets but the log doesn't forget. Keep your trace low and use cover/spoof when it climbs.",
-    chat_exit_standby: "Channel on standby. Type chat anytime to reopen. — %s",
+    chat_exit_standby:
+      "Channel on standby. Handler brief is mirrored on your main terminal — type chat anytime to reopen. — %s",
+    /** Node chat gate: /exit without /brief — brief follows after Enter → loading → banner. */
+    chat_gate_exit_standby:
+      "Channel on standby. Handler brief uploads to your main terminal after you continue. Type chat anytime to reopen. — %s",
+    /** Node chat gate: /exit after /brief already printed banner in IM. */
+    chat_gate_exit_after_brief:
+      "Brief's in your terminal. Start with mail — info phishing if you need the theory. — %s",
     chat_im_thread_continue: "— New op (same channel) —",
     m1_help_tier0_footer:
       "ShadowNet IM (chat, then /exit) opens handler comms. Network tools unlock after you deliver the spear-phishing lure.",
@@ -207,7 +214,12 @@ const dictionaries = {
     chat_reply_3: "Что будет, если поймают?",
     chat_reply_3_response:
       "Трейс дойдёт до потолка, SOC закроет сегмент, и сессия сгорит. Контракт потерян — без выплаты, без дебрифа. Симуляция перезапустится, но лог ничего не забывает. Держи трейс низко, используй cover/spoof когда растёт.",
-    chat_exit_standby: "Канал в ожидании. Введите chat, чтобы снова открыть. — %s",
+    chat_exit_standby:
+      "Канал в ожидании. Бриф хэндлера дублируется в основном терминале — введите chat, чтобы снова открыть. — %s",
+    chat_gate_exit_standby:
+      "Канал в ожидании. Бриф хэндлера загрузится в основной терминал после продолжения. Введите chat, чтобы снова открыть. — %s",
+    chat_gate_exit_after_brief:
+      "Бриф уже в терминале. Начинайте с mail — при необходимости theory: info phishing. — %s",
     chat_im_thread_continue: "— Новая задача (тот же канал) —",
     m1_help_tier0_footer:
       "ShadowNet IM (chat, затем /exit) открывает связь с хэндлером. Сетевые команды откроются после доставки фишингового письма.",

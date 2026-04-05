@@ -4,6 +4,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { tone } from "./colors.mjs";
 import { t } from "./i18n.mjs";
@@ -203,6 +204,9 @@ async function runTerminalOperatorProfile(readLine, readLineGhost, campaignState
       console.log(tone(t("terminal_setup_region_invalid"), "yellow"));
     }
   }
+  /* Clear the in-progress prompt line, then print once with resolved region id (not the digit). */
+  process.stdout.write("\r\x1b[K");
+  console.log(`${tone(regionPrompt, "cyan")}${tone(regionId, "green")}`);
   const suggestedNickname = generateOperatorNickname();
   const nameRaw = await readGhost(t("terminal_setup_codename_prompt"), suggestedNickname, { maxLen: 32 });
   const codename = String(nameRaw ?? "").trim() || suggestedNickname;
