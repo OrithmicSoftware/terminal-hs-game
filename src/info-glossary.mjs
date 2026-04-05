@@ -224,4 +224,58 @@ export const INFO_GLOSSARY = {
     exploit:
       "In this game, use sql demo and sql translate \"…\" to see a simulated mapping from your op shell to ssh/psql strings. Compare the naive concat line to the bind/parameter pattern—no real queries run.",
   },
+  rsync: {
+    about:
+      "rsync synchronises files between hosts over SSH — it copies only changed bytes, making it efficient for pulling directory trees. Operators use rsync for staging data dumps; defenders watch for unusual rsync traffic as a sign of exfiltration.",
+    exploit:
+      "In this game: rsync <node>:<path> [local-path] pulls a remote directory listing onto your local node so you can browse and grep the dump. It adds trace (noise cost). Use it instead of cat-looping individual files — fewer commands means less noise.",
+  },
+  grep: {
+    about:
+      "grep searches file contents for patterns — a core Unix tool. Defenders grep logs for IOCs (indicators of compromise); attackers grep stolen files for secrets like keys, passwords, and connection strings.",
+    exploit:
+      "In this game: grep <pattern> [path] searches files on the current node for matching lines. Pattern is a simple substring match. No trace cost (local operation). Try: grep id_rsa, grep DATABASE_URL, grep @.",
+  },
+  sqli: {
+    about:
+      "SQL injection (SQLi) exploits applications that build SQL by concatenating user input. Classes include UNION-based (append extra SELECT), blind (infer data from true/false), and error-based (read DB errors). Defense: parameterised queries, least-privilege DB roles, WAF. Reference: OWASP Top 10 A03:2021.",
+    exploit:
+      "In this game: sqli <endpoint> <payload> simulates testing a SQL injection surface. The engine shows the safe query vs. the injected query side by side. Successful injection unlocks the DB node. Trace cost applies — injection queries are noisy.",
+  },
+  "ssh-keyscan": {
+    about:
+      "ssh-keyscan retrieves the public host key of an SSH server. Operators use it to verify fingerprints before connecting (Trust On First Use / TOFU model). Without verification, a man-in-the-middle could present a fake key.",
+    exploit:
+      "In this game: ssh-keyscan <host> shows a simulated SSH host-key fingerprint table. Small trace cost. Educational: real operators should always verify host keys before accepting them.",
+  },
+  "credential-login": {
+    about:
+      "Credential login: using a stolen or phished password to authenticate on another system. Common when passwords are reused across services and MFA is not enforced — the weakest link in credential hygiene.",
+    exploit:
+      "In this game: exploit credential-login on a jump host uses the password harvested in a previous mission. Requires the artifact from the phishing step. Models credential stuffing / password reuse attacks.",
+  },
+  "weak-ssh-key": {
+    about:
+      "weak-ssh-key: exploiting SSH key-based authentication with a stolen private key. If the server trusts the key and the key is not passphrase-protected, anyone with the file can log in. Defense: passphrase-protect keys, rotate regularly, use hardware tokens.",
+    exploit:
+      "In this game: exploit weak-ssh-key uses a private key artifact recovered from a file share. The target server trusts that key in its authorized_keys — no password prompt needed. Models lateral movement via stolen identity material.",
+  },
+  "sqli-search": {
+    about:
+      "sqli-search: SQL injection through a search endpoint that builds queries with string concatenation. The classic pattern: SELECT * FROM table WHERE col LIKE '%' + input + '%'. Attacker injects ' OR 1=1-- to bypass the filter.",
+    exploit:
+      "In this game: exploit sqli-search on the API node gains access to the database through the vulnerable /search endpoint. High noise — injection queries generate anomalous DB log entries that SOC monitors.",
+  },
+  "sqli-dump": {
+    about:
+      "sqli-dump: data exfiltration via SQL injection — using UNION SELECT or COPY to extract table contents through an injection channel. The DB role's excessive privileges make this possible.",
+    exploit:
+      "In this game: exploit sqli-dump on the database node uses the injection path to access customer data. Requires the sqli-api-access artifact from the search exploit. Very high noise — this is the noisiest action in the campaign.",
+  },
+  "exposed-api": {
+    about:
+      "exposed-api: an internal API endpoint accessible without authentication or network segmentation. Common in internal networks where 'trust the perimeter' replaces per-service auth. Defense: zero-trust architecture, per-service authentication, network micro-segmentation.",
+    exploit:
+      "In this game: exploit exposed-api on an internal server grants access to the API surface. The API is not behind a WAF or auth layer — once you're on the internal network, it's open.",
+  },
 };

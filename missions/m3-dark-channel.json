@@ -1,0 +1,140 @@
+{
+  "id": "m3-dark-channel",
+  "title": "Operation Dark Channel",
+  "brief": "Use Chen's stolen SSH key to access Vasquez's bastion host at nexus-core.internal. Exploit a weak SSH key exchange to pivot through the bastion into the corporate internal network. Your target: the API route table that maps the attack surface for the final operation.",
+  "story": {
+    "handler": { "name": "Sable" },
+    "time": "04:27",
+    "region": "Nexus Core / internal network",
+    "debrief": {
+      "success": "Route table secured. The /search endpoint on api-internal is your SQL injection surface for the final op. Stand by — we're going in for customer data.",
+      "fail": "Bastion burned. Nexus rotated Vasquez's keys and locked the internal segment. You'll need a different entry vector if you retry."
+    }
+  },
+  "emails": [
+    {
+      "id": "M3-BRIEF-01",
+      "from": "handler-comms@orithmic.private",
+      "subject": "Contract update — Dark Channel (SSH pivot)",
+      "body": "Operator—\n\nChen's SSH key from the share drive connects to Vasquez's bastion at nexus-core.internal. Key-based auth is powerful — no password prompt, no MFA if the server trusts the key.\n\nWhat is SSH key authentication? Instead of typing a password, you present a cryptographic key pair. The server checks your key against its authorized_keys file. If it matches, you're in. The weakness: if someone steals the private key (like you just did), they inherit that trust.\n\nUse ssh-keyscan to verify the bastion's fingerprint before connecting — real operators do this to avoid MITM attacks.\n\n— Sable"
+    },
+    {
+      "id": "M3-OPS-01",
+      "from": "operations@orithmic.private",
+      "subject": "Rules of engagement — Dark Channel",
+      "body": "Operator—\n\nYou are using a stolen identity. Vasquez's bastion trusts Chen's key — but the internal network has its own monitoring.\n\n- The API on corp-internal:8080 is your primary target.\n- Exfil the route table — it maps the SQL injection surface for the next contract.\n- Expect heavier SOC presence on the internal segment.\n\n— Sable, Handler"
+    }
+  ],
+  "connectGates": [
+    {
+      "from": "local",
+      "to": "nexus-bastion",
+      "afterExploit": { "node": "nexus-bastion", "exploitId": "weak-ssh-key" }
+    },
+    {
+      "from": "nexus-bastion",
+      "to": "corp-internal",
+      "afterExploit": { "node": "nexus-bastion", "exploitId": "weak-ssh-key" }
+    }
+  ],
+  "tutorial": {
+    "steps": [
+      {
+        "when": "own_node",
+        "nodeId": "nexus-bastion",
+        "title": "On the bastion",
+        "text": "You're through. The internal server is one hop away — scan for it, then connect and enum the API surface.",
+        "suggest": "scan"
+      },
+      {
+        "when": "own_node",
+        "nodeId": "corp-internal",
+        "title": "Inside the network",
+        "text": "The API route table is in /opt/api/routes.txt — cat it, then exfil to complete the objective.",
+        "suggest": "ls"
+      }
+    ]
+  },
+  "startNode": "local",
+  "security": {
+    "maxTrace": 36
+  },
+  "objective": {
+    "summary": "Exfiltrate the internal API route table from corp-internal.",
+    "requiredNode": "corp-internal",
+    "exfilFiles": ["/opt/api/routes.txt"]
+  },
+  "edges": [
+    ["local", "nexus-bastion"],
+    ["nexus-bastion", "corp-internal"]
+  ],
+  "nodes": [
+    {
+      "id": "local",
+      "services": [],
+      "noise": { "enum": 0 },
+      "files": []
+    },
+    {
+      "id": "nexus-bastion",
+      "services": [
+        {
+          "name": "ssh",
+          "protocol": "tcp",
+          "port": 22,
+          "exploitId": "weak-ssh-key",
+          "noise": 3,
+          "requiresArtifacts": ["ssh-key-mchen"],
+          "vulnRef": "CVE-2023-48795 (Terrapin/prefix-truncation) — SSH downgrade; stolen key bypasses auth"
+        }
+      ],
+      "noise": { "enum": 2 },
+      "files": [
+        {
+          "path": "/home/j.vasquez/.bashrc",
+          "content": "# Vasquez shell config\nalias api='ssh corp-internal'\nalias logs='tail -f /var/log/auth.log'\nexport API_HOST=api-internal\nexport DB_HOST=db-internal\n# TODO: rotate keys after Chen's access review"
+        },
+        {
+          "path": "/var/log/auth.log",
+          "content": "Mar 14 02:11:03 nexus-bastion sshd[4821]: Accepted publickey for j.vasquez from 10.0.3.47 port 49221 ssh2: ED25519 SHA256:fAkEkEy...\nMar 14 02:11:03 nexus-bastion sshd[4821]: pam_unix(sshd:session): session opened for user j.vasquez\nMar 28 03:41:17 nexus-bastion sshd[5102]: Accepted publickey for j.vasquez from 10.0.3.47 port 50112 ssh2: ED25519 SHA256:fAkEkEy...\n[Note: same key fingerprint — Chen's key is trusted here]"
+        }
+      ]
+    },
+    {
+      "id": "corp-internal",
+      "services": [
+        {
+          "name": "ssh",
+          "protocol": "tcp",
+          "port": 22,
+          "exploitId": "weak-ssh",
+          "noise": 4,
+          "vulnRef": "CVE-2024-6387 (OpenSSH regreSSHion) — internal server; lateral movement from bastion"
+        },
+        {
+          "name": "http",
+          "protocol": "tcp",
+          "port": 8080,
+          "exploitId": "exposed-api",
+          "noise": 5,
+          "vulnRef": "Unauthenticated internal API — no network segmentation, direct exposure to internal subnet"
+        }
+      ],
+      "noise": { "enum": 3 },
+      "files": [
+        {
+          "path": "/etc/hosts",
+          "content": "127.0.0.1       localhost\n10.0.5.10       api-internal    api-internal.nexus-core.internal\n10.0.5.20       db-internal     db-internal.nexus-core.internal\n10.0.5.1        corp-internal   corp-internal.nexus-core.internal"
+        },
+        {
+          "path": "/opt/config/db-connect.ini",
+          "content": "[database]\nhost = db-internal\nport = 5432\nuser = svc_ops\npassword = Orion_DB#7r\ndbname = ops_prod\n; WARNING: rotate these credentials quarterly"
+        },
+        {
+          "path": "/opt/api/routes.txt",
+          "content": "API Route Table — api-internal:8080\n\nGET  /health          → 200 OK (public)\nGET  /status          → 200 JSON (internal)\nGET  /search?q=       → 200 JSON (VULNERABLE — string concat SQL)\nPOST /api/v1/users    → 201 JSON (auth required)\nGET  /api/v1/export   → 200 CSV  (auth required)\n\n[RED TEAM NOTE] /search?q= endpoint builds SQL with string concat:\n  SELECT * FROM customers WHERE name LIKE '%' + q + '%'\n  No prepared statements. No WAF. Input not sanitized.\n  → Classic SQL injection surface. See: OWASP A03:2021."
+        }
+      ]
+    }
+  ]
+}

@@ -86,6 +86,100 @@ export const CLIENT_CHAT_TRIGGERS = {
     force: true,
     sender: "client",
   },
+
+  /* ── Mission 2: Operation Datafall ─────────────────────────────── */
+
+  m2_on_corp_jump: {
+    text: "You're in as Chen. Clock starts now; NAS is on the same subnet. Use rsync to pull her share — quieter than cat-looping every file. — {signoff}",
+    force: true,
+    sender: "client",
+  },
+  m2_rsync_complete: {
+    text: "Good. Now grep that dump — look for .ssh, .env, and anything with @ in it. — {signoff}",
+    force: true,
+    sender: "client",
+  },
+  m2_dsn_found: {
+    text: "That DB string is live. Don't use it yet — we'll need the internal network first. — {signoff}",
+    force: true,
+    sender: "client",
+  },
+  m2_sshkey_found: {
+    text: "Private key in hand. Next contract: use that to SSH directly into the server Chen was connecting to. — {signoff}",
+    force: true,
+    sender: "client",
+  },
+  amanda_m2_worried: {
+    text: "Hey — I don't know what you're pulling off of there, but Chen is a real person. Be careful what you carry out. — A",
+    force: false,
+    sender: "amanda",
+  },
+  amanda_m2_sshkey: {
+    text: "Amanda — you have her private key. That's identity theft territory in most jurisdictions. Whatever you're doing… don't leave her exposed. — A",
+    force: true,
+    sender: "amanda",
+  },
+
+  /* ── Mission 3: Operation Dark Channel ─────────────────────────── */
+
+  m3_bastion_connect: {
+    text: "You're through the bastion on Vasquez's key. That's her trust chain, not yours — one wrong move and Nexus burns the session. — {signoff}",
+    force: true,
+    sender: "client",
+  },
+  m3_internal_owned: {
+    text: "You're inside the corporate net. The API is on port 8080 — route table is your target. — {signoff}",
+    force: true,
+    sender: "client",
+  },
+  m3_routes_found: {
+    text: "Good. That route map is the playbook for the next op — SQL surface is on the search endpoint. — {signoff}",
+    force: true,
+    sender: "client",
+  },
+  amanda_m3_arc: {
+    text: "Amanda — I looked into the name you gave me. Vasquez. I… found something strange about how these jobs keep linking back to the same people. I'll tell you when I'm sure. — A",
+    force: true,
+    sender: "amanda",
+  },
+  amanda_m3_revelation_tease: {
+    text: "Amanda — I need you to look something up for me. The person who initially vouched for you on this contract — do you remember giving anyone that permission? — A",
+    force: true,
+    sender: "amanda",
+  },
+
+  /* ── Mission 4: Operation Blind Query ──────────────────────────── */
+
+  m4_api_found: {
+    text: "That API is wide open — no auth, no WAF. Use sqli to walk through the injection demo before you exploit. — {signoff}",
+    force: true,
+    sender: "client",
+  },
+  m4_sqli_success: {
+    text: "Injection went through. DB is accessible via the API's session context. — {signoff}",
+    force: true,
+    sender: "client",
+  },
+  m4_customer_data_exfil: {
+    text: "You have the credentials. This is the end of the chain — M.Chen's password led here. Close the session and submit. — {signoff}",
+    force: true,
+    sender: "client",
+  },
+  amanda_m4_confrontation: {
+    text: "Amanda — I know. I know what you're about to do. Those are real customers. I've been thinking about this since the SSH key op. I think whoever set us up wanted this data. And I don't think it was for insurance. — A",
+    force: true,
+    sender: "amanda",
+  },
+  amanda_m4_reveal_tease: {
+    text: "Amanda — I ran the campaign ID against some archived contracts. The handler who initially recruited you… I found the same contract ID on three other operators. None of them finished. I don't know what that means yet. — A",
+    force: true,
+    sender: "amanda",
+  },
+  m4_soc_escalation: {
+    text: "Internal composite: anomalous DB query volume detected on api-internal. Behavioral risk model confidence: high. Your client's cut-out relayed this — reduce injection frequency or compliance will force a full segment lockdown. — ORION·INT",
+    force: true,
+    sender: "corporate",
+  },
 };
 
 /**

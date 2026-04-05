@@ -1,0 +1,133 @@
+{
+  "id": "m4-blind-query",
+  "title": "Operation Blind Query",
+  "brief": "The internal API's /search endpoint builds SQL via string concatenation — a textbook injection surface. Exploit it to reach the production database and exfiltrate customer credentials. This is the end of the chain that started with a phishing email.",
+  "story": {
+    "handler": { "name": "Sable" },
+    "time": "05:09",
+    "region": "Nexus Core / production database",
+    "debrief": {
+      "success": "Customer credentials exfiltrated. The chain is complete: phishing → credential reuse → SSH key theft → lateral movement → SQL injection → data breach. Every link was a failure in defense. Amanda's last message is waiting in your IM channel.",
+      "fail": "DB access burned. The WAF caught your injection pattern and locked the search endpoint. Orion's incident response will trace this back through the bastion chain."
+    }
+  },
+  "emails": [
+    {
+      "id": "M4-BRIEF-01",
+      "from": "handler-comms@orithmic.private",
+      "subject": "Contract update — Blind Query (SQL injection)",
+      "body": "Operator—\n\nThe /search endpoint on api-internal:8080 is wide open. No parameterized queries, no WAF, no input sanitization.\n\nWhat is SQL injection? When an application builds SQL by pasting user input directly into the query string, an attacker can inject SQL commands. Instead of searching for a name, you search for a name plus extra SQL that dumps the whole table.\n\nExample: searching for ' OR 1=1-- makes the query return all rows instead of just matching ones. The fix is parameterized queries — but they didn't implement that here.\n\nUse sqli to test the injection surface, then exploit the DB path.\n\n— Sable"
+    },
+    {
+      "id": "M4-OPS-01",
+      "from": "operations@orithmic.private",
+      "subject": "Rules of engagement — Blind Query",
+      "body": "Operator—\n\nThis is the final contract in the chain. Customer credentials are the target.\n\n- The API server has no authentication on /search — direct injection surface.\n- The DB role has excessive privileges — UNION SELECT will work.\n- Exfil the customer_credentials.csv and submit.\n- SOC is more aggressive on the internal segment. Expect tighter trace margins.\n\n— Sable, Handler"
+    },
+    {
+      "id": "M4-AMANDA-01",
+      "from": "amanda@shadownet.private",
+      "subject": "About the contracts",
+      "body": "Hey —\n\nI've been thinking about this since the SSH key op. These contracts keep linking back to the same people — Chen, Vasquez, now this database.\n\nI looked up the campaign ID on some archived contract boards. The handler who recruited you? I found the same contract ID on three other operators. None of them finished.\n\nI don't know what that means yet. But be careful with what you pull out of that database.\n\n— A"
+    }
+  ],
+  "connectGates": [
+    {
+      "from": "local",
+      "to": "api-internal",
+      "afterExploit": { "node": "api-internal", "exploitId": "sqli-search" }
+    },
+    {
+      "from": "api-internal",
+      "to": "db-internal",
+      "afterExploit": { "node": "api-internal", "exploitId": "sqli-search" }
+    }
+  ],
+  "tutorial": {
+    "steps": [
+      {
+        "when": "enum_on_node",
+        "nodeId": "api-internal",
+        "title": "API enumerated",
+        "text": "The /search endpoint is vulnerable to SQL injection. Use sqli to test the surface, then exploit sqli-search to gain DB access.",
+        "suggest": "sqli search ' OR 1=1--"
+      },
+      {
+        "when": "own_node",
+        "nodeId": "db-internal",
+        "title": "Database accessed",
+        "text": "You have DB access through the injection path. The customer credentials are in /data/customer_credentials.csv — exfil it and submit.",
+        "suggest": "ls"
+      }
+    ]
+  },
+  "startNode": "local",
+  "security": {
+    "maxTrace": 40
+  },
+  "objective": {
+    "summary": "Exfiltrate customer credentials from the production database via SQL injection.",
+    "requiredNode": "db-internal",
+    "exfilFiles": ["/data/customer_credentials.csv"]
+  },
+  "edges": [
+    ["local", "api-internal"],
+    ["api-internal", "db-internal"]
+  ],
+  "nodes": [
+    {
+      "id": "local",
+      "services": [],
+      "noise": { "enum": 0 },
+      "files": []
+    },
+    {
+      "id": "api-internal",
+      "services": [
+        {
+          "name": "http",
+          "protocol": "tcp",
+          "port": 8080,
+          "exploitId": "sqli-search",
+          "noise": 6,
+          "vulnRef": "OWASP A03:2021 — SQL injection via unparameterised /search?q= query (string concat)"
+        }
+      ],
+      "noise": { "enum": 3 },
+      "files": [
+        {
+          "path": "/opt/api/app.js",
+          "content": "// Orion internal search API — VULNERABLE\nconst express = require('express');\nconst { Pool } = require('pg');\nconst pool = new Pool({ connectionString: process.env.DATABASE_URL });\n\napp.get('/search', async (req, res) => {\n  const q = req.query.q;\n  // BUG: string concatenation — no parameterisation!\n  const sql = \"SELECT * FROM customers WHERE name LIKE '%\" + q + \"%'\";\n  const result = await pool.query(sql);\n  res.json(result.rows);\n});\n\n// FIX (not implemented): use parameterised query\n// const sql = 'SELECT * FROM customers WHERE name LIKE $1';\n// const result = await pool.query(sql, [`%${q}%`]);\n\n[FICTION — educational code snippet; not a real running application]"
+        },
+        {
+          "path": "/opt/api/config.json",
+          "content": "{\n  \"database\": \"postgres://svc_ops:Orion_DB#7r@db-internal:5432/ops_prod\",\n  \"port\": 8080,\n  \"cors\": false,\n  \"auth\": false,\n  \"waf\": false\n}"
+        }
+      ]
+    },
+    {
+      "id": "db-internal",
+      "services": [
+        {
+          "name": "postgres",
+          "protocol": "tcp",
+          "port": 5432,
+          "exploitId": "sqli-dump",
+          "noise": 7,
+          "vulnRef": "SQL injection → data exfiltration: UNION SELECT on customer table — no prepared statements, excessive DB role"
+        }
+      ],
+      "noise": { "enum": 4 },
+      "files": [
+        {
+          "path": "/data/customer_credentials.csv",
+          "content": "customer_id,email,password_hash,plaintext_recovery_note\nCUST-001,alice.taylor@example.com,sha256:a1b2c3d4e5f6...,\"recovery: AliceT2024!\"\nCUST-002,bob.martinez@example.com,sha256:f6e5d4c3b2a1...,\"recovery: B0bMart#99\"\nCUST-003,carol.nguyen@example.com,sha256:1a2b3c4d5e6f...,\"recovery: Car0lN!\"\nCUST-004,david.kim@example.com,sha256:6f5e4d3c2b1a...,\"recovery: DKim_2024\"\n[FICTION — no real credentials; demonstrates why plaintext recovery notes are a security anti-pattern]"
+        },
+        {
+          "path": "/data/schema.sql",
+          "content": "-- Orion ops_prod schema (simplified)\nCREATE TABLE customers (\n  customer_id VARCHAR(16) PRIMARY KEY,\n  email VARCHAR(255) NOT NULL,\n  password_hash VARCHAR(128) NOT NULL,\n  plaintext_recovery_note TEXT  -- BAD PRACTICE: storing plaintext hints\n);\n\n-- GRANT ALL on customers to svc_ops;  -- EXCESSIVE PRIVILEGES\n-- Should be: GRANT SELECT(customer_id, email) TO svc_ops;\n\n[FICTION — educational schema; demonstrates excessive DB role privileges]"
+        }
+      ]
+    }
+  ]
+}

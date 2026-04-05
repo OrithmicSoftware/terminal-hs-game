@@ -1,0 +1,154 @@
+{
+  "id": "m2-datafall",
+  "title": "Operation Datafall",
+  "brief": "Use Chen's harvested password to log into the Orion jump server. Pull her home directory and shared drives with rsync, then grep through the dump to find a private SSH key, a database connection string, and a colleague's contact for the next operation.",
+  "story": {
+    "handler": { "name": "Sable" },
+    "time": "03:41",
+    "region": "Orion Logistics / internal segment",
+    "debrief": {
+      "success": "Three artifacts recovered: SSH key, DB DSN, and a peer contact. That key opens the next door — Vasquez's bastion host. Stand by for the next contract.",
+      "fail": "Session burned. Orion's SOC flagged your credential reuse — they'll rotate Chen's password and lock down the jump host. Retry with a lighter touch."
+    }
+  },
+  "emails": [
+    {
+      "id": "M2-BRIEF-01",
+      "from": "handler-comms@orithmic.private",
+      "subject": "Contract update — Datafall (credential chain)",
+      "body": "Operator—\n\nThe password you harvested from Chen is still live. Orion has no MFA on their jump host — classic gap.\n\nLog in as m.chen, then use rsync to pull her shares. Grep the dump for secrets: SSH keys, config files with database strings, contact lists.\n\nWhat is rsync? It synchronizes files between hosts over SSH — think cp, but for remote trees. What is grep? It searches file contents for patterns — defenders use it to find leaked secrets; you will too.\n\n— Sable"
+    },
+    {
+      "id": "M2-OPS-01",
+      "from": "operations@orithmic.private",
+      "subject": "Rules of engagement — Datafall",
+      "body": "Operator—\n\nThis op uses a stolen credential. You are cleared for read-only access.\n\n- Do not modify files on the target.\n- Exfil only what is listed in the objective.\n- If SOC correlates the login with the phish, spoof or laylow before retrying.\n\n— Sable, Handler"
+    },
+    {
+      "id": "M2-INT-01",
+      "from": "intel-feed@orion.internal",
+      "subject": "Jump server topology (unofficial)",
+      "body": "Unofficial routing: local → corp-jump → file-share.\n\nChen's credential gets you past the jump host SSH. The NAS is on the same subnet — no additional auth required after the jump.\n\nHint: rsync is quieter than reading files one by one."
+    }
+  ],
+  "connectGates": [
+    {
+      "from": "local",
+      "to": "corp-jump",
+      "afterExploit": { "node": "corp-jump", "exploitId": "credential-login" }
+    },
+    {
+      "from": "corp-jump",
+      "to": "file-share",
+      "afterExploit": { "node": "corp-jump", "exploitId": "credential-login" }
+    }
+  ],
+  "tutorial": {
+    "steps": [
+      {
+        "when": "own_node",
+        "nodeId": "corp-jump",
+        "title": "Logged in as Chen",
+        "text": "You're on the jump server. Use rsync file-share:/shares/m.chen /dump to pull the share — it's quieter than reading files one by one.",
+        "suggest": "rsync file-share:/shares/m.chen /dump"
+      },
+      {
+        "when": "own_node",
+        "nodeId": "file-share",
+        "title": "Share accessible",
+        "text": "Files are on the share. Use grep to search for secrets: try grep id_rsa, grep DATABASE_URL, or grep @ to find keys, DSN strings, and contacts.",
+        "suggest": "grep id_rsa"
+      }
+    ]
+  },
+  "startNode": "local",
+  "security": {
+    "maxTrace": 32
+  },
+  "objective": {
+    "summary": "Exfiltrate Chen's private SSH key from the file share.",
+    "requiredNode": "file-share",
+    "exfilFiles": ["/shares/m.chen/.ssh/id_rsa"]
+  },
+  "edges": [
+    ["local", "corp-jump"],
+    ["corp-jump", "file-share"]
+  ],
+  "nodes": [
+    {
+      "id": "local",
+      "services": [],
+      "noise": { "enum": 0 },
+      "files": []
+    },
+    {
+      "id": "corp-jump",
+      "services": [
+        {
+          "name": "ssh",
+          "protocol": "tcp",
+          "port": 22,
+          "exploitId": "credential-login",
+          "noise": 3,
+          "requiresArtifacts": ["secret-orion-mail-mchen"],
+          "vulnRef": "Credential stuffing — reused password from phished account; no MFA on jump host"
+        }
+      ],
+      "noise": { "enum": 2 },
+      "files": [
+        {
+          "path": "/etc/motd",
+          "content": "*** ORION LOGISTICS — INTERNAL JUMP HOST ***\nAuthorized users only. All sessions are logged.\nReport suspicious activity to soc@orion.internal."
+        },
+        {
+          "path": "/home/m.chen/.bash_history",
+          "content": "rsync -avz file-share:/shares/m.chen /tmp/backup\ngrep -r 'DATABASE' /tmp/backup/projects/\nssh -i ~/.ssh/id_rsa j.vasquez@nexus-core.internal\nls -la /shares/m.chen/.ssh/"
+        }
+      ]
+    },
+    {
+      "id": "file-share",
+      "services": [
+        {
+          "name": "ssh",
+          "protocol": "tcp",
+          "port": 22,
+          "exploitId": "weak-ssh",
+          "noise": 4,
+          "vulnRef": "CVE-2024-6387 (OpenSSH regreSSHion) — internal NAS; no additional auth after jump"
+        }
+      ],
+      "noise": { "enum": 3 },
+      "files": [
+        {
+          "path": "/shares/m.chen/.ssh/id_rsa",
+          "content": "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtz\nc2gtZWQyNTUxOQAAACBmYWtlLWtleS1mb3ItZ2FtZS1vbmx5LW5vdC1yZWFsCi\nAAAAFHRoaXMtaXMtYS1maWN0aW9uYWwta2V5LWZvci10aGUtdGVybWluYWwtaHM\nLZ2FtZS1pdC1kb2VzLW5vdC11bmxvY2stYW55dGhpbmcK\n-----END OPENSSH PRIVATE KEY-----\n[FICTION — this key does not unlock any real system]",
+          "artifact": {
+            "id": "ssh-key-mchen",
+            "description": "Chen's private SSH key — unlocks bastion hosts she connected to, including j.vasquez@nexus-core.internal."
+          }
+        },
+        {
+          "path": "/shares/m.chen/projects/.env.backup",
+          "content": "# Orion ops environment — DO NOT COMMIT\nAPP_ENV=production\nDATABASE_URL=postgres://svc_ops:Orion_DB#7r@db-internal:5432/ops_prod\nREDIS_URL=redis://cache-internal:6379/0\nSECRET_KEY=rotating-token-placeholder",
+          "artifact": {
+            "id": "dsn-ops-db",
+            "description": "Production database connection string for Orion ops DB — credentials for svc_ops role on db-internal."
+          }
+        },
+        {
+          "path": "/shares/m.chen/contacts.txt",
+          "content": "Team contacts (internal only)\n- m.chen@corp.orion.net (me)\n- r.park@corp.orion.net (infra)\n- j.vasquez@nexus-core.internal (external contractor — API integration)\n\npeer contact: j.vasquez@nexus-core.internal",
+          "artifact": {
+            "id": "contact-vasquez",
+            "description": "Vasquez's internal email address — useful for social engineering or identifying bastion hosts in the Nexus domain."
+          }
+        },
+        {
+          "path": "/shares/m.chen/notes/quarterly-review.txt",
+          "content": "Q1 review notes:\n- API latency up 12% since migration\n- Vasquez says Nexus bastion needs key rotation (hasn't happened)\n- Park wants to move DB credentials out of .env files (good luck)\n- Reminder: do NOT store SSH keys on the share drive (oops)"
+        }
+      ]
+    }
+  ]
+}

@@ -42,6 +42,9 @@ installRuntimeSceneLogFromEnv();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const missionPath = path.join(__dirname, "missions", "m1-ghost-proxy.json");
+const m2Path = path.join(__dirname, "missions", "m2-datafall.json");
+const m3Path = path.join(__dirname, "missions", "m3-dark-channel.json");
+const m4Path = path.join(__dirname, "missions", "m4-blind-query.json");
 /** Override for CI / CLI E2E (`test/cli-e2e.test.mjs`). Default: repo-root `campaign-save.json`. */
 const campaignSavePath = process.env.HKTM_CAMPAIGN_SAVE_PATH
   ? path.resolve(process.env.HKTM_CAMPAIGN_SAVE_PATH)
@@ -230,8 +233,11 @@ function createTabCompleter(getMission) {
 }
 
 const handcraftedMission = JSON.parse(fs.readFileSync(missionPath, "utf8"));
+const m2Mission = JSON.parse(fs.readFileSync(m2Path, "utf8"));
+const m3Mission = JSON.parse(fs.readFileSync(m3Path, "utf8"));
+const m4Mission = JSON.parse(fs.readFileSync(m4Path, "utf8"));
 const proceduralMissions = generateProceduralMissions(5);
-const campaign = [handcraftedMission, ...proceduralMissions];
+const campaign = [handcraftedMission, m2Mission, m3Mission, m4Mission, ...proceduralMissions];
 
 function loadCampaignState() {
   if (!fs.existsSync(campaignSavePath)) {
