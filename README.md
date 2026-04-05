@@ -1,3 +1,5 @@
+<img src="web/public/favicon.svg" width="88" height="88" alt="HKTM terminal mark" align="right" />
+
 # Terminal HS Game
 
 [![CI](https://github.com/OrithmicSoftware/terminal-hs-game/actions/workflows/ci.yml/badge.svg)](https://github.com/OrithmicSoftware/terminal-hs-game/actions/workflows/ci.yml)

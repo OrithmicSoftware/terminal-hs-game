@@ -1,7 +1,7 @@
 {
   "name": "terminal-hs-game",
   "version": "0.1.0-alpha.1",
-  "description": "Educational terminal hacking campaign (safe, sandbox). CLI + browser alpha.",
+  "description": "Educational terminal hacking campaign (safe, sandbox). CLI + browser alpha — Node 18+, MIT.",
   "type": "module",
   "private": true,
   "license": "MIT",
@@ -39,6 +39,7 @@
     "test:e2e:terminal": "node --test test/e2e-terminal.test.mjs",
     "test:cli-e2e": "node --test test/cli-e2e.test.mjs",
     "checkpoint:list": "node scripts/checkpoint-list.mjs",
+    "repo:github-meta": "node scripts/github-repo-meta.mjs",
     "test": "node --test test/campaign-state.test.mjs test/debug-step.test.mjs test/engine-mail.test.mjs test/e2e-terminal.test.mjs test/cli-e2e.test.mjs"
   }
 }
