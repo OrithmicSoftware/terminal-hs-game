@@ -1694,9 +1694,6 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
       `  ${tone("exploit <id>", "cyan")}         run exploit on current node`,
       `  ${tone("info <term>", "cyan")}           glossary: commands + concepts (try: info help)`,
       `  ${tone("sql", "cyan")}                    SQL lab: ${tone("sql demo", "dim")} | ${tone(`sql translate "text"`, "dim")}`,
-      `  ${tone("cipher", "cyan")}               mini game: hex decoding challenge (learn encoding)`,
-      `  ${tone("crack", "cyan")}                mini game: password hash cracking simulation`,
-      `  ${tone("patch", "cyan")}                mini game: vulnerability patching challenge`,
       `  ${tone("stash", "cyan")}                list collected credential artifacts`,
       `  ${tone("ls", "cyan")}                   list files on current node (owned only)`,
       `  ${tone("cat <path>", "cyan")}           read file on current node`,
@@ -2859,18 +2856,21 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
         risk = runSqlSimulator(arg);
         break;
       case "cipher":
+        if (isWebUi()) { console.log(`Unknown command: ${command}`); skipStatusAfter = true; break; }
         await loading("Loading hex decoding challenge...", 200, { tickKind: "enum" });
         await runCipherGame();
         risk = 0;
         skipStatusAfter = true;
         break;
       case "crack":
+        if (isWebUi()) { console.log(`Unknown command: ${command}`); skipStatusAfter = true; break; }
         await loading("Loading hash cracking simulation...", 200, { tickKind: "exploit" });
         await runCrackGame();
         risk = 0;
         skipStatusAfter = true;
         break;
       case "patch":
+        if (isWebUi()) { console.log(`Unknown command: ${command}`); skipStatusAfter = true; break; }
         await loading("Loading vulnerability patching challenge...", 200, { tickKind: "enum" });
         await runPatchGame();
         risk = 0;

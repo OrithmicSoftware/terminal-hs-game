@@ -31,24 +31,16 @@ test("web landing page keeps custom same-page navigation animation with sticky-h
   assert.match(webIndexHtml, /document\.querySelector\('\.hktm-site-header'\)/);
   assert.match(webIndexHtml, /window\.history\.replaceState\(null, '', url\.hash\)/);
 });
-test("web landing page exposes dedicated minigame cards with launch links", () => {
-  assert.match(webIndexHtml, /id="hktm-s-minigames"/);
-  assert.match(webIndexHtml, /Three fast drills you can launch straight from the site\./);
-  assert.match(webIndexHtml, /Hexbreaker/);
-  assert.match(webIndexHtml, /Hash Hunt/);
-  assert.match(webIndexHtml, /Fixline/);
-  assert.match(webIndexHtml, /href="\.\/play\?minigame=cipher"/);
-  assert.match(webIndexHtml, /href="\.\/play\?minigame=crack"/);
-  assert.match(webIndexHtml, /href="\.\/play\?minigame=patch"/);
-  assert.match(webIndexHtml, /data-hktm-minigame-launch="cipher"/);
-  assert.match(webIndexHtml, /window\.open\(link\.href, 'hktm-minigame-'/);
+test("web landing page does not expose minigame section or launch links", () => {
+  assert.doesNotMatch(webIndexHtml, /id="hktm-s-minigames"/);
+  assert.doesNotMatch(webIndexHtml, /href="\.\/play\?minigame=/);
+  assert.doesNotMatch(webIndexHtml, /data-hktm-minigame-launch=/);
+  assert.doesNotMatch(webIndexHtml, /hktm-s-minigames.*Minigames/s);
 });
 
-test("browser campaign supports requested minigame fast-launch flow", () => {
+test("browser campaign fast-launch flow is disabled (getRequestedMiniGame returns null)", () => {
   assert.match(campaignBrowserSource, /const requestedMiniGame = getRequestedMiniGame\(\)/);
   assert.match(campaignBrowserSource, /if \(!fastLaunch\) \{/);
-  assert.match(campaignBrowserSource, /MINIGAME UPLINK/);
   assert.match(campaignBrowserSource, /__HKTM_RUN_COMMAND/);
   assert.match(webMainSource, /await globalThis\.__HKTM_RUN_COMMAND\?\.\(requestedMiniGame\);/);
-  assert.match(playHtmlSource, /params\.get\("e2e"\) === "1" \|\| params\.get\("minigame"\)/);
 });
