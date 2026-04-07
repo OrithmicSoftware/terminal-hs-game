@@ -67,7 +67,9 @@ export const CIPHER_PUZZLES = [
  * The correct answer is identified by the puzzle's correctIdx.
  * The displayed hash is flavor text to reinforce the educational scenario;
  * no real hashing is performed.
- */export const CRACK_PUZZLES = [
+ */
+
+export const CRACK_PUZZLES = [
   {
     id: "crack-1",
     label: "gw-edge service account",

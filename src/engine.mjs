@@ -1774,9 +1774,10 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
    * Returns the 0-based index of the accepted choice.
    */
   async function awaitMiniGameChoice(labels, declined, pickHint) {
+    const maxIdx = labels.length - 1;
     for (;;) {
       const pick = await waitForChoice3(pickHint);
-      const idx = Math.min(2, Math.max(0, pick - 1));
+      const idx = Math.min(maxIdx, Math.max(0, pick - 1));
       if (declined.has(idx)) {
         console.log("");
         console.log(tone("Already declined. Choose a different option.", "yellow"));

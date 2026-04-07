@@ -79,7 +79,8 @@ test("cipher: wrong then correct answer shows reject feedback then advances", as
   const session = createMissionSession(loadM1(), null, { contactAliasSeed: "mini-cipher-wrong" });
 
   // For puzzle 1: pick a wrong option first, then the correct one, then correct for the rest
-  const p0wrong = (CIPHER_PUZZLES[0].correctIdx + 1) % 3 + 1; // a wrong 1-indexed choice
+  const numOptions = CIPHER_PUZZLES[0].options.length;
+  const p0wrong = (CIPHER_PUZZLES[0].correctIdx + 1) % numOptions + 1; // a wrong 1-indexed choice
   const p0correct = CIPHER_PUZZLES[0].correctIdx + 1;
   const restCorrect = CIPHER_PUZZLES.slice(1).map((p) => p.correctIdx + 1);
   const choices = [p0wrong, p0correct, ...restCorrect];
@@ -259,7 +260,8 @@ test("patch: wrong then correct answer shows 'Insufficient fix' then advances", 
   const session = createMissionSession(loadM1(), null, { contactAliasSeed: "mini-patch-wrong" });
 
   // For puzzle 1: pick a wrong option first, then the correct one
-  const p0wrong = (PATCH_PUZZLES[0].correctIdx + 1) % 3 + 1;
+  const numPatchOptions = PATCH_PUZZLES[0].options.length;
+  const p0wrong = (PATCH_PUZZLES[0].correctIdx + 1) % numPatchOptions + 1;
   const p0correct = PATCH_PUZZLES[0].correctIdx + 1;
   const restCorrect = PATCH_PUZZLES.slice(1).map((p) => p.correctIdx + 1);
   const choices = [p0wrong, p0correct, ...restCorrect];
