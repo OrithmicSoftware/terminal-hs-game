@@ -171,7 +171,7 @@ export function waitForArrowDirection(allowedDirections = [], footerHint = "") {
   return new Promise((resolve) => {
     choiceResolve = (picked) => {
       const direction = resolveDirectionAlias(picked);
-      if (allowedDirections.length > 0 && !allowedDirections.includes(direction)) {
+      if (!direction || (allowedDirections.length > 0 && !allowedDirections.includes(direction))) {
         return;
       }
       choiceResolve = null;
