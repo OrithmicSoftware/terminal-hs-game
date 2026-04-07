@@ -24,6 +24,14 @@ export default defineConfig({
   root: rootDir,
   publicDir: "public",
   server: { port: 5173 },
+  build: {
+    rollupOptions: {
+      input: {
+        main: path.resolve(rootDir, "index.html"),
+        play: path.resolve(rootDir, "play.html"),
+      },
+    },
+  },
   resolve: {
     alias: {
       [colorsNode]: colorsBrowser,
