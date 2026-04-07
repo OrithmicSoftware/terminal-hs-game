@@ -20,7 +20,7 @@ test.describe("Typewriter skip (Space)", () => {
       }
     });
 
-    await page.goto("/?e2e=1");
+    await page.goto("/play.html?e2e=1");
     await page.waitForLoadState("domcontentloaded");
 
     /* Banner box drawing (typewriter) — wait for first frame line, then Space skips each line. */

@@ -13,7 +13,7 @@ export async function bootBrowserCampaignToPrompt(page) {
       /* ignore */
     }
   });
-  await page.goto("/?e2e=1");
+  await page.goto("/play.html?e2e=1");
   await page.waitForLoadState("domcontentloaded");
 
   for (let i = 0; i < 50; i++) {
