@@ -2118,7 +2118,8 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
             `${tone("✘ Patrol would spot that route.", "yellow")}  ${tone(`${arrowGlyph(direction)} ${step.options[idx].label}`, "dim")}`,
           );
           console.log("");
-          const rejectMsg = step.rejectFeedback[idx] ?? "That move crosses the patrol lane.";
+          const rejectIdx = idx > step.correctIdx ? idx - 1 : idx;
+          const rejectMsg = step.rejectFeedback[rejectIdx] ?? "That move crosses the patrol lane.";
           for (const line of wrap(rejectMsg, cw)) console.log(tone(line, "dim"));
           console.log("");
           await waitForEnterContinue(t("press_enter_continue"));
