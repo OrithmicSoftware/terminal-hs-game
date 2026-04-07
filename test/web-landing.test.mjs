@@ -11,8 +11,8 @@ const campaignBrowserPath = path.join(__dirname, "..", "web", "campaign-browser.
 const campaignBrowserSource = fs.readFileSync(campaignBrowserPath, "utf8");
 const webMainPath = path.join(__dirname, "..", "web", "main.js");
 const webMainSource = fs.readFileSync(webMainPath, "utf8");
-const playHtmlPath = path.join(__dirname, "..", "web", "play.html");
-const playHtmlSource = fs.readFileSync(playHtmlPath, "utf8");
+const introFlowPath = path.join(__dirname, "..", "web", "intro-flow.mjs");
+const introFlowSource = fs.readFileSync(introFlowPath, "utf8");
 
 test("web landing page presents game-focused copy and stylized HUD details", () => {
   assert.match(webIndexHtml, /Live operator dossier \/\/ fiction-first terminal run/);
@@ -43,4 +43,6 @@ test("browser campaign fast-launch flow is disabled (getRequestedMiniGame return
   assert.match(campaignBrowserSource, /if \(!fastLaunch\) \{/);
   assert.match(campaignBrowserSource, /__HKTM_RUN_COMMAND/);
   assert.match(webMainSource, /await globalThis\.__HKTM_RUN_COMMAND\?\.\(requestedMiniGame\);/);
+  // Verify getRequestedMiniGame is a stub that always returns null
+  assert.match(introFlowSource, /export function getRequestedMiniGame\(\) \{\s*return null;\s*\}/);
 });
