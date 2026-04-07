@@ -1757,61 +1757,34 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
 
   // ── Mini Games ─────────────────────────────────────────────────────────────
 
+  /** Shared option-list renderer used by all three mini games. */
+  function printMiniGameOptions(labels, declined) {
+    for (let j = 0; j < labels.length; j++) {
+      const dimmed = declined.has(j);
+      const numTone = dimmed ? "dim" : "cyan";
+      const textTone = dimmed ? "dim" : "yellow";
+      console.log(`  ${tone(`[${j + 1}]`, numTone)} ${tone(labels[j], textTone)}`);
+    }
+    console.log("");
+  }
+
   /**
-   * Shared mini-game runner: present a puzzle, collect a choice, give feedback.
-   * Returns true if the player got the correct answer (possibly after retries).
+   * Shared choice loop used by all three mini games.
+   * Waits for 1-3, rejects already-declined picks with a warning.
+   * Returns the 0-based index of the accepted choice.
    */
-  async function runMiniGamePuzzle(puzzle, puzzleNum, totalPuzzles, sceneName) {
-    const cw = textWrapWidth();
-    const pickHint = isWebUi() ? "Press 1, 2, or 3." : "Type 1, 2, or 3 and press Enter.";
-    const declined = new Set();
+  async function awaitMiniGameChoice(labels, declined, pickHint) {
     for (;;) {
-      clearTerminalScreen(sceneName, "form");
-      console.log("");
-      console.log(
-        `${tone(`Puzzle ${puzzleNum}/${totalPuzzles}`, "dim")}  ${tone(puzzle.label, "bold")}`,
-      );
-      console.log("");
-      // Puzzle-type specific display handled by caller via preDisplay hook
-      for (let i = 0; i < puzzle.options.length; i++) {
-        const opt = puzzle.options[i];
-        const dimmed = declined.has(i);
-        const numTone = dimmed ? "dim" : "cyan";
-        const textTone = dimmed ? "dim" : "yellow";
-        console.log(`  ${tone(`[${i + 1}]`, numTone)} ${tone(opt.label, textTone)}`);
-      }
-      console.log("");
-      let idx;
-      for (;;) {
-        const pick = await waitForChoice3(pickHint);
-        idx = Math.min(2, Math.max(0, pick - 1));
-        if (declined.has(idx)) {
-          console.log("");
-          console.log(tone("Already declined. Choose a different option.", "yellow"));
-          console.log("");
-          continue;
-        }
-        break;
-      }
-      if (idx === puzzle.correctIdx) {
-        clearTerminalScreen(`${sceneName}-correct`, "form");
+      const pick = await waitForChoice3(pickHint);
+      const idx = Math.min(2, Math.max(0, pick - 1));
+      if (declined.has(idx)) {
         console.log("");
-        console.log(`${tone("✔ Correct.", "green")}`);
+        console.log(tone("Already declined. Choose a different option.", "yellow"));
         console.log("");
-        for (const l of wrap(puzzle.feedback, cw)) console.log(tone(l, "dim"));
-        console.log("");
-        await waitForEnterContinue(t("press_enter_continue"));
-        return true;
+        printMiniGameOptions(labels, declined);
+        continue;
       }
-      clearTerminalScreen(`${sceneName}-wrong`, "form");
-      console.log("");
-      console.log(`${tone("✘ Not quite.", "yellow")}`);
-      console.log("");
-      const rejectMsg = puzzle.rejectFeedback[idx] ?? "That option is not correct.";
-      for (const l of wrap(rejectMsg, cw)) console.log(tone(l, "dim"));
-      console.log("");
-      await waitForEnterContinue(t("press_enter_continue"));
-      declined.add(idx);
+      return idx;
     }
   }
 
@@ -1823,17 +1796,11 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
     const cw = textWrapWidth();
     const puzzles = CIPHER_PUZZLES.slice(0, MINI_GAME_ROUNDS);
     let correct = 0;
+    const pickHint = isWebUi() ? "Press 1, 2, or 3." : "Type 1, 2, or 3 and press Enter.";
 
     for (let i = 0; i < puzzles.length; i++) {
       const p = puzzles[i];
       const sceneName = `cipher-puzzle-${i + 1}`;
-      clearTerminalScreen(sceneName, "form");
-      console.log("");
-      console.log(
-        `${tone(`Puzzle ${i + 1}/${puzzles.length}`, "dim")}  ${tone(p.label, "bold")}`,
-      );
-      console.log("");
-      console.log(tone("HEX DUMP", "magenta"));
 
       // Format hex in groups of 4 bytes (8 hex chars) per column
       const hexChunks = p.hex.match(/.{1,8}/g) ?? [];
@@ -1842,43 +1809,30 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
         hexLine += hexChunks[c].replace(/.{2}/g, (b) => `${b} `).trim();
         if (c < hexChunks.length - 1) hexLine += "  ";
       }
-      for (const l of wrap(hexLine, cw)) {
-        console.log(`  ${tone(l, "cyan")}`);
-      }
-      console.log("");
-      console.log(tone("Which text string does this hex encode?", "dim"));
-      console.log("");
 
-      const pickHint = isWebUi() ? "Press 1, 2, or 3." : "Type 1, 2, or 3 and press Enter.";
-      const declined = new Set();
-      let solved = false;
-      for (;;) {
-        for (let j = 0; j < p.options.length; j++) {
-          const dimmed = declined.has(j);
-          const numTone = dimmed ? "dim" : "cyan";
-          const textTone = dimmed ? "dim" : "yellow";
-          console.log(`  ${tone(`[${j + 1}]`, numTone)} ${tone(p.options[j].label, textTone)}`);
+      const printHead = () => {
+        console.log("");
+        console.log(
+          `${tone(`Puzzle ${i + 1}/${puzzles.length}`, "dim")}  ${tone(p.label, "bold")}`,
+        );
+        console.log("");
+        console.log(tone("HEX DUMP", "magenta"));
+        for (const l of wrap(hexLine, cw)) {
+          console.log(`  ${tone(l, "cyan")}`);
         }
         console.log("");
-        let idx;
-        for (;;) {
-          const pick = await waitForChoice3(pickHint);
-          idx = Math.min(2, Math.max(0, pick - 1));
-          if (declined.has(idx)) {
-            console.log("");
-            console.log(tone("Already declined. Choose a different option.", "yellow"));
-            console.log("");
-            for (let j = 0; j < p.options.length; j++) {
-              const dimmed = declined.has(j);
-              const numTone = dimmed ? "dim" : "cyan";
-              const textTone = dimmed ? "dim" : "yellow";
-              console.log(`  ${tone(`[${j + 1}]`, numTone)} ${tone(p.options[j].label, textTone)}`);
-            }
-            console.log("");
-            continue;
-          }
-          break;
-        }
+        console.log(tone("Which text string does this hex encode?", "dim"));
+        console.log("");
+      };
+
+      const optionLabels = p.options.map((o) => o.label);
+      const declined = new Set();
+
+      clearTerminalScreen(sceneName, "form");
+      printHead();
+      for (;;) {
+        printMiniGameOptions(optionLabels, declined);
+        const idx = await awaitMiniGameChoice(optionLabels, declined, pickHint);
         if (idx === p.correctIdx) {
           clearTerminalScreen(`${sceneName}-correct`, "form");
           console.log("");
@@ -1888,22 +1842,10 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
           console.log("");
           await waitForEnterContinue(t("press_enter_continue"));
           correct++;
-          solved = true;
           break;
         }
         clearTerminalScreen(`${sceneName}-wrong`, "form");
-        console.log("");
-        console.log(
-          `${tone(`Puzzle ${i + 1}/${puzzles.length}`, "dim")}  ${tone(p.label, "bold")}`,
-        );
-        console.log("");
-        console.log(tone("HEX DUMP", "magenta"));
-        for (const l of wrap(hexLine, cw)) {
-          console.log(`  ${tone(l, "cyan")}`);
-        }
-        console.log("");
-        console.log(tone("Which text string does this hex encode?", "dim"));
-        console.log("");
+        printHead();
         console.log(`${tone("✘ Not quite.", "yellow")}`);
         console.log("");
         const rejectMsg = p.rejectFeedback[idx] ?? "That option is not correct.";
@@ -1912,20 +1854,8 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
         await waitForEnterContinue(t("press_enter_continue"));
         declined.add(idx);
         clearTerminalScreen(`${sceneName}-retry`, "form");
-        console.log("");
-        console.log(
-          `${tone(`Puzzle ${i + 1}/${puzzles.length}`, "dim")}  ${tone(p.label, "bold")}`,
-        );
-        console.log("");
-        console.log(tone("HEX DUMP", "magenta"));
-        for (const l of wrap(hexLine, cw)) {
-          console.log(`  ${tone(l, "cyan")}`);
-        }
-        console.log("");
-        console.log(tone("Which text string does this hex encode?", "dim"));
-        console.log("");
+        printHead();
       }
-      if (!solved) break; // shouldn't happen
     }
 
     clearTerminalScreen("cipher-result", "form");
@@ -1948,14 +1878,14 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
     const cw = textWrapWidth();
     const puzzles = CRACK_PUZZLES.slice(0, MINI_GAME_ROUNDS);
     let correct = 0;
+    const pickHint = isWebUi() ? "Press 1, 2, or 3." : "Type 1, 2, or 3 and press Enter.";
 
     for (let i = 0; i < puzzles.length; i++) {
       const p = puzzles[i];
       const sceneName = `crack-puzzle-${i + 1}`;
-      const pickHint = isWebUi() ? "Press 1, 2, or 3." : "Type 1, 2, or 3 and press Enter.";
       const declined = new Set();
 
-      const printPuzzleHead = () => {
+      const printHead = () => {
         console.log("");
         console.log(
           `${tone(`Puzzle ${i + 1}/${puzzles.length}`, "dim")}  ${tone(p.label, "bold")}`,
@@ -1969,35 +1899,10 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
       };
 
       clearTerminalScreen(sceneName, "form");
-      printPuzzleHead();
-
+      printHead();
       for (;;) {
-        for (let j = 0; j < p.candidates.length; j++) {
-          const dimmed = declined.has(j);
-          const numTone = dimmed ? "dim" : "cyan";
-          const textTone = dimmed ? "dim" : "yellow";
-          console.log(`  ${tone(`[${j + 1}]`, numTone)} ${tone(p.candidates[j], textTone)}`);
-        }
-        console.log("");
-        let idx;
-        for (;;) {
-          const pick = await waitForChoice3(pickHint);
-          idx = Math.min(2, Math.max(0, pick - 1));
-          if (declined.has(idx)) {
-            console.log("");
-            console.log(tone("Already declined. Choose a different option.", "yellow"));
-            console.log("");
-            for (let j = 0; j < p.candidates.length; j++) {
-              const dimmed = declined.has(j);
-              const numTone = dimmed ? "dim" : "cyan";
-              const textTone = dimmed ? "dim" : "yellow";
-              console.log(`  ${tone(`[${j + 1}]`, numTone)} ${tone(p.candidates[j], textTone)}`);
-            }
-            console.log("");
-            continue;
-          }
-          break;
-        }
+        printMiniGameOptions(p.candidates, declined);
+        const idx = await awaitMiniGameChoice(p.candidates, declined, pickHint);
         if (idx === p.correctIdx) {
           clearTerminalScreen(`${sceneName}-correct`, "form");
           console.log("");
@@ -2010,7 +1915,7 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
           break;
         }
         clearTerminalScreen(`${sceneName}-wrong`, "form");
-        printPuzzleHead();
+        printHead();
         console.log(`${tone("✘ Not quite.", "yellow")}  ${tone(p.candidates[idx], "dim")} did not match.`);
         console.log("");
         const rejectMsg = p.rejectFeedback[idx] ?? "That candidate did not match the hash.";
@@ -2019,7 +1924,7 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
         await waitForEnterContinue(t("press_enter_continue"));
         declined.add(idx);
         clearTerminalScreen(`${sceneName}-retry`, "form");
-        printPuzzleHead();
+        printHead();
       }
     }
 
@@ -2042,14 +1947,14 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
     const cw = textWrapWidth();
     const puzzles = PATCH_PUZZLES.slice(0, MINI_GAME_ROUNDS);
     let correct = 0;
+    const pickHint = isWebUi() ? "Press 1, 2, or 3." : "Type 1, 2, or 3 and press Enter.";
 
     for (let i = 0; i < puzzles.length; i++) {
       const p = puzzles[i];
       const sceneName = `patch-puzzle-${i + 1}`;
-      const pickHint = isWebUi() ? "Press 1, 2, or 3." : "Type 1, 2, or 3 and press Enter.";
       const declined = new Set();
 
-      const printPuzzleHead = () => {
+      const printHead = () => {
         console.log("");
         console.log(
           `${tone(`Puzzle ${i + 1}/${puzzles.length}`, "dim")}  ${tone(p.vuln, "bold")}`,
@@ -2064,37 +1969,13 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
         console.log("");
       };
 
-      clearTerminalScreen(sceneName, "form");
-      printPuzzleHead();
+      const optionLabels = p.options.map((o) => o.label);
 
+      clearTerminalScreen(sceneName, "form");
+      printHead();
       for (;;) {
-        for (let j = 0; j < p.options.length; j++) {
-          const dimmed = declined.has(j);
-          const numTone = dimmed ? "dim" : "cyan";
-          const textTone = dimmed ? "dim" : "yellow";
-          const opt = p.options[j];
-          console.log(`  ${tone(`[${j + 1}]`, numTone)} ${tone(opt.label, textTone)}`);
-        }
-        console.log("");
-        let idx;
-        for (;;) {
-          const pick = await waitForChoice3(pickHint);
-          idx = Math.min(2, Math.max(0, pick - 1));
-          if (declined.has(idx)) {
-            console.log("");
-            console.log(tone("Already declined. Choose a different option.", "yellow"));
-            console.log("");
-            for (let j = 0; j < p.options.length; j++) {
-              const dimmed = declined.has(j);
-              const numTone = dimmed ? "dim" : "cyan";
-              const textTone = dimmed ? "dim" : "yellow";
-              console.log(`  ${tone(`[${j + 1}]`, numTone)} ${tone(p.options[j].label, textTone)}`);
-            }
-            console.log("");
-            continue;
-          }
-          break;
-        }
+        printMiniGameOptions(optionLabels, declined);
+        const idx = await awaitMiniGameChoice(optionLabels, declined, pickHint);
         if (idx === p.correctIdx) {
           clearTerminalScreen(`${sceneName}-correct`, "form");
           console.log("");
@@ -2112,7 +1993,7 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
           break;
         }
         clearTerminalScreen(`${sceneName}-wrong`, "form");
-        printPuzzleHead();
+        printHead();
         console.log(`${tone("✘ Insufficient fix.", "yellow")}`);
         console.log("");
         const rejectMsg = p.rejectFeedback[idx] ?? "That fix does not fully address the vulnerability.";
@@ -2121,7 +2002,7 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
         await waitForEnterContinue(t("press_enter_continue"));
         declined.add(idx);
         clearTerminalScreen(`${sceneName}-retry`, "form");
-        printPuzzleHead();
+        printHead();
       }
     }
 

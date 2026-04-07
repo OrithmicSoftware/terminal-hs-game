@@ -64,22 +64,10 @@ export const CIPHER_PUZZLES = [
 /**
  * Crack puzzles: simulated password hash cracking.
  * Each puzzle shows a truncated "hash" and 3 candidate passwords.
- * The correct answer is identified by a deterministic mini-hash.
- *
- * The mini hash function is: sum of (charCode * position) mod 9973, formatted as 8 hex chars.
- * This is NOT a real hash — it is a teaching simulation.
- */
-export function miniHash(s) {
-  let h = 0x811c9dc5; // FNV-1a offset basis
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
-    h >>>= 0;
-  }
-  return (h >>> 0).toString(16).padStart(8, "0");
-}
-
-export const CRACK_PUZZLES = [
+ * The correct answer is identified by the puzzle's correctIdx.
+ * The displayed hash is flavor text to reinforce the educational scenario;
+ * no real hashing is performed.
+ */export const CRACK_PUZZLES = [
   {
     id: "crack-1",
     label: "gw-edge service account",
