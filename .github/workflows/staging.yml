@@ -30,6 +30,8 @@ jobs:
 
       - name: Build
         working-directory: web
+        env:
+          HKTM_ENV: staging
         run: npm run build -- --base=/terminal-hs-game/staging/
 
       - name: Deploy to GitHub Pages (staging)
