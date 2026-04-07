@@ -34,11 +34,11 @@
       </p>
       <p class="hktm-splash-wip" aria-label="Under construction">⚠ UNDER CONSTRUCTION</p>
       <div class="hktm-splash-bar" aria-hidden="true"><span></span></div>
-      <p class="hktm-splash-start-hint" id="hktm-splash-start-hint" aria-live="polite">
+      <p class="hktm-splash-start-hint" id="hktm-splash-start-hint" aria-live="polite" hidden>
         Press any key to start…
       </p>
-      <div class="hktm-splash-actions">
-        <button type="button" class="ghost" data-hktm-splash-skip>Skip</button>
+      <div class="hktm-splash-actions" hidden>
+        <button type="button" class="ghost" data-hktm-splash-skip hidden>Skip</button>
       </div>
     </div>
 
@@ -92,10 +92,6 @@
           if (sp) {
             sp.classList.remove("hktm-hidden");
             sp.hidden = false;
-          }
-          var hint = document.getElementById("hktm-splash-start-hint");
-          if (hint && localStorage.getItem("hktm_campaign_save")) {
-            hint.textContent = "Press any key to continue…";
           }
         } catch (e) {
           /* ignore */
