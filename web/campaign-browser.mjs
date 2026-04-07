@@ -18,7 +18,7 @@ import {
 } from "../src/ui-browser.mjs";
 import { shouldClearMissionWeb } from "./mission-clear.mjs";
 import { playUiClick, playUiSelect, playUiBrowse } from "./ui-sounds.mjs";
-import { flashDisconnectScreen, isE2eUrl, runIntroSequence } from "./intro-flow.mjs";
+import { flashDisconnectScreen, getRequestedMiniGame, isE2eUrl, runIntroSequence } from "./intro-flow.mjs";
 import {
   waitForInitialBriefGate,
   syncGhostChatContactAlias,
@@ -108,7 +108,7 @@ async function loadCampaignMissions() {
   return [m1, ...procedural];
 }
 
-function activateMission(state, missions, missionIndex) {
+function activateMission(state, missions, missionIndex, options = {}) {
   const mission = missions[missionIndex];
   const missionState = state.missions[missionIndex];
   missionState.status = missionState.status === "completed" ? "completed" : "active";
@@ -121,7 +121,7 @@ function activateMission(state, missions, missionIndex) {
     missionTotal: missions.length,
     shadowNetImIntroCompleted: state.shadowNetImIntroCompleted,
     /* Playwright uses ?e2e=1 — same idea as CLI HKTM_SKIP_CHAT_GATE=1 for automated runs. */
-    skipM1ToolLock: isE2eUrl(),
+    skipM1ToolLock: isE2eUrl() || options.fastLaunch === true,
   });
   globalThis.__HKTM_SHADOW_NET_IM_INTRO_COMPLETED = state.shadowNetImIntroCompleted;
   return { mission, session };
@@ -178,6 +178,8 @@ async function showSplash(state) {
 export async function bootBrowserCampaign() {
   const cmdInput = document.getElementById("cmd");
   const inputRow = document.querySelector(".input-row");
+  const requestedMiniGame = getRequestedMiniGame();
+  const fastLaunch = requestedMiniGame !== null;
 
   const missions = await loadCampaignMissions();
   let campaignState = loadCampaignStateFromLs();
@@ -195,7 +197,7 @@ export async function bootBrowserCampaign() {
   setLanguage(campaignState.language);
   applyUi(campaignState);
 
-  let { mission, session } = activateMission(campaignState, missions, campaignState.currentMissionIndex);
+  let { mission, session } = activateMission(campaignState, missions, campaignState.currentMissionIndex, { fastLaunch });
 
   let ghostChatSaveTimer = null;
   function flushGhostChatSaveSoon() {
@@ -251,7 +253,7 @@ export async function bootBrowserCampaign() {
     campaignState.currentMissionIndex === 0 && !campaignState.missions[0]?.snapshot;
 
   /* Brief gate is deferred: player opens ShadowNet IM via `chat` or the header — show the shell first. */
-  if (needsInitialBriefGate) {
+  if (needsInitialBriefGate && !fastLaunch) {
     if (typeof globalThis.__HKTM_SYNC_CMD_ROW === "function") {
       globalThis.__HKTM_SYNC_CMD_ROW();
     } else if (inputRow) {
@@ -262,7 +264,7 @@ export async function bootBrowserCampaign() {
     inputRow.style.display = "none";
   }
 
-  await waitForInitialBriefGate({ enabled: needsInitialBriefGate });
+  await waitForInitialBriefGate({ enabled: needsInitialBriefGate && !fastLaunch });
 
   if (needsInitialBriefGate) {
     campaignState.shadowNetImIntroCompleted = true;
@@ -270,17 +272,22 @@ export async function bootBrowserCampaign() {
     saveCampaignStateToLs(campaignState);
   }
 
-  if (needsInitialBriefGate && inputRow) {
+  if (needsInitialBriefGate && !fastLaunch && inputRow) {
     inputRow.style.display = "none";
   }
 
-  await runBootRender(campaignState, async () => {
-    clearTerminalScreen("next-mission-banner");
-    await session.printBanner();
-    await waitForEnterContinue(t("press_enter_continue"));
-    pauseReadlineForSplashTyping();
-    await showSplash(campaignState);
-  });
+  if (!fastLaunch) {
+    await runBootRender(campaignState, async () => {
+      clearTerminalScreen("next-mission-banner");
+      await session.printBanner();
+      await waitForEnterContinue(t("press_enter_continue"));
+      pauseReadlineForSplashTyping();
+      await showSplash(campaignState);
+    });
+  } else {
+    clearTerminalScreen("mini-game-launch");
+    console.log(`\n${tone("MINIGAME UPLINK", "bold")}  ${tone(requestedMiniGame, "cyan")}\n`);
+  }
 
   try {
     globalThis.__HKTM_PRIME_AUDIO?.();
@@ -320,7 +327,7 @@ export async function bootBrowserCampaign() {
         campaignState.missions[idx + 1].status =
           campaignState.missions[idx + 1].status === "completed" ? "completed" : "active";
         campaignState.currentMissionIndex = idx + 1;
-        ({ mission, session } = activateMission(campaignState, missions, campaignState.currentMissionIndex));
+        ({ mission, session } = activateMission(campaignState, missions, campaignState.currentMissionIndex, { fastLaunch }));
         refreshMissionBriefAccessor();
         console.log(`\n${t("next_mission_unlocked")}\n`);
         await runBootRender(campaignState, async () => {
@@ -368,7 +375,7 @@ export async function bootBrowserCampaign() {
     saveCampaignStateToLs(campaignState);
     clearMissionBriefingCache();
     resetGhostChatLogForNewCampaign();
-    ({ mission, session } = activateMission(campaignState, missions, campaignState.currentMissionIndex));
+    ({ mission, session } = activateMission(campaignState, missions, campaignState.currentMissionIndex, { fastLaunch }));
     refreshMissionBriefAccessor();
     try {
       sessionStorage.removeItem("hktm_terminal_boot_done");
@@ -547,7 +554,7 @@ export async function bootBrowserCampaign() {
       campaignState.missions[campaignState.currentMissionIndex].snapshot = null;
       campaignState.missions[campaignState.currentMissionIndex].status = "active";
       clearMissionBriefingCache();
-      ({ mission, session } = activateMission(campaignState, missions, campaignState.currentMissionIndex));
+      ({ mission, session } = activateMission(campaignState, missions, campaignState.currentMissionIndex, { fastLaunch }));
       refreshMissionBriefAccessor();
       saveCampaignStateToLs(campaignState);
       await runBootRender(campaignState, async () => {
@@ -610,4 +617,10 @@ export async function bootBrowserCampaign() {
     playUiClick();
     void submitCommandLine({ skipSubmitSound: true });
   });
+  globalThis.__HKTM_RUN_COMMAND = async (line) => {
+    if (!cmdInput || cmdInput.readOnly || sessionEnded) return false;
+    cmdInput.value = String(line ?? "");
+    await submitCommandLine({ skipSubmitSound: true });
+    return true;
+  };
 }

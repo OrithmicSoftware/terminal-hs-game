@@ -227,6 +227,7 @@
         <nav class="hktm-site-nav" aria-label="Page sections">
           <a class="hktm-site-nav-link" href="#hktm-s-home" data-hktm-nav>Home</a>
           <a class="hktm-site-nav-link" href="#hktm-landing-mission-board" data-hktm-nav>Mission board</a>
+          <a class="hktm-site-nav-link" href="#hktm-s-minigames" data-hktm-nav>Minigames</a>
           <a class="hktm-site-nav-link" href="#hktm-s-mechanics" data-hktm-nav>Mechanics</a>
           <a class="hktm-site-nav-link" href="#hktm-s-lore" data-hktm-nav>Lore</a>
           <a class="hktm-site-nav-link" href="#hktm-s-roadmap" data-hktm-nav>Roadmap</a>
@@ -262,6 +263,7 @@
         <div class="hktm-landing-actions">
           <a class="hktm-btn-primary" href="./play" target="_blank" rel="noopener">Boot the uplink</a>
           <a class="hktm-btn-ghost" href="#hktm-landing-mission-board">Inspect the mission board</a>
+          <a class="hktm-btn-ghost" href="#hktm-s-minigames">Launch a drill</a>
         </div>
         <div class="hktm-landing-story">
           <p class="hktm-landing-story-label">Tonight's contract</p>
@@ -312,6 +314,90 @@
             <li>Stylized alpha presentation shaped around the game world instead of the repository</li>
           </ul>
         </div>
+      </div>
+    </section>
+
+    <section id="hktm-s-minigames" class="hktm-section hktm-minigames" aria-labelledby="hktm-minigames-title">
+      <div class="hktm-section-header" data-reveal>
+        <p class="hktm-section-kicker">Side ops // zero-trace drills</p>
+        <h2 id="hktm-minigames-title">Three fast drills you can launch straight from the site.</h2>
+        <p class="hktm-section-lead">
+          Need a quick hit instead of a full contract run? Crack open a focused training op and play the browser
+          minigames in their own terminal popup.
+        </p>
+      </div>
+      <div class="hktm-minigames-grid">
+        <article class="hktm-minigame-card" data-reveal>
+          <div class="hktm-minigame-card-top">
+            <pre class="hktm-minigame-logo hktm-minigame-logo--cipher" aria-hidden="true">[::]
+4F 70
+65 72</pre>
+            <div>
+              <p class="hktm-minigame-label">Cipher</p>
+              <h3 class="hktm-minigame-title">Hexbreaker</h3>
+              <p class="hktm-minigame-slogan">Read the signal. Spot the real payload.</p>
+            </div>
+          </div>
+          <p class="hktm-minigame-copy">
+            Decode intercepted hex strings into live operator tags, payload headers, and pivot hints before the
+            feed scrolls away.
+          </p>
+          <div class="hktm-minigame-actions">
+            <a
+              class="hktm-btn-primary"
+              href="./play?minigame=cipher"
+              data-hktm-minigame-launch="cipher"
+            >Launch cipher drill</a>
+          </div>
+        </article>
+
+        <article class="hktm-minigame-card" data-reveal>
+          <div class="hktm-minigame-card-top">
+            <pre class="hktm-minigame-logo hktm-minigame-logo--crack" aria-hidden="true">$2b$
+## ##
+word?</pre>
+            <div>
+              <p class="hktm-minigame-label">Crack</p>
+              <h3 class="hktm-minigame-title">Hash Hunt</h3>
+              <p class="hktm-minigame-slogan">Work the wordlist. Burn the weak secret.</p>
+            </div>
+          </div>
+          <p class="hktm-minigame-copy">
+            Pick the password candidate that matches each simulated hash and learn why predictable naming patterns
+            still get operators burned.
+          </p>
+          <div class="hktm-minigame-actions">
+            <a
+              class="hktm-btn-primary"
+              href="./play?minigame=crack"
+              data-hktm-minigame-launch="crack"
+            >Launch crack drill</a>
+          </div>
+        </article>
+
+        <article class="hktm-minigame-card" data-reveal>
+          <div class="hktm-minigame-card-top">
+            <pre class="hktm-minigame-logo hktm-minigame-logo--patch" aria-hidden="true">{fix}
+sql()
+safe?</pre>
+            <div>
+              <p class="hktm-minigame-label">Patch</p>
+              <h3 class="hktm-minigame-title">Fixline</h3>
+              <p class="hktm-minigame-slogan">Patch the flaw. Keep the stack alive.</p>
+            </div>
+          </div>
+          <p class="hktm-minigame-copy">
+            Review vulnerable snippets, choose the real remediation, and learn the difference between surface-level
+            filters and an actual defensive fix.
+          </p>
+          <div class="hktm-minigame-actions">
+            <a
+              class="hktm-btn-primary"
+              href="./play?minigame=patch"
+              data-hktm-minigame-launch="patch"
+            >Launch patch drill</a>
+          </div>
+        </article>
       </div>
     </section>
 
@@ -750,6 +836,36 @@
         }, { rootMargin: '-20% 0px -70% 0px' });
         sections.forEach(s => io.observe(s));
       }
+    </script>
+
+    <script>
+      (function () {
+        function popupFeatures() {
+          var width = Math.min(1280, Math.max(960, Math.floor(window.innerWidth * 0.84)));
+          var height = Math.min(920, Math.max(720, Math.floor(window.innerHeight * 0.88)));
+          var left = Math.max(24, Math.floor((window.screen.width - width) / 2));
+          var top = Math.max(24, Math.floor((window.screen.height - height) / 2));
+          return [
+            'popup=yes',
+            'noopener=yes',
+            'noreferrer=yes',
+            'width=' + width,
+            'height=' + height,
+            'left=' + left,
+            'top=' + top
+          ].join(',');
+        }
+
+        document.querySelectorAll('[data-hktm-minigame-launch]').forEach(function (link) {
+          link.addEventListener('click', function (event) {
+            var game = link.getAttribute('data-hktm-minigame-launch');
+            var popup = window.open(link.href, 'hktm-minigame-' + game, popupFeatures());
+            if (!popup) return;
+            event.preventDefault();
+            try { popup.focus(); } catch (err) { /* ignore */ }
+          });
+        });
+      })();
     </script>
 
     <script>
