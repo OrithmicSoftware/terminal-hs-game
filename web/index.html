@@ -738,10 +738,13 @@
                   .filter(Boolean)
       )];
 
+      const MIN_SCROLL_DURATION_MS = 420;
+      const MAX_SCROLL_DURATION_MS = 900;
+      const SCROLL_DURATION_FACTOR = 0.7;
       let scrollAnimationFrame = null;
 
       function animateScrollTo(targetY, durationMs) {
-        if (scrollAnimationFrame != null) {
+        if (scrollAnimationFrame !== null) {
           window.cancelAnimationFrame(scrollAnimationFrame);
           scrollAnimationFrame = null;
         }
@@ -790,7 +793,10 @@
           const y = target.getBoundingClientRect().top + window.scrollY - headerHeight - 8;
           const targetY = Math.max(0, y);
           const distance = Math.abs(targetY - window.scrollY);
-          const durationMs = Math.max(420, Math.min(900, distance * 0.7));
+          const durationMs = Math.max(
+            MIN_SCROLL_DURATION_MS,
+            Math.min(MAX_SCROLL_DURATION_MS, distance * SCROLL_DURATION_FACTOR),
+          );
 
           animateScrollTo(targetY, durationMs);
         }
