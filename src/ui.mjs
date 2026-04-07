@@ -18,6 +18,16 @@ if (typeof process !== "undefined" && process.stdin?.isTTY) {
 }
 
 const ANSI_SEQ = /\x1b\[[0-9;]*m/g;
+const DIRECTION_ALIAS_MAP = new Map([
+  ["up", "up"],
+  ["down", "down"],
+  ["left", "left"],
+  ["right", "right"],
+  ["w", "up"],
+  ["a", "left"],
+  ["s", "down"],
+  ["d", "right"],
+]);
 
 export function stripAnsi(s) {
   return String(s).replace(ANSI_SEQ, "");
@@ -80,20 +90,9 @@ function waitForDigitKeypress(max) {
 
 function keypressToDirection(str, key) {
   if (!key) {
-    const text = String(str ?? "").trim().toLowerCase();
-    if (text === "up" || text === "w") return "up";
-    if (text === "down" || text === "s") return "down";
-    if (text === "left" || text === "a") return "left";
-    if (text === "right" || text === "d") return "right";
-    return null;
+    return DIRECTION_ALIAS_MAP.get(String(str ?? "").trim().toLowerCase()) ?? null;
   }
-  const name = String(key.name ?? "").toLowerCase();
-  if (name === "up" || name === "down" || name === "left" || name === "right") return name;
-  if (name === "w") return "up";
-  if (name === "s") return "down";
-  if (name === "a") return "left";
-  if (name === "d") return "right";
-  return null;
+  return DIRECTION_ALIAS_MAP.get(String(key.name ?? "").toLowerCase()) ?? null;
 }
 
 /**
