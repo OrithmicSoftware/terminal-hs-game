@@ -465,6 +465,36 @@ export function initGhostChat() {
   const replyButtons = [];
   const quickReplies = getChatQuickReplies();
 
+  const handleExitReply = async (text) => {
+    markReplyUsed(text);
+    globalThis.__HKTM_ON_SHADOW_NET_IM_EXIT?.();
+    const alias = contactAliasOrFallback();
+    await animSleep(isE2eUrl() ? 0 : 280 + Math.random() * 200);
+    await appendMessageAnimated("client", t("chat_exit_standby").replace("%s", alias.signoff), {
+      forced: false,
+    });
+    closeGhostChat();
+  };
+
+  const handleBriefReply = async (text) => {
+    markReplyUsed(text);
+    const ctx = globalThis.__HKTM_GET_MISSION_BRIEF_CONTEXT?.();
+    const delay = isE2eUrl() ? 0 : 280;
+    await animSleep(delay);
+    if (!ctx?.mission) {
+      await appendMessageAnimated("client", t("brief_slash_unavailable"), { forced: false });
+      return;
+    }
+    const lines = getMissionBriefChatMessages(ctx.mission, {
+      missionIndex: ctx.missionIndex,
+      missionTotal: ctx.missionTotal,
+    });
+    for (const line of lines) {
+      await appendMessageAnimated("client", line, { forced: false });
+    }
+    await appendMessageAnimated("client", t("brief_slash_hint_terminal"), { forced: false });
+  };
+
   /** @param {string} raw */
   const submitOperatorMessage = async (raw) => {
     const text = String(raw ?? "").trim();
@@ -475,35 +505,21 @@ export function initGhostChat() {
       input.dispatchEvent(new Event("input", { bubbles: true }));
     }
     const lower = text.toLowerCase();
-    const matchedReply = replyButtons.find((r) => r.payload === text);
-    if (lower === "/exit" || lower === "exit" || matchedReply?.action === "exit") {
-      markReplyUsed(text);
-      globalThis.__HKTM_ON_SHADOW_NET_IM_EXIT?.();
-      const alias = contactAliasOrFallback();
-      await animSleep(isE2eUrl() ? 0 : 280 + Math.random() * 200);
-      await appendMessageAnimated("client", t("chat_exit_standby").replace("%s", alias.signoff), {
-        forced: false,
-      });
-      closeGhostChat();
+    if (lower === "/exit" || lower === "exit") {
+      await handleExitReply(text);
       return;
     }
-    if (lower === "/brief" || matchedReply?.action === "brief") {
-      markReplyUsed(text);
-      const ctx = globalThis.__HKTM_GET_MISSION_BRIEF_CONTEXT?.();
-      const delay = isE2eUrl() ? 0 : 280;
-      await animSleep(delay);
-      if (!ctx?.mission) {
-        await appendMessageAnimated("client", t("brief_slash_unavailable"), { forced: false });
-        return;
-      }
-      const lines = getMissionBriefChatMessages(ctx.mission, {
-        missionIndex: ctx.missionIndex,
-        missionTotal: ctx.missionTotal,
-      });
-      for (const line of lines) {
-        await appendMessageAnimated("client", line, { forced: false });
-      }
-      await appendMessageAnimated("client", t("brief_slash_hint_terminal"), { forced: false });
+    if (lower === "/brief") {
+      await handleBriefReply(text);
+      return;
+    }
+    const matchedReply = replyButtons.find((r) => r.payload === text);
+    if (matchedReply?.action === "exit") {
+      await handleExitReply(text);
+      return;
+    }
+    if (matchedReply?.action === "brief") {
+      await handleBriefReply(text);
       return;
     }
     if (matchedReply?.response) {
