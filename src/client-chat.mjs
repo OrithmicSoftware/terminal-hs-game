@@ -16,6 +16,7 @@ const CHAT_GATE_ROTATION_KEYS = {
     storage: "hktm_chat_gate_instruction_i",
   },
 };
+const MAX_QUICK_REPLY_SLOTS = 10;
 
 function getRotatingPhrase(key, rotationKey) {
   const arr = t(key);
@@ -198,7 +199,7 @@ export function getInitialGateMessages(codename, alias) {
 
 export function getChatQuickReplies() {
   const replies = [];
-  for (let i = 1; i < 10; i += 1) {
+  for (let i = 1; i < MAX_QUICK_REPLY_SLOTS; i += 1) {
     const labelKey = `chat_reply_${i}_label`;
     const payloadKey = `chat_reply_${i}`;
     const responseKey = `chat_reply_${i}_response`;
