@@ -41,9 +41,16 @@ export default defineConfig({
   plugins: [
     {
       name: "hktm-git-version-html",
-      transformIndexHtml(html) {
-        const v = getGitVersion();
-        return html.replace(/%HKTM_GIT_VERSION%/g, v);
+      transformIndexHtml: {
+        enforce: "pre",
+        transform(html) {
+          const v = getGitVersion();
+          let out = html.replace(/%HKTM_GIT_VERSION%/g, v);
+          if (process.env.HKTM_ENV === "staging") {
+            out = out.replace(/href="\/favicon\.svg"/g, 'href="/favicon-staging.svg"');
+          }
+          return out;
+        },
       },
     },
     {
