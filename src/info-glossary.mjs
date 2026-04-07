@@ -224,4 +224,22 @@ export const INFO_GLOSSARY = {
     exploit:
       "In this game, use sql demo and sql translate \"…\" to see a simulated mapping from your op shell to ssh/psql strings. Compare the naive concat line to the bind/parameter pattern—no real queries run.",
   },
+  cipher: {
+    about:
+      "Hex encoding represents each byte as two hexadecimal digits (0–9, a–f). A hex dump of the text 'Hi' looks like: 48 69. Decoding it means converting each pair back to its ASCII character code.",
+    exploit:
+      "In this game: cipher runs a hex decoding challenge — decode intercepted payload headers to find the correct plaintext. Pick the right answer from three options. Teaches byte-level encoding that underpins packet analysis and forensics. No trace cost.",
+  },
+  crack: {
+    about:
+      "Password cracking is the process of recovering plaintext passwords from stored hashes by trying candidates from a wordlist and comparing their hashes to the stored value. Modern hash functions (bcrypt, argon2) add a salt and increase compute cost to slow this down.",
+    exploit:
+      "In this game: crack runs a password hash cracking simulation — identify which of three candidate passwords matches a simulated bcrypt-style hash. Teaches dictionary attacks, why predictable passwords are risky, and the value of salting. No trace cost.",
+  },
+  patch: {
+    about:
+      "Patching a vulnerability means changing the code or configuration so the weakness can no longer be exploited. Security patches address root causes (e.g. parameterized queries for SQL injection) rather than symptoms (e.g. string length limits).",
+    exploit:
+      "In this game: patch presents vulnerable code snippets (SQL injection, XSS, path traversal) and asks you to choose the correct fix from three options. Teaches secure coding patterns from OWASP Top 10. No trace cost.",
+  },
 };

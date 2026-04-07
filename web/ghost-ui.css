@@ -410,6 +410,21 @@ body.hktm-glitch-pulse {
   line-height: 1.5;
 }
 
+.hktm-splash-wip {
+  margin-top: 0.85rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #f5a623;
+  text-shadow: 0 0 8px rgba(245, 166, 35, 0.45);
+  border: 1px solid rgba(245, 166, 35, 0.35);
+  border-radius: 3px;
+  padding: 0.15rem 0.6rem;
+  background: rgba(245, 166, 35, 0.07);
+  text-align: center;
+}
+
 .hktm-splash-bar {
   width: min(320px, 80vw);
   height: 4px;
