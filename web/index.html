@@ -12,7 +12,28 @@
     <link rel="stylesheet" href="/ghost-ui.css" />
   </head>
   <body>
-    <section class="hktm-landing" aria-labelledby="hktm-landing-title">
+    <header class="hktm-site-header" role="banner">
+      <div class="hktm-site-header-inner">
+        <a class="hktm-site-logo" href="#hktm-s-home" aria-label="Terminal HackSim — top of page">
+          <img src="/favicon.svg" width="26" height="26" alt="" aria-hidden="true" />
+          <span class="hktm-site-logo-text">HKTM</span>
+        </a>
+        <nav class="hktm-site-nav" aria-label="Page sections">
+          <a class="hktm-site-nav-link" href="#hktm-s-home" data-hktm-nav>Home</a>
+          <a class="hktm-site-nav-link" href="#hktm-landing-mission-board" data-hktm-nav>Mission board</a>
+        </nav>
+        <div class="hktm-site-header-end">
+          <a class="hktm-btn-primary hktm-site-play-btn" href="./play" target="_blank" rel="noopener">Boot the uplink</a>
+          <a class="hktm-site-github" href="https://github.com/OrithmicSoftware/terminal-hs-game" target="_blank" rel="noopener" aria-label="View source on GitHub">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+            </svg>
+            GitHub
+          </a>
+        </div>
+      </div>
+    </header>
+    <section id="hktm-s-home" class="hktm-landing" aria-labelledby="hktm-landing-title">
       <div class="hktm-landing-copy">
         <p class="hktm-landing-kicker">Live operator dossier // fiction-first terminal run</p>
         <h1 id="hktm-landing-title">Hack the grid. Dodge the trace. Decide how the mission ends.</h1>
@@ -80,5 +101,260 @@
         </div>
       </div>
     </section>
+
+    <!-- ═══════════════════════════════════════════════════
+         MODULE 1 — MECHANICS BREAKDOWN
+         ═══════════════════════════════════════════════════ -->
+    <section class="hktm-section hktm-mechanics" aria-labelledby="hktm-mechanics-title">
+      <div class="hktm-section-header">
+        <p class="hktm-section-kicker">Field manual // operator protocol</p>
+        <h2 id="hktm-mechanics-title">Three moves. One window. Zero margin.</h2>
+        <p class="hktm-section-lead">
+          Every op runs on the same brutal loop: read the brief, build the lure, watch the trace. Miss a beat and
+          the grid lights you up before the target ever clicks. Learn the rhythm or burn.
+        </p>
+      </div>
+      <div class="hktm-mechanics-grid">
+
+        <div class="hktm-mechanic-card">
+          <div class="hktm-mechanic-art" aria-hidden="true">
+            <pre class="hktm-pixel-art hktm-pixel-art--cyan">
+ ╔═════════════╗
+ ║ BRIEF.txt   ║
+ ║─────────────║
+ ║ TARGET: ORI ║
+ ║ VECTOR: MAIL║
+ ║ WINDOW: 12m ║
+ ║─────────────║
+ ║ [READ ▶]    ║
+ ╚═════════════╝</pre>
+          </div>
+          <p class="hktm-mechanic-label">01 / READ THE BRIEF</p>
+          <p class="hktm-mechanic-copy">
+            Sable drops the dossier. Target company, known weak points, an alias that won't hold long. You have
+            minutes to absorb it, because the trace clock starts the moment you open the uplink.
+          </p>
+        </div>
+
+        <div class="hktm-mechanic-card">
+          <div class="hktm-mechanic-art" aria-hidden="true">
+            <pre class="hktm-pixel-art hktm-pixel-art--magenta">
+ ┌─────────────────┐
+ │ LURE COMPOSER   │
+ │ ▸ sender alias  │
+ │ ▸ subject hook  │
+ │ ▸ payload link  │
+ │                 │
+ │ CREDIBILITY: ██ │
+ │ SUSPICION:  ░░░ │
+ └─────────────────┘</pre>
+          </div>
+          <p class="hktm-mechanic-label">02 / BUILD THE LURE</p>
+          <p class="hktm-mechanic-copy">
+            Craft the phishing mail from a library of aliases, hooks and payloads. Every choice shifts the
+            credibility bar. Too bland and the target ignores you. Too sharp and the filter flags it before dawn.
+          </p>
+        </div>
+
+        <div class="hktm-mechanic-card">
+          <div class="hktm-mechanic-art" aria-hidden="true">
+            <pre class="hktm-pixel-art hktm-pixel-art--red">
+ ╔════════════════╗
+ ║ TRACE MONITOR  ║
+ ║────────────────║
+ ║ ░░██████░░░░░░ ║
+ ║   24% / AMBER  ║
+ ║────────────────║
+ ║ !! REPLY SENT  ║
+ ║ ↑ +6% HEAT     ║
+ ╚════════════════╝</pre>
+          </div>
+          <p class="hktm-mechanic-label">03 / DODGE THE TRACE</p>
+          <p class="hktm-mechanic-copy">
+            Each action bleeds trace. Reply to the mark's questions. Stall the security desk. Every message
+            is a gamble — answer wrong and the bar slides red. Hit the exfil window before it closes or
+            walk away with nothing.
+          </p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════
+         MODULE 2 — WORLD / LORE TEASER
+         ═══════════════════════════════════════════════════ -->
+    <section class="hktm-section hktm-lore" aria-labelledby="hktm-lore-title">
+      <div class="hktm-lore-inner">
+        <div class="hktm-lore-copy">
+          <p class="hktm-section-kicker">Signal intercept // classified excerpt</p>
+          <h2 id="hktm-lore-title">The grid doesn't forgive. The handler doesn't wait.</h2>
+          <p class="hktm-lore-body">
+            Somewhere between the neon-bled server towers of Orion Corp and the encrypted back-channels Sable
+            controls, there is a sliver of time where an operator can move clean — no signature, no flag, no
+            name on any log. That window is exactly what you're paid to exploit.
+          </p>
+          <p class="hktm-lore-body">
+            Sable is a broker, not a friend. The jobs come in hot, the cut is fair, and the deniability is
+            total — right up until it isn't. Orion runs a hardened perimeter, three rotating security desks,
+            and an AI threat-tier system that upgrades your priority every time you breathe on the network.
+            The margins are thin. The stories are electric.
+          </p>
+          <p class="hktm-lore-flavour">
+            <span class="hktm-lore-handle">SABLE&nbsp;▶</span>
+            "You already accepted the contract. Stop reading the dossier and start the clock."
+          </p>
+        </div>
+        <div class="hktm-lore-visual" aria-hidden="true">
+          <pre class="hktm-pixel-art hktm-pixel-art--lore">
+    ▓▓▓▓░░░░░░░░▓▓▓▓
+  ░░████░░░░░░████░░
+  ░░██░█░░░░░░█░██░░
+██░░████░░██░████░░██
+██░░░░░░░░██░░░░░░░██
+██░░████░░██░████░░██
+██░░██░░░░░░░░░██░░██
+░░████████████████░░
+  ░░░░░░████░░░░░░
+    ░░░░████░░░░
+  ╔══╧════╧══╗
+  ║ .:ORION:. ║
+  ╚═══════════╝</pre>
+          <div class="hktm-lore-tags">
+            <span class="hktm-tag">SECTOR 7-NORTH</span>
+            <span class="hktm-tag hktm-tag--amber">ALERT: LOW</span>
+            <span class="hktm-tag hktm-tag--cyan">NODE: ACTIVE</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════
+         MODULE 3 — ALPHA CONTENT + ROADMAP TEASER
+         ═══════════════════════════════════════════════════ -->
+    <section class="hktm-section hktm-roadmap" aria-labelledby="hktm-roadmap-title">
+      <div class="hktm-section-header">
+        <p class="hktm-section-kicker">Build log // sprint bravo + beyond</p>
+        <h2 id="hktm-roadmap-title">Playable now. More incoming.</h2>
+        <p class="hktm-section-lead">
+          The alpha drops you straight into Mission 1 with a live terminal, a mail lure to assemble, and a
+          trace bar that doesn't care how nervous you are. Here's what's already live — and what's coming
+          before the next major revision.
+        </p>
+      </div>
+      <div class="hktm-roadmap-grid">
+
+        <div class="hktm-roadmap-col hktm-roadmap-col--done">
+          <p class="hktm-roadmap-col-label">
+            <span class="hktm-dot hktm-dot--green"></span>Live in alpha
+          </p>
+          <ul class="hktm-roadmap-list">
+            <li>
+              <span class="hktm-roadmap-art" aria-hidden="true">▐█▌</span>
+              Full CRT boot sequence — scan lines, flicker, and the uplink handshake animation
+            </li>
+            <li>
+              <span class="hktm-roadmap-art" aria-hidden="true">▐█▌</span>
+              Ghost handler chat — Sable's messages arrive with typewriter timing and colour-coded priority flags
+            </li>
+            <li>
+              <span class="hktm-roadmap-art" aria-hidden="true">▐█▌</span>
+              Mission 1 complete — brief, lure, mail thread, three-outcome exfil, trace meter in full effect
+            </li>
+            <li>
+              <span class="hktm-roadmap-art" aria-hidden="true">▐█▌</span>
+              Campaign save state — progress survives page reloads and browser sessions
+            </li>
+            <li>
+              <span class="hktm-roadmap-art" aria-hidden="true">▐█▌</span>
+              Operator sound FX — keystrokes, alerts, and the warm click of an incoming mail flag
+            </li>
+          </ul>
+        </div>
+
+        <div class="hktm-roadmap-col hktm-roadmap-col--next">
+          <p class="hktm-roadmap-col-label">
+            <span class="hktm-dot hktm-dot--amber"></span>Next on the board
+          </p>
+          <ul class="hktm-roadmap-list">
+            <li>
+              <span class="hktm-roadmap-art" aria-hidden="true">░█░</span>
+              Mission 2 — a corporate server crawl with lateral movement, decoy files, and two extraction routes
+            </li>
+            <li>
+              <span class="hktm-roadmap-art" aria-hidden="true">░█░</span>
+              Reputation system — marks remember you; blow a cover and the next op costs more heat from the jump
+            </li>
+            <li>
+              <span class="hktm-roadmap-art" aria-hidden="true">░█░</span>
+              Handler rivalry — a second voice in your ear with a different read on every job
+            </li>
+            <li>
+              <span class="hktm-roadmap-art" aria-hidden="true">░█░</span>
+              Dossier codex — deep lore entries that unlock as you complete ops, filling in the world between missions
+            </li>
+          </ul>
+        </div>
+
+        <div class="hktm-roadmap-col hktm-roadmap-col--future">
+          <p class="hktm-roadmap-col-label">
+            <span class="hktm-dot hktm-dot--dim"></span>Signal on the horizon
+          </p>
+          <pre class="hktm-pixel-art hktm-pixel-art--roadmap" aria-hidden="true">
+  ░░░░▓▓▓▓░░░░
+  ░░▓▓████▓▓░░
+  ▓▓██░░░░██▓▓
+  ██░░  ??  ░░██
+  ▓▓██░░░░██▓▓
+  ░░▓▓████▓▓░░
+  ░░░░▓▓▓▓░░░░</pre>
+          <p class="hktm-roadmap-future-copy">
+            Multiple campaigns. Faction contracts. A secondary operator you can burn if the heat gets too
+            heavy. The world is bigger than one grid seam and one corps mailbox — and we are building toward
+            all of it.
+          </p>
+          <a class="hktm-btn-ghost hktm-roadmap-cta" href="./play" target="_blank" rel="noopener">
+            Play the alpha now →
+          </a>
+        </div>
+
+      </div>
+    </section>
+
+    <footer class="hktm-footer">
+      <div class="hktm-footer-inner">
+        <pre class="hktm-pixel-art hktm-pixel-art--footer" aria-hidden="true">▗▄▖  ▗▖ ▗▖▗▖ ▗▖▗▄▄▄▖▗▖  ▗▖</pre>
+        <p class="hktm-footer-copy">
+          Terminal HackSim — open-source fiction-first terminal game. Alpha build. All content subject to change.
+        </p>
+        <nav class="hktm-footer-links" aria-label="Footer links">
+          <a href="./play" target="_blank" rel="noopener">Play</a>
+          <a href="https://github.com/OrithmicSoftware/terminal-hs-game" target="_blank" rel="noopener">GitHub</a>
+          <a href="https://github.com/OrithmicSoftware/terminal-hs-game/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Contribute</a>
+        </nav>
+      </div>
+    </footer>
+
+    <script type="module">
+      // Highlight the active nav link based on which section is in view
+      const links = document.querySelectorAll('[data-hktm-nav]');
+      const sections = [...new Set(
+        [...links].map(l => document.querySelector(new URL(l.href).hash))
+                  .filter(Boolean)
+      )];
+      if ('IntersectionObserver' in window && sections.length) {
+        const io = new IntersectionObserver(entries => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              const id = '#' + entry.target.id;
+              links.forEach(l => {
+                const match = new URL(l.href).hash === id;
+                l.setAttribute('aria-current', match ? 'true' : 'false');
+              });
+            }
+          });
+        }, { rootMargin: '-20% 0px -70% 0px' });
+        sections.forEach(s => io.observe(s));
+      }
+    </script>
   </body>
 </html>

@@ -704,6 +704,368 @@ header {
   }
 }
 
+/* ═══════════════════════════════════════════════════════════
+   SHARED SECTION CHROME
+   ═══════════════════════════════════════════════════════════ */
+
+.hktm-section {
+  width: min(1120px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 3rem 0 2rem;
+}
+
+.hktm-section-header {
+  max-width: 68ch;
+  margin-bottom: 2rem;
+}
+
+.hktm-section-kicker {
+  margin: 0 0 0.6rem;
+  color: var(--cyan);
+  font-size: 0.76rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.hktm-section h2 {
+  margin: 0 0 0.75rem;
+  color: #f0fff4;
+  font-size: clamp(1.6rem, 3.5vw, 2.6rem);
+  line-height: 1.08;
+  text-wrap: balance;
+  text-shadow: 0 0 16px rgba(61, 255, 122, 0.12);
+}
+
+.hktm-section-lead {
+  margin: 0;
+  max-width: 62ch;
+  color: var(--text);
+  font-size: 0.97rem;
+  line-height: 1.7;
+}
+
+/* Shared pixel-art styles */
+.hktm-pixel-art {
+  margin: 0;
+  font-size: clamp(0.62rem, 1.1vw, 0.78rem);
+  line-height: 1.15;
+  letter-spacing: 0.04em;
+  font-family: var(--font);
+}
+
+.hktm-pixel-art--cyan   { color: var(--cyan);    text-shadow: 0 0 10px rgba(92, 225, 230, 0.3); }
+.hktm-pixel-art--magenta{ color: var(--magenta); text-shadow: 0 0 10px rgba(224, 112, 255, 0.3); }
+.hktm-pixel-art--red    { color: var(--red);     text-shadow: 0 0 10px rgba(255, 107, 107, 0.3); }
+.hktm-pixel-art--lore   { color: var(--green);   text-shadow: 0 0 12px rgba(61, 255, 122, 0.25); }
+.hktm-pixel-art--roadmap{ color: var(--dim);     text-shadow: none; }
+.hktm-pixel-art--footer { color: var(--dim);     font-size: 0.7rem; letter-spacing: 0.1em; }
+
+/* ═══════════════════════════════════════════════════════════
+   MODULE 1 — MECHANICS
+   ═══════════════════════════════════════════════════════════ */
+
+.hktm-mechanics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.hktm-mechanic-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #1f3328;
+  border-radius: 14px;
+  padding: 1.25rem 1.2rem 1.4rem;
+  background: linear-gradient(180deg, rgba(10, 17, 13, 0.96), rgba(6, 10, 8, 0.98));
+  box-shadow:
+    0 0 0 1px rgba(7, 16, 11, 0.9),
+    0 14px 40px rgba(0, 0, 0, 0.3);
+}
+
+.hktm-mechanic-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(135deg, rgba(92, 225, 230, 0.06), transparent 42%),
+    repeating-linear-gradient(90deg, rgba(92, 225, 230, 0.03) 0 1px, transparent 1px 16px),
+    repeating-linear-gradient(0deg, rgba(61, 255, 122, 0.03) 0 1px, transparent 1px 16px);
+  pointer-events: none;
+}
+
+.hktm-mechanic-art {
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  border: 1px solid rgba(92, 225, 230, 0.12);
+  background: rgba(3, 7, 5, 0.7);
+}
+
+.hktm-mechanic-label {
+  margin: 0 0 0.5rem;
+  color: var(--cyan);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  position: relative;
+}
+
+.hktm-mechanic-copy {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.93rem;
+  line-height: 1.65;
+  position: relative;
+}
+
+@media (max-width: 860px) {
+  .hktm-mechanics-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MODULE 2 — LORE
+   ═══════════════════════════════════════════════════════════ */
+
+.hktm-lore {
+  padding-top: 2.5rem;
+  padding-bottom: 2.5rem;
+  border-top: 1px solid rgba(92, 225, 230, 0.08);
+  border-bottom: 1px solid rgba(92, 225, 230, 0.08);
+}
+
+.hktm-lore-inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(240px, 0.8fr);
+  gap: 2rem;
+  align-items: center;
+}
+
+.hktm-lore-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.hktm-lore-body {
+  margin: 0.8rem 0 0;
+  color: var(--text);
+  font-size: 0.97rem;
+  line-height: 1.72;
+  max-width: 60ch;
+}
+
+.hktm-lore-flavour {
+  margin: 1.4rem 0 0;
+  padding: 0.85rem 1rem;
+  border-left: 3px solid var(--cyan);
+  background: rgba(92, 225, 230, 0.05);
+  color: #c8e6d0;
+  font-size: 0.93rem;
+  font-style: italic;
+  line-height: 1.6;
+}
+
+.hktm-lore-handle {
+  font-style: normal;
+  font-weight: 700;
+  color: var(--cyan);
+  letter-spacing: 0.06em;
+  margin-right: 0.4rem;
+}
+
+.hktm-lore-visual {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  border: 1px solid rgba(61, 255, 122, 0.14);
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(10, 16, 13, 0.95), rgba(4, 8, 6, 0.98)),
+    radial-gradient(circle at 50% 50%, rgba(61, 255, 122, 0.08) 0, transparent 65%);
+}
+
+.hktm-lore-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: center;
+}
+
+.hktm-tag {
+  padding: 0.18rem 0.55rem 0.15rem;
+  border: 1px solid rgba(61, 255, 122, 0.28);
+  border-radius: 3px;
+  color: var(--green);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: rgba(61, 255, 122, 0.05);
+}
+
+.hktm-tag--amber {
+  border-color: rgba(230, 208, 74, 0.35);
+  color: var(--yellow);
+  background: rgba(230, 208, 74, 0.05);
+}
+
+.hktm-tag--cyan {
+  border-color: rgba(92, 225, 230, 0.35);
+  color: var(--cyan);
+  background: rgba(92, 225, 230, 0.05);
+}
+
+@media (max-width: 860px) {
+  .hktm-lore-inner {
+    grid-template-columns: 1fr;
+  }
+  .hktm-lore-visual {
+    max-width: 340px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MODULE 3 — ROADMAP
+   ═══════════════════════════════════════════════════════════ */
+
+.hktm-roadmap-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.hktm-roadmap-col {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #1f3328;
+  border-radius: 14px;
+  padding: 1.25rem 1.2rem 1.4rem;
+  background: linear-gradient(180deg, rgba(10, 17, 13, 0.96), rgba(6, 10, 8, 0.98));
+}
+
+.hktm-roadmap-col--done   { border-color: rgba(61, 255, 122, 0.22); }
+.hktm-roadmap-col--next   { border-color: rgba(230, 208, 74, 0.2); }
+.hktm-roadmap-col--future { border-color: rgba(92, 225, 230, 0.14); }
+
+.hktm-roadmap-col-label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 1rem;
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.hktm-dot {
+  display: inline-block;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.hktm-dot--green { background: var(--green); box-shadow: 0 0 6px rgba(61, 255, 122, 0.6); }
+.hktm-dot--amber { background: var(--yellow); box-shadow: 0 0 6px rgba(230, 208, 74, 0.5); }
+.hktm-dot--dim   { background: var(--dim); }
+
+.hktm-roadmap-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.hktm-roadmap-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  color: var(--text);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.hktm-roadmap-art {
+  flex-shrink: 0;
+  color: var(--green);
+  font-size: 0.82rem;
+  opacity: 0.75;
+  margin-top: 0.12em;
+}
+
+.hktm-roadmap-col--next .hktm-roadmap-art { color: var(--yellow); }
+
+.hktm-roadmap-future-copy {
+  margin: 0.85rem 0 1.2rem;
+  color: var(--dim);
+  font-size: 0.9rem;
+  line-height: 1.65;
+}
+
+.hktm-roadmap-cta {
+  display: inline-block;
+  text-decoration: none;
+}
+
+@media (max-width: 860px) {
+  .hktm-roadmap-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   FOOTER
+   ═══════════════════════════════════════════════════════════ */
+
+.hktm-footer {
+  margin-top: 3rem;
+  border-top: 1px solid rgba(92, 225, 230, 0.1);
+  padding: 1.75rem 0 2rem;
+}
+
+.hktm-footer-inner {
+  width: min(1120px, calc(100% - 2rem));
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+  text-align: center;
+}
+
+.hktm-footer-copy {
+  margin: 0;
+  color: var(--dim);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.hktm-footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1.25rem;
+  justify-content: center;
+}
+
+.hktm-footer-links a {
+  color: var(--dim);
+  font-size: 0.82rem;
+  text-decoration: none;
+  letter-spacing: 0.04em;
+  transition: color 0.15s;
+}
+
+.hktm-footer-links a:hover {
+  color: var(--cyan);
+}
+
 @media (max-width: 640px) {
   .hktm-landing {
     width: min(1120px, calc(100% - 1rem));
@@ -722,5 +1084,173 @@ header {
   .header-actions {
     flex-wrap: wrap;
     justify-content: flex-end;
+  }
+
+  .hktm-section {
+    width: min(1120px, calc(100% - 1rem));
+    padding-top: 2rem;
+    padding-bottom: 1.25rem;
+  }
+
+  .hktm-mechanic-card,
+  .hktm-roadmap-col {
+    border-radius: 12px;
+  }
+
+  .hktm-lore-visual {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+/* ── SMOOTH SCROLL ─────────────────────────────────────── */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* ── SITE HEADER ────────────────────────────────────────── */
+.hktm-site-header {
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  border-bottom: 1px solid rgba(31, 51, 40, 0.8);
+  background: rgba(10, 15, 12, 0.86);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.hktm-site-header-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: min(1120px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 0.6rem 0;
+}
+
+/* Logo */
+.hktm-site-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.hktm-site-logo img {
+  display: block;
+  width: 26px;
+  height: 26px;
+}
+
+.hktm-site-logo-text {
+  color: var(--green);
+  font-weight: 700;
+  font-size: 0.88rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-shadow: 0 0 12px rgba(61, 255, 122, 0.28);
+}
+
+/* Nav links */
+.hktm-site-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+  margin-left: 1.25rem;
+}
+
+.hktm-site-nav-link {
+  padding: 0.28rem 0.6rem;
+  border-radius: 4px;
+  text-decoration: none;
+  color: var(--dim);
+  font-size: 0.8rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  transition: color 0.14s ease, background-color 0.14s ease;
+}
+
+.hktm-site-nav-link:hover {
+  color: var(--text);
+  background: rgba(61, 255, 122, 0.06);
+}
+
+.hktm-site-nav-link[aria-current="true"] {
+  color: var(--green);
+  background: rgba(61, 255, 122, 0.09);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hktm-site-nav-link {
+    transition: none;
+  }
+}
+
+/* Right side */
+.hktm-site-header-end {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-left: auto;
+}
+
+.hktm-site-play-btn {
+  font-size: 0.8rem;
+  padding: 0.3rem 0.75rem;
+  letter-spacing: 0.06em;
+  text-decoration: none;
+}
+
+.hktm-site-github {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 4px;
+  border: 1px solid rgba(31, 51, 40, 0.9);
+  background: transparent;
+  text-decoration: none;
+  color: var(--dim);
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+  transition: border-color 0.14s ease, color 0.14s ease, background-color 0.14s ease;
+}
+
+.hktm-site-github:hover {
+  border-color: rgba(61, 255, 122, 0.5);
+  color: var(--green);
+  background: rgba(61, 255, 122, 0.07);
+}
+
+.hktm-site-github svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hktm-site-github {
+    transition: none;
+  }
+}
+
+/* Offset section target for sticky header (~48 px) */
+#hktm-s-home {
+  scroll-margin-top: 3.5rem;
+}
+
+#hktm-landing-mission-board {
+  scroll-margin-top: 4.5rem;
+}
+
+@media (max-width: 640px) {
+  .hktm-site-nav {
+    display: none;
+  }
+
+  .hktm-site-play-btn {
+    display: none;
   }
 }
