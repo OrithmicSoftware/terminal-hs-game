@@ -141,11 +141,51 @@
         100% { filter: none;                                            transform: translate(0); }
       }
 
+      /* ── Short glitch: fast single-frame twitch (~200ms) ── */
+      html.hktm-glitch-active--short body {
+        animation: hktm-landing-glitch-body-short 0.22s steps(1) forwards !important;
+      }
+
+      html.hktm-glitch-active--short #hktm-landing-glitch-overlay {
+        animation: hktm-landing-overlay-pulse-short 0.22s steps(1) forwards;
+      }
+
+      @keyframes hktm-landing-glitch-body-short {
+        0%   { filter: none;                                      transform: translate(0); }
+        30%  { filter: hue-rotate(120deg) contrast(1.8);         transform: translate(-5px, 0); }
+        60%  { filter: saturate(3) brightness(1.2);              transform: translate(4px, -2px); }
+        100% { filter: none;                                      transform: translate(0); }
+      }
+
+      @keyframes hktm-landing-overlay-pulse-short {
+        0%   { opacity: 0;   transform: translate(0); }
+        40%  { opacity: 0.8; transform: translate(-5px, 0); }
+        70%  { opacity: 0.4; transform: translate(4px, 0); }
+        100% { opacity: 0;   transform: translate(0); }
+      }
+
+      /* ── Partial glitch: body transform only, no overlay (~600ms) ── */
+      html.hktm-glitch-active--partial body {
+        animation: hktm-landing-glitch-body-partial 0.6s steps(1) forwards !important;
+      }
+
+      @keyframes hktm-landing-glitch-body-partial {
+        0%   { filter: none;                           transform: translate(0); }
+        15%  { filter: saturate(3) hue-rotate(60deg); transform: translate(-3px, 0); }
+        35%  { filter: contrast(2);                   transform: translate(3px, -2px); }
+        55%  { filter: hue-rotate(-40deg);             transform: translate(-2px, 2px); }
+        75%  { filter: saturate(2) brightness(1.1);   transform: translate(2px, 0); }
+        100% { filter: none;                           transform: translate(0); }
+      }
+
       @media (prefers-reduced-motion: reduce) {
         html.crt-fx-flicker body { animation: none; }
         html.crt-fx-scanlines.crt-fx-flicker body::before { animation: none; }
         html.hktm-glitch-active body { animation: none !important; }
         html.hktm-glitch-active #hktm-landing-glitch-overlay { animation: none; opacity: 0; }
+        html.hktm-glitch-active--short body { animation: none !important; }
+        html.hktm-glitch-active--short #hktm-landing-glitch-overlay { animation: none; opacity: 0; }
+        html.hktm-glitch-active--partial body { animation: none !important; }
       }
 
       /* Display settings button in the site header */
@@ -643,13 +683,20 @@
           try { return localStorage.getItem(LS + 'glitch') !== '0'; } catch(e) { return true; }
         }
 
+        // Glitch types: '' = full, '--short' = fast twitch, '--partial' = body-only
+        // Weighted list: short fires most often, full and partial are less common
+        var GLITCH_TYPES = ['', '--short', '--short', '--partial', '--short', '', '--partial'];
+        var GLITCH_DURATIONS = { '': 950, '--short': 220, '--partial': 600 };
+
         function fireGlitch() {
           if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
           var root = document.documentElement;
-          root.classList.remove('hktm-glitch-active');
+          root.classList.remove('hktm-glitch-active', 'hktm-glitch-active--short', 'hktm-glitch-active--partial');
           void root.offsetWidth; // force reflow so animation restarts
-          root.classList.add('hktm-glitch-active');
-          setTimeout(function () { root.classList.remove('hktm-glitch-active'); }, 950);
+          var type = GLITCH_TYPES[Math.floor(Math.random() * GLITCH_TYPES.length)];
+          var cls = 'hktm-glitch-active' + type;
+          root.classList.add(cls);
+          setTimeout(function () { root.classList.remove(cls); }, GLITCH_DURATIONS[type]);
         }
 
         // "Test now" button — fires immediately regardless of enabled toggle
@@ -663,7 +710,16 @@
         function scheduleGlitch() {
           clearTimeout(glitchTimer);
           if (!glitchEnabled()) return;
-          var delay = 4000 + Math.random() * 6000;
+          // Three-tier frequency: 15% quick burst, 55% normal, 30% long pause
+          var r = Math.random();
+          var delay;
+          if (r < 0.15) {
+            delay = 800 + Math.random() * 1200;    // 0.8–2s  quick stutter
+          } else if (r < 0.70) {
+            delay = 4000 + Math.random() * 6000;   // 4–10s   normal
+          } else {
+            delay = 10000 + Math.random() * 10000; // 10–20s  long pause
+          }
           glitchTimer = setTimeout(function () { fireGlitch(); scheduleGlitch(); }, delay);
         }
         // Fire first glitch after 1.5 s on page load
