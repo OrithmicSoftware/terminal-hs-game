@@ -121,6 +121,18 @@ export function setWaitDirectionImpl(_) {
   /* browser uses waitForArrowDirection native implementation */
 }
 
+function resolveDirectionAlias(value) {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (normalized === "up" || normalized === "down" || normalized === "left" || normalized === "right") {
+    return normalized;
+  }
+  if (normalized === "w") return "up";
+  if (normalized === "a") return "left";
+  if (normalized === "s") return "down";
+  if (normalized === "d") return "right";
+  return null;
+}
+
 /**
  * Wait for 1 / 2 / 3 (focus terminal; `#cmd` hidden via pager hooks).
  * @param {string} [footerHint]
@@ -158,7 +170,7 @@ export function waitForArrowDirection(allowedDirections = [], footerHint = "") {
   }
   return new Promise((resolve) => {
     choiceResolve = (picked) => {
-      const direction = String(picked ?? "").toLowerCase();
+      const direction = resolveDirectionAlias(picked);
       if (allowedDirections.length > 0 && !allowedDirections.includes(direction)) {
         return;
       }
