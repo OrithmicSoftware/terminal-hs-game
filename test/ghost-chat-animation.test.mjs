@@ -289,8 +289,9 @@ test("initial gate messages rotate from localized phrase pools", () => {
   const alias = { displayName: "E. Forester" };
   const [line1, line2] = getInitialGateMessages("Nyx", alias);
 
-  assert.match(line1, /You're up, Nyx\..+?I'm E\. Forester\./);
-  assert.match(line2, /Handler package is staged\./);
+  assert.match(line1, /Nyx/);
+  assert.match(line1, /E\. Forester/);
+  assert.match(line2, /terminal/i);
   assert.equal(storage.get("hktm_chat_gate_intro_i"), "1");
   assert.equal(storage.get("hktm_chat_gate_instruction_i"), "1");
 
@@ -298,8 +299,11 @@ test("initial gate messages rotate from localized phrase pools", () => {
   delete globalThis.__HKTM_CHAT_GATE_INSTRUCTION_INDEX;
 
   const [rotatedLine1, rotatedLine2] = getInitialGateMessages("Nyx", alias);
-  assert.match(rotatedLine1, /Channel authenticated, Nyx\./);
-  assert.match(rotatedLine2, /Your handler brief is queued\./);
+  assert.notEqual(rotatedLine1, line1);
+  assert.notEqual(rotatedLine2, line2);
+  assert.match(rotatedLine1, /Nyx/);
+  assert.match(rotatedLine1, /E\. Forester/);
+  assert.match(rotatedLine2, /terminal/i);
 
   delete globalThis.localStorage;
 });
