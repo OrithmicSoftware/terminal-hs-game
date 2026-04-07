@@ -33,6 +33,7 @@
     "cipher": "node scripts/run-cipher.mjs",
     "infiltrate": "node scripts/run-infiltrate.mjs",
     "start:clear": "node scripts/run-game-clear.mjs",
+    "demo:animate-text": "node scripts/animate-text.mjs --",
     "clear": "npm run dev:clear --prefix web",
     "web:dev": "npm run dev --prefix web",
     "web:dev:clear": "npm run dev:clear --prefix web",
