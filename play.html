@@ -4,13 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0a0f0c" />
-    <meta name="hktm-git-version" content="ca55812" />
+    <meta name="hktm-git-version" content="0a871ea" />
     <title>Terminal HackSim — boot the uplink</title>
     <link rel="icon" href="/terminal-hs-game/favicon.svg" type="image/svg+xml" sizes="any" />
     <link rel="apple-touch-icon" href="/terminal-hs-game/favicon.svg" />
-    <script type="module" crossorigin src="/terminal-hs-game/assets/play-B4dh7xGq.js"></script>
-    <link rel="modulepreload" crossorigin href="/terminal-hs-game/assets/crt-display-BU6fD1-k.js">
-    <link rel="stylesheet" crossorigin href="/terminal-hs-game/assets/crt-display-Cpae0soF.css">
+    <script type="module" crossorigin src="/terminal-hs-game/assets/play-BnJGN-eJ.js"></script>
+    <link rel="modulepreload" crossorigin href="/terminal-hs-game/assets/crt-display-BWEjIIXC.js">
+    <link rel="stylesheet" crossorigin href="/terminal-hs-game/assets/crt-display-DPBtyhv3.css">
   </head>
   <body>
     <div id="hktm-splash" class="hktm-hidden" hidden role="dialog" aria-label="Splash">
@@ -27,7 +27,7 @@
           decoding="async"
         />
         <div class="hktm-splash-title">TERMINAL HACKSIM</div>
-        <span class="hktm-splash-version" title="Git revision">ca55812</span>
+        <span class="hktm-splash-version" title="Git revision">0a871ea</span>
       </div>
       <p class="hktm-splash-sub">
         The grids went dark — the truth went behind glass. Pick a sector. Dig for what's real.
@@ -84,7 +84,8 @@
     <script>
       (function () {
         try {
-          if (new URLSearchParams(location.search).get("e2e") === "1") return;
+          var params = new URLSearchParams(location.search);
+          if (params.get("e2e") === "1" || params.get("minigame")) return;
           if (sessionStorage.getItem("hktm_splash_done")) return;
           document.documentElement.classList.add("hktm-boot-pending");
           var sp = document.getElementById("hktm-splash");
@@ -170,7 +171,7 @@
             decoding="async"
           />
           <span class="title">TERMINAL HACKSIM</span>
-          <span class="hktm-git-version" title="Git revision">ca55812</span>
+          <span class="hktm-git-version" title="Git revision">0a871ea</span>
           <span class="badge">browser α</span>
         </div>
         <span class="header-actions">
