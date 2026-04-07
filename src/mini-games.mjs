@@ -1,5 +1,5 @@
 /**
- * Mini game puzzle data for `cipher`, `crack`, and `patch` commands.
+ * Mini game puzzle data for `cipher`, `crack`, `patch`, and `infiltrate` commands.
  * Pure data module — no UI imports. Used by engine.mjs for interactive challenges.
  */
 
@@ -240,6 +240,295 @@ export const PATCH_PUZZLES = [
       "Blocking '..' by string match is bypassable with URL-encoded variants (%2e%2e%2f) or null bytes on some platforms. Use filepath.Clean + HasPrefix to safely canonicalize the path.",
       "URL-decoding does not add safety — it makes things worse by converting encoded traversal sequences into literal '../' before passing them to ReadFile. Use filepath.Clean + HasPrefix.",
     ],
+  },
+];
+
+/**
+ * Infiltration puzzles: deterministic stealth-routing scenarios inspired by
+ * turn-based path planning. Each step advances patrols after your move, so the
+ * player must pick the safe route one turn at a time.
+ */
+export const INFILTRATE_PUZZLES = [
+  {
+    id: "infiltrate-1",
+    title: "Relay Hall",
+    objective: "Slip past the patrol, grab the relay key, and exit without crossing its lane.",
+    steps: [
+      {
+        board: [
+          "  P──A──K",
+          "     │",
+          "     B──E",
+          "     ↑",
+          "     G",
+        ],
+        patrol: "Guard patrol moves G → B after your turn.",
+        prompt: "What's the clean opening move?",
+        options: [
+          { label: "Move to A" },
+          { label: "Hold at P" },
+          { label: "Drop to B" },
+        ],
+        correctIdx: 0,
+        feedback:
+          "Correct. Taking A now keeps one node between you and the patrol before it climbs into the middle lane.",
+        rejectFeedback: [
+          "Waiting lets the patrol step onto B and control the whole junction. In these puzzles, tempo matters as much as position.",
+          "B is the node the guard is about to occupy. Stepping there walks directly into the patrol route.",
+        ],
+      },
+      {
+        board: [
+          "  S──P──K",
+          "     │",
+          "     G──E",
+          "",
+          "Patrol next moves B → E after your turn.",
+        ],
+        patrol: "The center lane is hot for one turn; plan around the next patrol hop.",
+        prompt: "How do you keep the route clean?",
+        options: [
+          { label: "Move back to S" },
+          { label: "Take the key at K" },
+          { label: "Drop onto G" },
+        ],
+        correctIdx: 1,
+        feedback:
+          "Correct. The guard is vacating the lower lane, so grabbing the key now keeps you ahead of the cycle instead of behind it.",
+        rejectFeedback: [
+          "Backing up gives away the rhythm advantage. You need the key before the patrol circles back across the choke point.",
+          "The lower lane is still occupied this turn. Hitman GO-style puzzles punish moving into a node before the patrol finishes its step.",
+        ],
+      },
+      {
+        board: [
+          "  S──A──P",
+          "     │",
+          "     B──G",
+          "        │",
+          "        E",
+        ],
+        patrol: "Guard moves E → lower dead-end after your turn.",
+        prompt: "Finish the route.",
+        options: [
+          { label: "Hold at P" },
+          { label: "Move to A" },
+          { label: "Exit via E" },
+        ],
+        correctIdx: 2,
+        feedback:
+          "Correct. You cross the exit node exactly as the guard leaves it, which is the whole trick of deterministic stealth routing.",
+        rejectFeedback: [
+          "Holding wastes the opening. The guard loops back if you don't take the exit on the safe beat.",
+          "Retreating to A resets the puzzle and gives the patrol time to reclaim the exit lane.",
+        ],
+      },
+    ],
+    completion: "Key lifted and route cleared. No alarm, no cleanup.",
+  },
+  {
+    id: "infiltrate-2",
+    title: "Switchback Bridge",
+    objective: "Use a one-turn blind spot to cross a bridge watched from two angles.",
+    steps: [
+      {
+        board: [
+          "  P──A──B──E",
+          "      │",
+          "      K",
+          "",
+          "  G patrols B → A after your turn.",
+        ],
+        patrol: "The guard sweeps left one node each round.",
+        prompt: "How do you start the cross?",
+        options: [
+          { label: "Move to A" },
+          { label: "Sprint to B" },
+          { label: "Wait at P" },
+        ],
+        correctIdx: 0,
+        feedback:
+          "Correct. You move into the space the patrol is leaving, setting up a safe handoff on the bridge.",
+        rejectFeedback: [
+          "B is still watched this turn. You only get that node after the patrol slides left.",
+          "Waiting keeps you stuck on the near side while the patrol re-centers on the bridge.",
+        ],
+      },
+      {
+        board: [
+          "  S──P──B──E",
+          "      │",
+          "      K",
+          "",
+          "  Guard now sits on A and will move A → P after your turn.",
+        ],
+        patrol: "You need the objective before the bridge closes.",
+        prompt: "What's the winning second move?",
+        options: [
+          { label: "Take K" },
+          { label: "Run back to S" },
+          { label: "Force through B" },
+        ],
+        correctIdx: 0,
+        feedback:
+          "Correct. The side pocket is the blind spot; it lets you wait out the patrol without giving up bridge position.",
+        rejectFeedback: [
+          "Retreating resets your progress and leaves no path to the exit on the next safe beat.",
+          "Forcing B now collides with the patrol's control line. The safe route uses the side pocket first.",
+        ],
+      },
+      {
+        board: [
+          "  S──A──B──E",
+          "      │",
+          "      P",
+          "",
+          "  Guard shifts back onto P after your turn.",
+        ],
+        patrol: "The bridge is clear for exactly one move.",
+        prompt: "Take the clean finish.",
+        options: [
+          { label: "Step to A" },
+          { label: "Cross to B" },
+          { label: "Hold in cover" },
+        ],
+        correctIdx: 1,
+        feedback:
+          "Correct. Crossing to B as the patrol drops into the pocket preserves spacing and opens the exit lane.",
+        rejectFeedback: [
+          "A is about to be covered again. You need to use the bridge window immediately.",
+          "Holding in cover burns the only clean timing window on the bridge.",
+        ],
+      },
+      {
+        board: [
+          "  S──A──P──E",
+          "",
+          "  Guard returns to center after your turn.",
+        ],
+        patrol: "You're one move ahead; stay that way.",
+        prompt: "Exit before the patrol re-centers.",
+        options: [
+          { label: "Exit via E" },
+          { label: "Backtrack to A" },
+          { label: "Wait on P" },
+        ],
+        correctIdx: 0,
+        feedback:
+          "Correct. Once you're ahead of the patrol cycle, the right play is usually to leave before the board collapses again.",
+        rejectFeedback: [
+          "Backtracking hands the tempo back to the patrol and reopens the bridge problem.",
+          "Waiting on the center node gets you caught when the patrol recenters.",
+        ],
+      },
+    ],
+    completion: "Bridge crossed. Patrol never got a second look.",
+  },
+  {
+    id: "infiltrate-3",
+    title: "Vault Triangle",
+    objective: "Steal the vault token, bait the scanner off the exit, and leave on the recovery turn.",
+    steps: [
+      {
+        board: [
+          "      K",
+          "     / \\",
+          "    A   B",
+          "     \\ /",
+          "  P── C ──E",
+          "      │",
+          "      G",
+        ],
+        patrol: "Scanner moves G → C after your turn.",
+        prompt: "Where do you go first?",
+        options: [
+          { label: "Advance to C" },
+          { label: "Climb to A" },
+          { label: "Hold at P" },
+        ],
+        correctIdx: 1,
+        feedback:
+          "Correct. Taking the upper lane avoids the scanner's predictable center sweep and gives you angle on the key.",
+        rejectFeedback: [
+          "C is the scanner's next stop. The center is only safe after you divert the patrol away from it.",
+          "Holding leaves you with no route to the token before the scanner seals the center.",
+        ],
+      },
+      {
+        board: [
+          "      K",
+          "     / \\",
+          "    P   B",
+          "     \\ /",
+          "  S── G ──E",
+        ],
+        patrol: "Scanner now occupies C and will move C → E after your turn.",
+        prompt: "Exploit the patrol shift.",
+        options: [
+          { label: "Drop to C" },
+          { label: "Take the token at K" },
+          { label: "Retreat to S" },
+        ],
+        correctIdx: 1,
+        feedback:
+          "Correct. While the scanner commits to the exit lane, the token node is safe for exactly one turn.",
+        rejectFeedback: [
+          "Dropping to C lands on the scanner's current position. Wait for the patrol to leave the center first.",
+          "Retreating gives up the only turn where both token and exit are potentially reachable.",
+        ],
+      },
+      {
+        board: [
+          "      P",
+          "     / \\",
+          "    A   B",
+          "     \\ /",
+          "  S── C ──G",
+          "          │",
+          "          E",
+        ],
+        patrol: "Scanner moves E → lower stub after your turn.",
+        prompt: "Set up the final escape.",
+        options: [
+          { label: "Shift to B" },
+          { label: "Drop to C" },
+          { label: "Exit via E" },
+        ],
+        correctIdx: 1,
+        feedback:
+          "Correct. You need the center node now so the exit is one clean step away when the scanner peels off.",
+        rejectFeedback: [
+          "B is safe, but it leaves you one beat too far from the exit when the window opens.",
+          "E is still occupied. The safe route needs one staging move before extraction.",
+        ],
+      },
+      {
+        board: [
+          "      K",
+          "     / \\",
+          "    A   B",
+          "     \\ /",
+          "  S── P ──E",
+          "",
+          "  Scanner steps off the exit after your turn.",
+        ],
+        patrol: "Last move. The scanner cannot recover in time if you leave now.",
+        prompt: "Clean extraction?",
+        options: [
+          { label: "Exit via E" },
+          { label: "Retreat to S" },
+          { label: "Climb back to A" },
+        ],
+        correctIdx: 0,
+        feedback:
+          "Correct. The scanner vacates the lane, you step through, and the whole route resolves exactly like a good board puzzle should.",
+        rejectFeedback: [
+          "Retreating reopens the center and lets the scanner reclaim the exit lane.",
+          "Going back upstairs gives away the extraction window you spent three turns creating.",
+        ],
+      },
+    ],
+    completion: "Vault token secured and exfil path burned behind you.",
   },
 ];
 

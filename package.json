@@ -31,6 +31,7 @@
     "game": "node game.mjs",
     "game:clear": "node scripts/run-game-clear.mjs",
     "cipher": "node scripts/run-cipher.mjs",
+    "infiltrate": "node scripts/run-infiltrate.mjs",
     "start:clear": "node scripts/run-game-clear.mjs",
     "clear": "npm run dev:clear --prefix web",
     "web:dev": "npm run dev --prefix web",
@@ -43,6 +44,6 @@
     "checkpoint:list": "node scripts/checkpoint-list.mjs",
     "repo:github-meta": "node scripts/github-repo-meta.mjs",
     "repo:gh-edit": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/gh-repo-edit-meta.ps1",
-    "test": "node --test test/campaign-state.test.mjs test/debug-scene.test.mjs test/engine-mail.test.mjs test/e2e-terminal.test.mjs test/e2e-scenes.test.mjs test/cli-e2e.test.mjs test/cipher-cli.test.mjs test/ghost-chat-animation.test.mjs test/web-landing.test.mjs"
+    "test": "node --test test/campaign-state.test.mjs test/debug-scene.test.mjs test/engine-mail.test.mjs test/e2e-terminal.test.mjs test/e2e-scenes.test.mjs test/cli-e2e.test.mjs test/cipher-cli.test.mjs test/mini-games.test.mjs test/ghost-chat-animation.test.mjs test/web-landing.test.mjs"
   }
 }

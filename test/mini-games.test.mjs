@@ -10,7 +10,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createMissionSession } from "../src/engine.mjs";
 import { setWaitEnterContinueImpl, setWaitChoiceImpl } from "../src/ui.mjs";
-import { CIPHER_PUZZLES, CRACK_PUZZLES, PATCH_PUZZLES } from "../src/mini-games.mjs";
+import { CIPHER_PUZZLES, CRACK_PUZZLES, PATCH_PUZZLES, INFILTRATE_PUZZLES } from "../src/mini-games.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const m1Path = path.join(__dirname, "../missions/m1-ghost-proxy.json");
@@ -306,6 +306,86 @@ test("patch: does not add trace to game state", async () => {
   assert.equal(session.state.trace, initialTrace, "patch should not add trace");
 });
 
+// ── infiltrate command ───────────────────────────────────────────────────────
+
+test("infiltrate: runs all levels with correct answers and shows INFILTRATION ROUTE COMPLETE", async () => {
+  const session = createMissionSession(loadM1(), null, { contactAliasSeed: "mini-infiltrate-correct" });
+
+  const correctChoices = INFILTRATE_PUZZLES.flatMap((p) => p.steps.map((step) => step.correctIdx + 1));
+  let choiceIdx = 0;
+  setWaitChoiceImpl(() => Promise.resolve(correctChoices[choiceIdx++] ?? 1));
+  setWaitEnterContinueImpl(() => Promise.resolve());
+
+  const cap = captureConsoleLog();
+  try {
+    await session.execute("infiltrate");
+  } finally {
+    cap.restore();
+  }
+
+  const blob = cap.lines.join("\n");
+  assert.ok(
+    blob.includes("INFILTRATION ROUTE COMPLETE"),
+    `expected INFILTRATION ROUTE COMPLETE in output:\n${blob.slice(0, 2000)}`,
+  );
+  assert.ok(
+    blob.includes("Clean move"),
+    `expected clean move feedback in output:\n${blob.slice(0, 2000)}`,
+  );
+});
+
+test("infiltrate: wrong then correct answer shows patrol warning then advances", async () => {
+  const session = createMissionSession(loadM1(), null, { contactAliasSeed: "mini-infiltrate-wrong" });
+
+  const firstStep = INFILTRATE_PUZZLES[0].steps[0];
+  const firstWrong = (firstStep.correctIdx + 1) % firstStep.options.length + 1;
+  const remainingCorrect = INFILTRATE_PUZZLES.flatMap((p, puzzleIdx) =>
+    p.steps
+      .filter((_, stepIdx) => !(puzzleIdx === 0 && stepIdx === 0))
+      .map((step) => step.correctIdx + 1),
+  );
+  const choices = [firstWrong, firstStep.correctIdx + 1, ...remainingCorrect];
+  let choiceIdx = 0;
+  setWaitChoiceImpl(() => Promise.resolve(choices[choiceIdx++] ?? 1));
+  setWaitEnterContinueImpl(() => Promise.resolve());
+
+  const cap = captureConsoleLog();
+  try {
+    await session.execute("infiltrate");
+  } finally {
+    cap.restore();
+  }
+
+  const blob = cap.lines.join("\n");
+  assert.ok(
+    blob.includes("Patrol would spot that route"),
+    `expected patrol warning for wrong answer:\n${blob.slice(0, 2000)}`,
+  );
+  assert.ok(
+    blob.includes("INFILTRATION ROUTE COMPLETE"),
+    `expected INFILTRATION ROUTE COMPLETE after retry:\n${blob.slice(0, 2000)}`,
+  );
+});
+
+test("infiltrate: does not add trace to game state", async () => {
+  const session = createMissionSession(loadM1(), null, { contactAliasSeed: "mini-infiltrate-trace" });
+  const initialTrace = session.state.trace;
+
+  const correctChoices = INFILTRATE_PUZZLES.flatMap((p) => p.steps.map((step) => step.correctIdx + 1));
+  let choiceIdx = 0;
+  setWaitChoiceImpl(() => Promise.resolve(correctChoices[choiceIdx++] ?? 1));
+  setWaitEnterContinueImpl(() => Promise.resolve());
+
+  const cap = captureConsoleLog();
+  try {
+    await session.execute("infiltrate");
+  } finally {
+    cap.restore();
+  }
+
+  assert.equal(session.state.trace, initialTrace, "infiltrate should not add trace");
+});
+
 // ── info glossary entries ──────────────────────────────────────────────────
 
 test("info cipher: shows glossary entry for cipher command", async () => {
@@ -362,6 +442,24 @@ test("info patch: shows glossary entry for patch command", async () => {
   );
 });
 
+test("info infiltrate: shows glossary entry for infiltrate command", async () => {
+  const session = createMissionSession(loadM1(), null, { contactAliasSeed: "mini-info-infiltrate" });
+  setWaitEnterContinueImpl(() => Promise.resolve());
+
+  const cap = captureConsoleLog();
+  try {
+    await session.execute("info infiltrate");
+  } finally {
+    cap.restore();
+  }
+
+  const blob = cap.lines.join("\n");
+  assert.ok(
+    blob.toLowerCase().includes("stealth"),
+    `expected stealth-routing info in 'info infiltrate':\n${blob.slice(0, 2000)}`,
+  );
+});
+
 // ── help output ────────────────────────────────────────────────────────────
 
 test("help: lists cipher, crack, and patch commands", async () => {
@@ -379,6 +477,7 @@ test("help: lists cipher, crack, and patch commands", async () => {
   assert.ok(blob.includes("cipher"), `expected 'cipher' in help output:\n${blob.slice(0, 2000)}`);
   assert.ok(blob.includes("crack"), `expected 'crack' in help output:\n${blob.slice(0, 2000)}`);
   assert.ok(blob.includes("patch"), `expected 'patch' in help output:\n${blob.slice(0, 2000)}`);
+  assert.ok(blob.includes("infiltrate"), `expected 'infiltrate' in help output:\n${blob.slice(0, 2000)}`);
 });
 
 // ── mini-games data ────────────────────────────────────────────────────────
@@ -407,5 +506,18 @@ test("mini-games data: PATCH_PUZZLES has 3 puzzles with valid correctIdx", () =>
     assert.equal(p.options.length, 3, `expected 3 options for patch puzzle ${p.id}`);
     assert.ok(p.correctIdx >= 0 && p.correctIdx <= 2, `correctIdx out of range for ${p.id}`);
     assert.ok(p.rejectFeedback.length === 2, `expected 2 rejectFeedback entries for ${p.id}`);
+  }
+});
+
+test("mini-games data: INFILTRATE_PUZZLES has valid steps and reject feedback", () => {
+  assert.equal(INFILTRATE_PUZZLES.length, 3, "expected 3 infiltrate puzzles");
+  for (const puzzle of INFILTRATE_PUZZLES) {
+    assert.ok(Array.isArray(puzzle.steps) && puzzle.steps.length >= 3, `expected multiple steps for ${puzzle.id}`);
+    for (const [idx, step] of puzzle.steps.entries()) {
+      assert.equal(step.options.length, 3, `expected 3 options for ${puzzle.id} step ${idx + 1}`);
+      assert.ok(step.correctIdx >= 0 && step.correctIdx <= 2, `correctIdx out of range for ${puzzle.id} step ${idx + 1}`);
+      assert.ok(step.rejectFeedback.length === 2, `expected 2 rejectFeedback entries for ${puzzle.id} step ${idx + 1}`);
+      assert.ok(Array.isArray(step.board) && step.board.length >= 1, `expected board lines for ${puzzle.id} step ${idx + 1}`);
+    }
   }
 });

@@ -32,7 +32,13 @@ import {
   isM2HandoffContract,
 } from "./client-chat.mjs";
 import { animSleep, resetAnimTurbo, isAnimTurbo } from "./anim-sleep-core.mjs";
-import { CIPHER_PUZZLES, CRACK_PUZZLES, PATCH_PUZZLES, MINI_GAME_ROUNDS } from "./mini-games.mjs";
+import {
+  CIPHER_PUZZLES,
+  CRACK_PUZZLES,
+  PATCH_PUZZLES,
+  INFILTRATE_PUZZLES,
+  MINI_GAME_ROUNDS,
+} from "./mini-games.mjs";
 
 /** Web build sets `process.env.HKTM_WEB=1` (see web/main.js). */
 function isWebUi() {
@@ -1701,6 +1707,14 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
       `  ${tone("cover", "cyan")}                reduce trace`,
       `  ${tone("spoof", "cyan")}                suppress active SOC alert`,
       `  ${tone("laylow", "cyan")}               spend turn to wait and cool down`,
+      ...(!isWebUi()
+        ? [
+            `  ${tone("cipher", "cyan")}               hex decoding mini-game`,
+            `  ${tone("crack", "cyan")}                hash matching mini-game`,
+            `  ${tone("patch", "cyan")}                secure-fix mini-game`,
+            `  ${tone("infiltrate", "cyan")}           turn-based stealth routing mini-game`,
+          ]
+        : []),
       `  ${tone("tutorial", "cyan")}             show next tutorial hint (if available)`,
       `  ${tone("submit", "cyan")}               submit objective if complete`,
       `  ${tone("quit", "cyan")}                 exit campaign`,
@@ -2012,6 +2026,106 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
     console.log("");
     const tip = "Real-world code review tools (SAST) and dependency scanners can flag many of these patterns automatically — but understanding why the correct fix works is what separates a reviewer from a rubber-stamper. Each of these vulnerability classes (SQLi, XSS, path traversal) appears in OWASP Top 10.";
     for (const l of wrap(tip, cw)) console.log(tone(l, "dim"));
+    console.log("");
+    await waitForEnterContinue(t("press_enter_continue"));
+  }
+
+  /**
+   * `infiltrate` mini game: deterministic stealth-routing board puzzles.
+   * Read the patrol pattern, then pick the clean move each turn.
+   */
+  async function runInfiltrateGame() {
+    const cw = textWrapWidth();
+    const puzzles = INFILTRATE_PUZZLES.slice(0, MINI_GAME_ROUNDS);
+    let cleanRuns = 0;
+    const pickHint = isWebUi() ? "Press 1, 2, or 3." : "Type 1, 2, or 3 and press Enter.";
+
+    for (let i = 0; i < puzzles.length; i++) {
+      const p = puzzles[i];
+      const sceneBase = `infiltrate-level-${i + 1}`;
+
+      clearTerminalScreen(sceneBase, "form");
+      console.log("");
+      console.log(`${tone(`Level ${i + 1}/${puzzles.length}`, "dim")}  ${tone(p.title, "bold")}`);
+      console.log("");
+      for (const line of wrap(p.objective, cw)) console.log(tone(line, "dim"));
+      console.log("");
+      await waitForEnterContinue(t("press_enter_continue"));
+
+      let levelClean = true;
+      for (let stepIdx = 0; stepIdx < p.steps.length; stepIdx++) {
+        const step = p.steps[stepIdx];
+        const sceneName = `${sceneBase}-step-${stepIdx + 1}`;
+        const declined = new Set();
+        const optionLabels = step.options.map((o) => o.label);
+
+        const printHead = () => {
+          console.log("");
+          console.log(
+            `${tone(`Turn ${stepIdx + 1}/${p.steps.length}`, "dim")}  ${tone(p.title, "bold")}`,
+          );
+          console.log("");
+          console.log(tone("BOARD", "magenta"));
+          for (const line of step.board) {
+            console.log(`  ${tone(line, "cyan")}`);
+          }
+          console.log("");
+          for (const line of wrap(step.patrol, cw)) console.log(tone(line, "dim"));
+          console.log("");
+          console.log(tone(step.prompt, "dim"));
+          console.log("");
+        };
+
+        clearTerminalScreen(sceneName, "form");
+        printHead();
+        for (;;) {
+          printMiniGameOptions(optionLabels, declined);
+          const idx = await awaitMiniGameChoice(optionLabels, declined, pickHint);
+          if (idx === step.correctIdx) {
+            clearTerminalScreen(`${sceneName}-correct`, "form");
+            console.log("");
+            console.log(`${tone("✔ Clean move.", "green")}`);
+            console.log("");
+            for (const line of wrap(step.feedback, cw)) console.log(tone(line, "dim"));
+            console.log("");
+            await waitForEnterContinue(t("press_enter_continue"));
+            break;
+          }
+          levelClean = false;
+          clearTerminalScreen(`${sceneName}-wrong`, "form");
+          printHead();
+          console.log(`${tone("✘ Patrol would spot that route.", "yellow")}`);
+          console.log("");
+          const rejectMsg = step.rejectFeedback[idx] ?? "That move crosses the patrol lane.";
+          for (const line of wrap(rejectMsg, cw)) console.log(tone(line, "dim"));
+          console.log("");
+          await waitForEnterContinue(t("press_enter_continue"));
+          declined.add(idx);
+          clearTerminalScreen(`${sceneName}-retry`, "form");
+          printHead();
+        }
+      }
+
+      clearTerminalScreen(`${sceneBase}-complete`, "form");
+      console.log("");
+      console.log(
+        `${tone(levelClean ? "✔ Level ghosted." : "✔ Route recovered.", levelClean ? "green" : "yellow")}`,
+      );
+      console.log("");
+      for (const line of wrap(p.completion, cw)) console.log(tone(line, "dim"));
+      console.log("");
+      await waitForEnterContinue(t("press_enter_continue"));
+      if (levelClean) cleanRuns++;
+    }
+
+    clearTerminalScreen("infiltrate-result", "form");
+    console.log("");
+    console.log(
+      `${tone("INFILTRATION ROUTE COMPLETE", "bold")}  ${tone(`${cleanRuns}/${puzzles.length} clean levels`, cleanRuns === puzzles.length ? "green" : "yellow")}`,
+    );
+    console.log("");
+    const tip = "Like Hitman GO, the trick is deterministic timing: patrols are readable, levels are compact, and every smart move is really route planning under full information. Solve the board, don't race it.";
+    for (const line of wrap(tip, cw)) console.log(tone(line, "dim"));
     console.log("");
     await waitForEnterContinue(t("press_enter_continue"));
   }
@@ -2873,6 +2987,13 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
         if (isWebUi()) { console.log(`Unknown command: ${command}`); skipStatusAfter = true; break; }
         await loading("Loading vulnerability patching challenge...", 200, { tickKind: "enum" });
         await runPatchGame();
+        risk = 0;
+        skipStatusAfter = true;
+        break;
+      case "infiltrate":
+        if (isWebUi()) { console.log(`Unknown command: ${command}`); skipStatusAfter = true; break; }
+        await loading("Loading stealth route simulation...", 200, { tickKind: "connect" });
+        await runInfiltrateGame();
         risk = 0;
         skipStatusAfter = true;
         break;
