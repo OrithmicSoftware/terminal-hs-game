@@ -96,11 +96,15 @@ function installDomShim() {
 function teardownDomShim() {
   delete globalThis.document;
   delete globalThis.location;
+  delete globalThis.localStorage;
   delete globalThis.__HKTM_CONTACT_ALIAS;
+  delete globalThis.__HKTM_CHAT_GATE_INTRO_INDEX;
+  delete globalThis.__HKTM_CHAT_GATE_INSTRUCTION_INDEX;
   delete globalThis.__HKTM_PROFILE;
   delete globalThis.__HKTM_GHOST_CHAT_HOOK;
   delete globalThis.__HKTM_GHOST_CHAT_OPEN;
   delete globalThis.__HKTM_GHOST_CHAT_CLOSE;
+  setLanguage("en");
 }
 
 /* ── Import module under test (after shim so static refs resolve) ── */
@@ -113,7 +117,8 @@ const {
   appendMessageAnimated,
 } = await import("../web/ghost-chat.mjs");
 
-import { t } from "../src/i18n.mjs";
+import { getChatQuickReplies, getInitialGateMessages } from "../src/client-chat.mjs";
+import { setLanguage, t } from "../src/i18n.mjs";
 
 /* ── Helpers ──────────────────────────────────────────────────────── */
 
@@ -265,6 +270,61 @@ test("message role classes are set correctly", async () => {
   await appendMessageAnimated("amanda", "amanda msg");
   const amandaMsg = sharedLog.children[sharedLog.children.length - 1];
   assert.ok(amandaMsg.className.includes("from-amanda"), "amanda message should have from-amanda class");
+});
+
+test("initial gate messages rotate from localized phrase pools", () => {
+  const storage = new Map();
+  globalThis.localStorage = {
+    getItem(key) {
+      return storage.get(key) ?? null;
+    },
+    setItem(key, value) {
+      storage.set(key, String(value));
+    },
+  };
+  setLanguage("en");
+  delete globalThis.__HKTM_CHAT_GATE_INTRO_INDEX;
+  delete globalThis.__HKTM_CHAT_GATE_INSTRUCTION_INDEX;
+
+  const alias = { displayName: "E. Forester" };
+  const [line1, line2] = getInitialGateMessages("Nyx", alias);
+
+  assert.match(line1, /You're up, Nyx\..*I'm E\. Forester\./);
+  assert.match(line2, /Handler package is staged\./);
+  assert.equal(storage.get("hktm_chat_gate_intro_i"), "1");
+  assert.equal(storage.get("hktm_chat_gate_instruction_i"), "1");
+
+  delete globalThis.__HKTM_CHAT_GATE_INTRO_INDEX;
+  delete globalThis.__HKTM_CHAT_GATE_INSTRUCTION_INDEX;
+
+  const [rotatedLine1, rotatedLine2] = getInitialGateMessages("Nyx", alias);
+  assert.match(rotatedLine1, /Channel authenticated, Nyx\./);
+  assert.match(rotatedLine2, /Your handler brief is queued\./);
+
+  delete globalThis.localStorage;
+});
+
+test("chat quick replies expose brief and leave actions with russian support", () => {
+  setLanguage("ru");
+  const replies = getChatQuickReplies();
+
+  assert.equal(replies.length, 4);
+  assert.deepEqual(
+    replies.map((reply) => ({ label: reply.label, action: reply.action })),
+    [
+      { label: "Кто ты?", action: "" },
+      { label: "Как нашёл меня?", action: "" },
+      { label: "Что мне делать?", action: "brief" },
+      { label: "Уйти", action: "exit" },
+    ],
+  );
+
+  delete globalThis.__HKTM_CHAT_GATE_INTRO_INDEX;
+  delete globalThis.__HKTM_CHAT_GATE_INSTRUCTION_INDEX;
+  const [line1, line2] = getInitialGateMessages("Оператор", { displayName: "Е. Форестер" });
+  assert.match(line1, /Оператор/);
+  assert.match(line2, /терминал/);
+  setLanguage("en");
 });
 
 /* Cleanup */

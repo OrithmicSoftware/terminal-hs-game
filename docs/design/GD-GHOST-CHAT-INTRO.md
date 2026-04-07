@@ -10,6 +10,75 @@
 4. **Ghost first, brief second (mission 1 cold start)** — On a **new** op (mission 0, no save snapshot), the **operation brief** (`printBanner` / handler package) does **not** run until the player completes **initial Ghost contact**: two short bursts, then **OPEN OPERATION BRIEF**. Only then does the terminal show the formal mission title/objectives and continue into the campaign splash. Restores with a snapshot skip this gate so returning players are not blocked.
 5. **Ghost chat** (ongoing) — Separate from `mail` (which is corporate / legal). Ghost is **peer voice**: colloquial, tactical, slightly unreliable. Mail is **paper trail**. Forcing the chat open on key beats prevents players from missing the fantasy that “someone is on the wire with you.”
 
+## AI game designer consultation — applied decisions
+
+- Rotate the **two pre-mission gate sentences** from short curated variant pools so the first contact feels alive across fresh sessions without changing the plot beat.
+- Keep the Amanda referral in every intro variant so the later denial reveal still lands.
+- Use a **plain-language brief request** (`What should I do?`) instead of making `/brief` the only discoverable path in the browser drawer.
+- Use **Leave** as the player-facing exit label while preserving `/exit` as the typed command for terminal parity.
+
+## Phrase inventory (shipping copy)
+
+### Gate sentence pool A — first contact / Amanda beat
+
+1. `You're up, {op}. Key exchange green — I'm {alias}. Your friend Amanda vouched for you — said you were the cleanest operator she knew.`
+2. `Channel authenticated, {op}. I'm {alias} — a cut-out, nothing more. Amanda flagged your handle as reliable; that's the only reference I needed.`
+3. `Encryption handshake confirmed. {op} — I'm {alias}. Someone named Amanda put your name in a channel she shouldn't still be watching. Curious choice of referral.`
+
+### Gate sentence pool B — handler package cue
+
+1. `Handler package is staged. Open it when you're ready — the terminal brief follows.`
+2. `Your handler brief is queued. Open the package when you want the contract on your terminal.`
+3. `The brief is waiting behind this seal. Open it when you're ready to work; the terminal gets the full contract next.`
+
+### Browser quick replies after the brief gate
+
+| Slot | Label | Player line | Result |
+|------|-------|-------------|--------|
+| 1 | `Who are you?` | `Who are you, really?` | Explains the cut-out alias arrangement. |
+| 2 | `How did you find me?` | `How did you find me?` | Repeats the Amanda referral story beat. |
+| 3 | `What should I do?` | `What should I do?` | Triggers the same mission brief flow as `/brief`. |
+| 4 | `Leave` | `Leave` | Triggers the same standby flow as `/exit`. |
+
+## Russian / i18n notes
+
+- The rotating gate lines live in both `en` and `ru` dictionaries with the same array length so the browser can rotate deterministically by slot.
+- `{op}` and `{alias}` are formatting tokens and must stay untranslated in every locale string.
+- `/brief` and `/exit` remain slash commands even when the UI labels are localized (`Что мне делать?`, `Уйти`), so terminal and browser instructions stay aligned.
+- The Russian gate variants avoid operator-gendered past tense and keep Amanda/Orithmic proper nouns intact.
+
+## Conversation diagram
+
+```text
+[Fresh browser campaign]
+        |
+        v
+Player opens ShadowNet IM
+        |
+        v
+contact bubble A (rotating intro variant)
+        |
+        v
+contact bubble B (rotating handler-package variant)
+        |
+        v
+OPEN OPERATION BRIEF gate button
+        |
+        v
+terminal mission brief prints + chat closes
+        |
+        v
+Player reopens ShadowNet IM during mission 1
+        |
+        +--> [Who are you?] ----------> alias explanation
+        |
+        +--> [How did you find me?] --> Amanda referral explanation
+        |
+        +--> [What should I do?] -----> same flow as /brief
+        |
+        \--> [Leave] -----------------> same flow as /exit
+```
+
 ## Forced-open beats (m1 / shared hooks)
 
 | Trigger id      | When                         | Design goal                                      |

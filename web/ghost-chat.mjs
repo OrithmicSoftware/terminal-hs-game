@@ -6,6 +6,7 @@ import { playChatSwipeClose, playChatSwipeOpen, playUiClick } from "./ui-sounds.
 import { isE2eUrl } from "./intro-flow.mjs";
 import {
   CLIENT_CHAT_TRIGGERS,
+  getChatQuickReplies,
   getInitialGateMessages,
   getMissionBriefChatMessages,
   isM2HandoffContract,
@@ -22,9 +23,6 @@ let ghostChatSeeded = false;
 let lastBriefedMissionId = null;
 /** True while rebuilding IM from campaign save (skip persist + dedupe hooks). */
 let restoringGhostChat = false;
-
-/** Matches `chat_reply_*` keys in i18n.mjs (survey-style enumerated replies). */
-const CHAT_QUICK_REPLY_COUNT = 3;
 
 function typingDelayMs() {
   if (isE2eUrl()) return 0;
@@ -465,6 +463,7 @@ export function initGhostChat() {
   wireReplyCaret(form, input);
 
   const replyButtons = [];
+  const quickReplies = getChatQuickReplies();
 
   /** @param {string} raw */
   const submitOperatorMessage = async (raw) => {
@@ -476,7 +475,8 @@ export function initGhostChat() {
       input.dispatchEvent(new Event("input", { bubbles: true }));
     }
     const lower = text.toLowerCase();
-    if (lower === "/exit" || lower === "exit") {
+    const matchedReply = replyButtons.find((r) => r.payload === text);
+    if (lower === "/exit" || lower === "exit" || matchedReply?.action === "exit") {
       markReplyUsed(text);
       globalThis.__HKTM_ON_SHADOW_NET_IM_EXIT?.();
       const alias = contactAliasOrFallback();
@@ -487,7 +487,7 @@ export function initGhostChat() {
       closeGhostChat();
       return;
     }
-    if (lower === "/brief") {
+    if (lower === "/brief" || matchedReply?.action === "brief") {
       markReplyUsed(text);
       const ctx = globalThis.__HKTM_GET_MISSION_BRIEF_CONTEXT?.();
       const delay = isE2eUrl() ? 0 : 280;
@@ -506,7 +506,6 @@ export function initGhostChat() {
       await appendMessageAnimated("client", t("brief_slash_hint_terminal"), { forced: false });
       return;
     }
-    const matchedReply = replyButtons.find((r) => r.payload === text);
     if (matchedReply?.response) {
       markReplyUsed(text);
       await animSleep(400 + Math.random() * 400);
@@ -536,22 +535,18 @@ export function initGhostChat() {
   if (labelEl) labelEl.textContent = t("chat_quick_replies_header");
   if (quickGrid) {
     quickGrid.innerHTML = "";
-    for (let i = 1; i <= CHAT_QUICK_REPLY_COUNT; i += 1) {
-      const code = String(i);
-      const name = t(`chat_reply_${i}_label`);
-      const payload = t(`chat_reply_${i}`);
-      const response = t(`chat_reply_${i}_response`) || "";
+    for (const reply of quickReplies) {
       const b = document.createElement("button");
       b.type = "button";
       b.className = "hktm-region-btn";
-      b.setAttribute("aria-label", `${code}: ${name}`);
-      b.innerHTML = `<span class="code">${escapeHtml(code)}</span><span class="name">${escapeHtml(name)}</span>`;
+      b.setAttribute("aria-label", `${reply.code}: ${reply.label}`);
+      b.innerHTML = `<span class="code">${escapeHtml(reply.code)}</span><span class="name">${escapeHtml(reply.label)}</span>`;
       b.addEventListener("click", () => {
         playUiClick();
-        void submitOperatorMessage(payload);
+        void submitOperatorMessage(reply.payload);
       });
       quickGrid.appendChild(b);
-      replyButtons.push({ code, payload, response, btn: b });
+      replyButtons.push({ ...reply, btn: b });
     }
   }
 
@@ -562,7 +557,7 @@ export function initGhostChat() {
       const k = e.key;
       if (!/^[1-9]$/.test(k)) return;
       const num = parseInt(k, 10);
-      if (num < 1 || num > CHAT_QUICK_REPLY_COUNT) return;
+      if (num < 1 || num > replyButtons.length) return;
       const rb = replyButtons[num - 1];
       if (rb?.btn?.disabled) return;
       const active = document.activeElement;
@@ -570,7 +565,7 @@ export function initGhostChat() {
       if (active?.closest?.(".hktm-chat-compose")) return;
       e.preventDefault();
       playUiClick();
-      void submitOperatorMessage(t(`chat_reply_${num}`));
+      void submitOperatorMessage(rb.payload);
     },
     true,
   );

@@ -6,6 +6,45 @@
 import { formatContactTemplate } from "./contact-alias.mjs";
 import { t } from "./i18n.mjs";
 
+const CHAT_GATE_ROTATION_KEYS = {
+  intro: {
+    global: "__HKTM_CHAT_GATE_INTRO_INDEX",
+    storage: "hktm_chat_gate_intro_i",
+  },
+  instruction: {
+    global: "__HKTM_CHAT_GATE_INSTRUCTION_INDEX",
+    storage: "hktm_chat_gate_instruction_i",
+  },
+};
+
+function getRotatingPhrase(key, rotationKey) {
+  const arr = t(key);
+  const variants = Array.isArray(arr) ? arr.filter((v) => typeof v === "string" && v.trim()) : [];
+  if (!variants.length) return "";
+  const { global: globalKey, storage: storageKey } = CHAT_GATE_ROTATION_KEYS[rotationKey] ?? {};
+  let idx = Number.isFinite(globalThis[globalKey]) ? globalThis[globalKey] : NaN;
+  if (!Number.isFinite(idx)) {
+    idx = 0;
+    try {
+      if (typeof globalThis.localStorage !== "undefined" && storageKey) {
+        const prev = parseInt(globalThis.localStorage.getItem(storageKey) ?? "0", 10);
+        idx = (Number.isFinite(prev) ? prev : 0) % variants.length;
+        globalThis.localStorage.setItem(storageKey, String((idx + 1) % variants.length));
+      } else {
+        idx = Math.floor(Math.random() * variants.length);
+      }
+    } catch {
+      idx = Math.floor(Math.random() * variants.length);
+    }
+    if (globalKey) globalThis[globalKey] = idx;
+  }
+  return variants[idx % variants.length];
+}
+
+function formatGatePhrase(text, vars) {
+  return String(text ?? "").replace(/\{(\w+)\}/g, (_, key) => vars[key] ?? "");
+}
+
 /**
  * In-mission pings (same text in terminal stream and browser drawer).
  * `sender`: IM thread — contract client, childhood-friend Amanda, or in-house corporate warn path.
@@ -147,10 +186,37 @@ export function getContactContractLines(mission, alias, ctx = {}) {
  */
 export function getInitialGateMessages(codename, alias) {
   const op = codename?.trim() || "operator";
+  const vars = {
+    op,
+    alias: alias.displayName,
+  };
   return [
-    `You're up, ${op}. Key exchange green — I'm ${alias.displayName}. Your friend Amanda vouched for you — said you were the cleanest operator she knew.`,
-    `When you're ready for the handler brief, pick /brief from the quick replies. Type /exit to close the channel.`,
+    formatGatePhrase(getRotatingPhrase("chat_gate_intro_variants", "intro"), vars),
+    formatGatePhrase(getRotatingPhrase("chat_gate_instruction_variants", "instruction"), vars),
   ];
+}
+
+export function getChatQuickReplies() {
+  const replies = [];
+  for (let i = 1; i < 10; i += 1) {
+    const labelKey = `chat_reply_${i}_label`;
+    const payloadKey = `chat_reply_${i}`;
+    const responseKey = `chat_reply_${i}_response`;
+    const actionKey = `chat_reply_${i}_action`;
+    const label = t(labelKey);
+    const payload = t(payloadKey);
+    if (label === labelKey || payload === payloadKey) break;
+    const response = t(responseKey);
+    const action = t(actionKey);
+    replies.push({
+      code: String(i),
+      label,
+      payload,
+      response: response === responseKey ? "" : response,
+      action: action === actionKey ? "" : action,
+    });
+  }
+  return replies;
 }
 
 /**

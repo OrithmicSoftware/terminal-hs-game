@@ -83,6 +83,16 @@ const dictionaries = {
     splash_press_any_key: "Press any key to start…",
     splash_press_any_key_continue: "Press any key to continue…",
     splash_press_enter_to_start: "Press Enter to start…",
+    chat_gate_intro_variants: [
+      "You're up, {op}. Key exchange green — I'm {alias}. Your friend Amanda vouched for you — said you were the cleanest operator she knew.",
+      "Channel authenticated, {op}. I'm {alias} — a cut-out, nothing more. Amanda flagged your handle as reliable; that's the only reference I needed.",
+      "Encryption handshake confirmed. {op} — I'm {alias}. Someone named Amanda put your name in a channel she shouldn't still be watching. Curious choice of referral.",
+    ],
+    chat_gate_instruction_variants: [
+      "Handler package is staged. Open it when you're ready — the terminal brief follows.",
+      "Your handler brief is queued. Open the package when you want the contract on your terminal.",
+      "The brief is waiting behind this seal. Open it when you're ready to work; the terminal gets the full contract next.",
+    ],
     chat_typing: "Typing",
     chat_quick_replies_header: "Quick replies",
     chat_reply_1_label: "Who are you?",
@@ -93,10 +103,12 @@ const dictionaries = {
     chat_reply_2: "How did you find me?",
     chat_reply_2_response:
       "Amanda — your friend. She passed your handle through a cut-out, said you'd gone dark but might be open to contract work. I verified your red-team history through Orithmic's scraper and pinged. Here we are.",
-    chat_reply_3_label: "What's the risk?",
-    chat_reply_3: "What happens if I get caught?",
-    chat_reply_3_response:
-      "Trace hits the ceiling, SOC locks the segment, and your session burns. You lose the contract — no payout, no debrief. The sim resets but the log doesn't forget. Keep your trace low and use cover/spoof when it climbs.",
+    chat_reply_3_label: "What should I do?",
+    chat_reply_3: "What should I do?",
+    chat_reply_3_action: "brief",
+    chat_reply_4_label: "Leave",
+    chat_reply_4: "Leave",
+    chat_reply_4_action: "exit",
     chat_exit_standby:
       "Channel on standby. Handler brief is mirrored on your main terminal — type chat anytime to reopen. — %s",
     /** Node chat gate: /exit without /brief — brief follows after Enter → loading → banner. */
@@ -202,6 +214,16 @@ const dictionaries = {
     splash_press_any_key: "Нажмите любую клавишу, чтобы начать…",
     splash_press_any_key_continue: "Нажмите любую клавишу, чтобы продолжить…",
     splash_press_enter_to_start: "Нажмите Enter, чтобы начать…",
+    chat_gate_intro_variants: [
+      "Ты в сети, {op}. Обмен ключами зелёный — я {alias}. Твоя подруга Amanda поручилась за тебя: сказала, чище оператора не знает.",
+      "Канал подтверждён, {op}. Я {alias} — прослойка, не больше. Amanda пометила твой хэндл как надёжный; этого мне хватило.",
+      "Шифрованное рукопожатие подтверждено. {op} — я {alias}. Некая Amanda протащила твоё имя в канал, который ей не стоило бы до сих пор читать. Любопытная рекомендация.",
+    ],
+    chat_gate_instruction_variants: [
+      "Пакет хэндлера подготовлен. Открой его, когда будешь готов — затем бриф уйдёт в терминал.",
+      "Бриф хэндлера стоит в очереди. Открой пакет, когда захочешь увидеть контракт в терминале.",
+      "Бриф ждёт за этой пломбой. Открой его, когда будешь готов работать; полный контракт следующим уйдёт в терминал.",
+    ],
     chat_typing: "Печатает",
     chat_quick_replies_header: "Быстрые ответы",
     chat_reply_1_label: "Кто ты?",
@@ -212,10 +234,12 @@ const dictionaries = {
     chat_reply_2: "Как ты меня нашёл?",
     chat_reply_2_response:
       "Amanda — твоя подруга. Она передала твой хэндл через прослойку, сказала, ты ушёл в тень, но мог бы взяться за контракт. Я проверил твою red-team историю через скрейпер Orithmic и кинул пинг. Мы здесь.",
-    chat_reply_3_label: "Какой риск?",
-    chat_reply_3: "Что будет, если поймают?",
-    chat_reply_3_response:
-      "Трейс дойдёт до потолка, SOC закроет сегмент, и сессия сгорит. Контракт потерян — без выплаты, без дебрифа. Симуляция перезапустится, но лог ничего не забывает. Держи трейс низко, используй cover/spoof когда растёт.",
+    chat_reply_3_label: "Что мне делать?",
+    chat_reply_3: "Что мне делать?",
+    chat_reply_3_action: "brief",
+    chat_reply_4_label: "Уйти",
+    chat_reply_4: "Уйти",
+    chat_reply_4_action: "exit",
     chat_exit_standby:
       "Канал в ожидании. Бриф хэндлера дублируется в основном терминале — введите chat, чтобы снова открыть. — %s",
     chat_gate_exit_standby:
@@ -283,4 +307,3 @@ export function t(key) {
   if (key === "boot_tagline") return getBootTagline();
   return dictionaries[currentLang]?.[key] ?? dictionaries.en[key] ?? key;
 }
-
