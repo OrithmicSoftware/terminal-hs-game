@@ -738,9 +738,11 @@
                   .filter(Boolean)
       )];
 
+      // Keep short hops perceptible, long jumps bounded, and mid-range jumps brisk.
       const MIN_SCROLL_DURATION_MS = 420;
       const MAX_SCROLL_DURATION_MS = 900;
       const SCROLL_DURATION_FACTOR = 0.7;
+      const HEADER_SCROLL_GAP_PX = 8;
       let scrollAnimationFrame = null;
 
       function animateScrollTo(targetY, durationMs) {
@@ -790,7 +792,7 @@
         } else {
           const header = document.querySelector('.hktm-site-header');
           const headerHeight = header instanceof HTMLElement ? header.getBoundingClientRect().height : 0;
-          const y = target.getBoundingClientRect().top + window.scrollY - headerHeight - 8;
+          const y = target.getBoundingClientRect().top + window.scrollY - headerHeight - HEADER_SCROLL_GAP_PX;
           const targetY = Math.max(0, y);
           const distance = Math.abs(targetY - window.scrollY);
           const durationMs = Math.max(
