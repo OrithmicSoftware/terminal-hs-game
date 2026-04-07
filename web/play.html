@@ -85,7 +85,7 @@
       (function () {
         try {
           var params = new URLSearchParams(location.search);
-          if (params.get("e2e") === "1" || params.get("minigame")) return;
+          if (params.get("e2e") === "1") return;
           if (sessionStorage.getItem("hktm_splash_done")) return;
           document.documentElement.classList.add("hktm-boot-pending");
           var sp = document.getElementById("hktm-splash");
