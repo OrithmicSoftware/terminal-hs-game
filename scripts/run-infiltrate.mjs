@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { createMissionSession } from "../src/engine.mjs";
 import {
   clearTerminalScreen,
+  resolveDirectionAlias,
   setWaitDirectionImpl,
   setWaitEnterContinueImpl,
 } from "../src/ui.mjs";
@@ -44,17 +45,6 @@ function waitForLine() {
   });
 }
 
-const DIRECTION_ALIASES = new Map([
-  ["up", "up"],
-  ["w", "up"],
-  ["down", "down"],
-  ["s", "down"],
-  ["left", "left"],
-  ["a", "left"],
-  ["right", "right"],
-  ["d", "right"],
-]);
-
 setWaitDirectionImpl(async (footerHint, allowedDirections = []) => {
   if (footerHint) console.log(tone(footerHint, "dim"));
   if (process.stdin.isTTY) {
@@ -72,7 +62,7 @@ setWaitDirectionImpl(async (footerHint, allowedDirections = []) => {
         if (key?.ctrl && key.name === "c") {
           process.exit(1);
         }
-        const direction = String(key?.name ?? "").toLowerCase();
+        const direction = resolveDirectionAlias(key?.name ?? str);
         if (!allowedDirections.includes(direction)) return;
         finish(direction);
       };
@@ -92,7 +82,7 @@ setWaitDirectionImpl(async (footerHint, allowedDirections = []) => {
   }
   for (;;) {
     const line = String(await waitForLine()).trim().toLowerCase();
-    const direction = DIRECTION_ALIASES.get(line) ?? null;
+    const direction = resolveDirectionAlias(line);
     if (direction && allowedDirections.includes(direction)) {
       return direction;
     }

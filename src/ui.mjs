@@ -19,10 +19,6 @@ if (typeof process !== "undefined" && process.stdin?.isTTY) {
 
 const ANSI_SEQ = /\x1b\[[0-9;]*m/g;
 const DIRECTION_ALIAS_MAP = new Map([
-  ["up", "up"],
-  ["down", "down"],
-  ["left", "left"],
-  ["right", "right"],
   ["w", "up"],
   ["a", "left"],
   ["s", "down"],
@@ -90,7 +86,15 @@ function waitForDigitKeypress(max) {
 
 function keypressToDirection(str, key) {
   const raw = key?.name ?? str;
-  return DIRECTION_ALIAS_MAP.get(String(raw ?? "").trim().toLowerCase()) ?? null;
+  return resolveDirectionAlias(raw);
+}
+
+export function resolveDirectionAlias(value) {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (normalized === "up" || normalized === "down" || normalized === "left" || normalized === "right") {
+    return normalized;
+  }
+  return DIRECTION_ALIAS_MAP.get(normalized) ?? null;
 }
 
 /**

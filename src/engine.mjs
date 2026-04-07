@@ -2119,10 +2119,7 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
           );
           console.log("");
           // `rejectFeedback` follows the original option order with the correct move removed.
-          const rejectIdx = step.options
-            .map((_, optionIdx) => optionIdx)
-            .filter((optionIdx) => optionIdx !== step.correctIdx)
-            .indexOf(idx);
+          const rejectIdx = idx < step.correctIdx ? idx : idx - 1;
           const rejectMsg = step.rejectFeedback[rejectIdx] ?? "That move crosses the patrol lane.";
           for (const line of wrap(rejectMsg, cw)) console.log(tone(line, "dim"));
           console.log("");
