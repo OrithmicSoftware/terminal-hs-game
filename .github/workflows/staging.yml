@@ -1,15 +1,15 @@
-name: Deploy to GitHub Pages
+name: Deploy Staging to GitHub Pages
 
 on:
   push:
-    branches: [main, master]
+    branches: [staging]
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: pages-main
+  group: pages-staging
   cancel-in-progress: true
 
 jobs:
@@ -30,12 +30,12 @@ jobs:
 
       - name: Build
         working-directory: web
-        run: npm run build -- --base=/terminal-hs-game/
+        run: npm run build -- --base=/terminal-hs-game/staging/
 
-      - name: Deploy to GitHub Pages
+      - name: Deploy to GitHub Pages (staging)
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           folder: web/dist
           branch: gh-pages
+          target-folder: staging
           clean: true
-          clean-exclude: staging
