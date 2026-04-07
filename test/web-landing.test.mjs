@@ -31,7 +31,6 @@ test("web landing page keeps custom same-page navigation animation with sticky-h
   assert.match(webIndexHtml, /document\.querySelector\('\.hktm-site-header'\)/);
   assert.match(webIndexHtml, /window\.history\.replaceState\(null, '', url\.hash\)/);
 });
-
 test("web landing page exposes dedicated minigame cards with launch links", () => {
   assert.match(webIndexHtml, /id="hktm-s-minigames"/);
   assert.match(webIndexHtml, /Three fast drills you can launch straight from the site\./);
