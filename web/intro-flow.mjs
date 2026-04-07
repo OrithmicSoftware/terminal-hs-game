@@ -6,7 +6,7 @@ import {
   DEFAULT_OPERATOR_REGION_ID,
   DEFAULT_OPERATOR_CODENAME,
 } from "../src/operator-regions.mjs";
-import { t, getBootTagline } from "../src/i18n.mjs";
+import { getBootTagline } from "../src/i18n.mjs";
 import {
   markTerminalBootSequenceDone,
   shouldRunTerminalBootSequence,
@@ -96,63 +96,24 @@ function saveProfile(profile) {
   applyProfileGlobals(profile);
 }
 
-const MODIFIER_KEYS_ONLY = new Set([
-  "Shift",
-  "Control",
-  "Alt",
-  "Meta",
-  "OS",
-  "CapsLock",
-  "NumLock",
-  "ScrollLock",
-  "ContextMenu",
-]);
-
 export function showSplashScreen() {
   const el = document.getElementById("hktm-splash");
   if (!el) return Promise.resolve();
 
   const hint = document.getElementById("hktm-splash-start-hint");
-  if (hint) {
-    hint.textContent = t(
-      hasExistingCampaignSave() ? "splash_press_any_key_continue" : "splash_press_any_key",
-    );
-  }
+  if (hint) hint.hidden = true;
 
   const sub = el.querySelector(".hktm-splash-sub");
   if (sub) sub.textContent = getBootTagline();
 
+  const skip = el.querySelector("[data-hktm-splash-skip]");
+  if (skip instanceof HTMLElement) skip.hidden = true;
+  const actions = el.querySelector(".hktm-splash-actions");
+  if (actions instanceof HTMLElement) actions.hidden = true;
+
   el.classList.remove("hktm-hidden");
   el.hidden = false;
-  return new Promise((resolve) => {
-    const done = () => {
-      el.classList.add("hktm-hidden");
-      el.hidden = true;
-      resolve();
-    };
-    const skip = el.querySelector("[data-hktm-splash-skip]");
-    /** @type {((e: KeyboardEvent) => void) | null} */
-    let onKeyDown = null;
-    const finish = () => {
-      if (onKeyDown) document.removeEventListener("keydown", onKeyDown, true);
-      onKeyDown = null;
-      done();
-    };
-    onKeyDown = (e) => {
-      if (e.repeat) return;
-      if (MODIFIER_KEYS_ONLY.has(e.key)) return;
-      e.preventDefault();
-      finish();
-    };
-    document.addEventListener("keydown", onKeyDown, true);
-    skip?.addEventListener(
-      "click",
-      () => {
-        finish();
-      },
-      { once: true },
-    );
-  });
+  return new Promise(() => {});
 }
 
 export function showOperatorDialog() {

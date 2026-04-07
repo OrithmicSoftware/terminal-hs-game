@@ -9,6 +9,8 @@ const webIndexPath = path.join(__dirname, "..", "web", "index.html");
 const webIndexHtml = fs.readFileSync(webIndexPath, "utf8");
 const campaignBrowserPath = path.join(__dirname, "..", "web", "campaign-browser.mjs");
 const campaignBrowserSource = fs.readFileSync(campaignBrowserPath, "utf8");
+const introFlowPath = path.join(__dirname, "..", "web", "intro-flow.mjs");
+const introFlowSource = fs.readFileSync(introFlowPath, "utf8");
 const webMainPath = path.join(__dirname, "..", "web", "main.js");
 const webMainSource = fs.readFileSync(webMainPath, "utf8");
 const playHtmlPath = path.join(__dirname, "..", "web", "play.html");
@@ -51,4 +53,13 @@ test("browser campaign supports requested minigame fast-launch flow", () => {
   assert.match(campaignBrowserSource, /__HKTM_RUN_COMMAND/);
   assert.match(webMainSource, /await globalThis\.__HKTM_RUN_COMMAND\?\.\(requestedMiniGame\);/);
   assert.match(playHtmlSource, /params\.get\("e2e"\) === "1" \|\| params\.get\("minigame"\)/);
+});
+
+test("play splash keeps progression controls disabled", () => {
+  assert.match(playHtmlSource, /id="hktm-splash-start-hint"[^>]*hidden/);
+  assert.match(playHtmlSource, /data-hktm-splash-skip hidden/);
+  assert.match(introFlowSource, /if \(hint\) hint\.hidden = true;/);
+  assert.match(introFlowSource, /if \(skip instanceof HTMLElement\) skip\.hidden = true;/);
+  assert.match(introFlowSource, /return new Promise\(\(\) => \{\}\);/);
+  assert.doesNotMatch(introFlowSource, /document\.addEventListener\("keydown", onKeyDown, true\)/);
 });
