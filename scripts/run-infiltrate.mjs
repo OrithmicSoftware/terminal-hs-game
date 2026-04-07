@@ -3,7 +3,11 @@ import path from "node:path";
 import readline from "node:readline";
 import { fileURLToPath } from "node:url";
 import { createMissionSession } from "../src/engine.mjs";
-import { clearTerminalScreen, setWaitChoiceImpl, setWaitEnterContinueImpl } from "../src/ui.mjs";
+import {
+  clearTerminalScreen,
+  setWaitDirectionImpl,
+  setWaitEnterContinueImpl,
+} from "../src/ui.mjs";
 import { tone } from "../src/colors.mjs";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -40,15 +44,59 @@ function waitForLine() {
   });
 }
 
-setWaitChoiceImpl(async (footerHint, max = 3) => {
+const DIRECTION_ALIASES = new Map([
+  ["up", "up"],
+  ["w", "up"],
+  ["down", "down"],
+  ["s", "down"],
+  ["left", "left"],
+  ["a", "left"],
+  ["right", "right"],
+  ["d", "right"],
+]);
+
+setWaitDirectionImpl(async (footerHint, allowedDirections = []) => {
   if (footerHint) console.log(tone(footerHint, "dim"));
+  if (process.stdin.isTTY) {
+    return await new Promise((resolve) => {
+      const finish = (direction) => {
+        process.stdin.removeListener("keypress", onKey);
+        try {
+          process.stdin.setRawMode(false);
+        } catch {
+          /* ignore */
+        }
+        resolve(direction);
+      };
+      const onKey = (str, key) => {
+        if (key?.ctrl && key.name === "c") {
+          process.exit(1);
+        }
+        const direction = String(key?.name ?? "").toLowerCase();
+        if (!allowedDirections.includes(direction)) return;
+        finish(direction);
+      };
+      try {
+        rl.pause();
+      } catch {
+        /* ignore */
+      }
+      try {
+        process.stdin.setRawMode(true);
+      } catch {
+        resolve(allowedDirections[0] ?? "right");
+        return;
+      }
+      process.stdin.on("keypress", onKey);
+    });
+  }
   for (;;) {
-    const line = await waitForLine();
-    const pick = Number.parseInt(line.trim(), 10);
-    if (Number.isInteger(pick) && pick >= 1 && pick <= max) {
-      return pick;
+    const line = String(await waitForLine()).trim().toLowerCase();
+    const direction = DIRECTION_ALIASES.get(line) ?? null;
+    if (direction && allowedDirections.includes(direction)) {
+      return direction;
     }
-    console.log(tone(`Invalid — enter a number from 1 to ${max}.`, "yellow"));
+    console.log(tone(`Invalid — enter one of: ${allowedDirections.join(", ")}.`, "yellow"));
   }
 });
 
@@ -68,11 +116,11 @@ async function main() {
     console.log(tone("INFILTRATE MINI-GAME", "bold"));
     console.log(tone("Turn-based stealth routing challenge", "magenta"));
     console.log("");
-    console.log(tone("Read the patrol pattern, pick the safe move, and ghost through the board.", "dim"));
+    console.log(tone("Read the patrol pattern, move with the arrow keys, and ghost through the board.", "dim"));
     console.log("");
     await session.execute("infiltrate");
   } finally {
-    setWaitChoiceImpl(null);
+    setWaitDirectionImpl(null);
     setWaitEnterContinueImpl(null);
     rl.close();
   }

@@ -265,9 +265,9 @@ export const INFILTRATE_PUZZLES = [
         patrol: "Guard patrol moves G → B after your turn.",
         prompt: "What's the clean opening move?",
         options: [
-          { label: "Move to A" },
-          { label: "Hold at P" },
-          { label: "Drop to B" },
+          { direction: "right", label: "Move right to A" },
+          { direction: "up", label: "Hold at P" },
+          { direction: "down", label: "Drop down to B" },
         ],
         correctIdx: 0,
         feedback:
@@ -288,9 +288,9 @@ export const INFILTRATE_PUZZLES = [
         patrol: "The center lane is hot for one turn; plan around the next patrol hop.",
         prompt: "How do you keep the route clean?",
         options: [
-          { label: "Move back to S" },
-          { label: "Take the key at K" },
-          { label: "Drop onto G" },
+          { direction: "left", label: "Move left back to S" },
+          { direction: "right", label: "Take the key at K" },
+          { direction: "down", label: "Drop down onto G" },
         ],
         correctIdx: 1,
         feedback:
@@ -311,9 +311,9 @@ export const INFILTRATE_PUZZLES = [
         patrol: "Guard moves E → lower dead-end after your turn.",
         prompt: "Finish the route.",
         options: [
-          { label: "Hold at P" },
-          { label: "Move to A" },
-          { label: "Exit via E" },
+          { direction: "up", label: "Hold at P" },
+          { direction: "left", label: "Move left to A" },
+          { direction: "down", label: "Exit down via E" },
         ],
         correctIdx: 2,
         feedback:
@@ -342,9 +342,9 @@ export const INFILTRATE_PUZZLES = [
         patrol: "The guard sweeps left one node each round.",
         prompt: "How do you start the cross?",
         options: [
-          { label: "Move to A" },
-          { label: "Sprint to B" },
-          { label: "Wait at P" },
+          { direction: "right", label: "Move right to A" },
+          { direction: "up", label: "Sprint straight to B" },
+          { direction: "left", label: "Wait at P" },
         ],
         correctIdx: 0,
         feedback:
@@ -365,9 +365,9 @@ export const INFILTRATE_PUZZLES = [
         patrol: "You need the objective before the bridge closes.",
         prompt: "What's the winning second move?",
         options: [
-          { label: "Take K" },
-          { label: "Run back to S" },
-          { label: "Force through B" },
+          { direction: "down", label: "Drop down to K" },
+          { direction: "left", label: "Run back to S" },
+          { direction: "right", label: "Force through B" },
         ],
         correctIdx: 0,
         feedback:
@@ -388,9 +388,9 @@ export const INFILTRATE_PUZZLES = [
         patrol: "The bridge is clear for exactly one move.",
         prompt: "Take the clean finish.",
         options: [
-          { label: "Step to A" },
-          { label: "Cross to B" },
-          { label: "Hold in cover" },
+          { direction: "left", label: "Step left to A" },
+          { direction: "right", label: "Cross right to B" },
+          { direction: "down", label: "Hold in cover" },
         ],
         correctIdx: 1,
         feedback:
@@ -409,9 +409,9 @@ export const INFILTRATE_PUZZLES = [
         patrol: "You're one move ahead; stay that way.",
         prompt: "Exit before the patrol re-centers.",
         options: [
-          { label: "Exit via E" },
-          { label: "Backtrack to A" },
-          { label: "Wait on P" },
+          { direction: "right", label: "Exit right via E" },
+          { direction: "left", label: "Backtrack to A" },
+          { direction: "down", label: "Wait on P" },
         ],
         correctIdx: 0,
         feedback:
@@ -442,9 +442,9 @@ export const INFILTRATE_PUZZLES = [
         patrol: "Scanner moves G → C after your turn.",
         prompt: "Where do you go first?",
         options: [
-          { label: "Advance to C" },
-          { label: "Climb to A" },
-          { label: "Hold at P" },
+          { direction: "right", label: "Advance right to C" },
+          { direction: "up", label: "Climb up to A" },
+          { direction: "left", label: "Hold at P" },
         ],
         correctIdx: 1,
         feedback:
@@ -465,9 +465,9 @@ export const INFILTRATE_PUZZLES = [
         patrol: "Scanner now occupies C and will move C → E after your turn.",
         prompt: "Exploit the patrol shift.",
         options: [
-          { label: "Drop to C" },
-          { label: "Take the token at K" },
-          { label: "Retreat to S" },
+          { direction: "down", label: "Drop down to C" },
+          { direction: "up", label: "Take the token at K" },
+          { direction: "left", label: "Retreat to S" },
         ],
         correctIdx: 1,
         feedback:
@@ -490,9 +490,9 @@ export const INFILTRATE_PUZZLES = [
         patrol: "Scanner moves E → lower stub after your turn.",
         prompt: "Set up the final escape.",
         options: [
-          { label: "Shift to B" },
-          { label: "Drop to C" },
-          { label: "Exit via E" },
+          { direction: "right", label: "Shift right to B" },
+          { direction: "down", label: "Drop down to C" },
+          { direction: "up", label: "Exit via E" },
         ],
         correctIdx: 1,
         feedback:
@@ -515,9 +515,9 @@ export const INFILTRATE_PUZZLES = [
         patrol: "Last move. The scanner cannot recover in time if you leave now.",
         prompt: "Clean extraction?",
         options: [
-          { label: "Exit via E" },
-          { label: "Retreat to S" },
-          { label: "Climb back to A" },
+          { direction: "right", label: "Exit right via E" },
+          { direction: "left", label: "Retreat to S" },
+          { direction: "up", label: "Climb back to A" },
         ],
         correctIdx: 0,
         feedback:
