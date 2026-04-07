@@ -290,8 +290,8 @@ body.hktm-glitch-pulse {
 }
 
 .hktm-splash-pixel-mascot {
-  width: 64px;
-  height: 64px;
+  width: 200px;
+  height: 160px;
   image-rendering: pixelated;
   margin-bottom: 1.25rem;
   position: relative;
@@ -302,10 +302,10 @@ body.hktm-glitch-pulse {
 .hktm-splash-pixel-mascot::before {
   content: "";
   position: absolute;
-  inset: 0;
+  top: 12px;
+  left: 32px;
   width: 8px;
   height: 8px;
-  margin: auto;
   box-shadow:
     4px 0 0 0 #3dff7a,
     12px 0 0 0 #3dff7a,
