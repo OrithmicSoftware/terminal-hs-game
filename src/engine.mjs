@@ -32,6 +32,7 @@ import {
   isM2HandoffContract,
 } from "./client-chat.mjs";
 import { animSleep, resetAnimTurbo, isAnimTurbo } from "./anim-sleep-core.mjs";
+import { CIPHER_PUZZLES, CRACK_PUZZLES, PATCH_PUZZLES, MINI_GAME_ROUNDS } from "./mini-games.mjs";
 
 /** Web build sets `process.env.HKTM_WEB=1` (see web/main.js). */
 function isWebUi() {
@@ -1693,6 +1694,9 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
       `  ${tone("exploit <id>", "cyan")}         run exploit on current node`,
       `  ${tone("info <term>", "cyan")}           glossary: commands + concepts (try: info help)`,
       `  ${tone("sql", "cyan")}                    SQL lab: ${tone("sql demo", "dim")} | ${tone(`sql translate "text"`, "dim")}`,
+      `  ${tone("cipher", "cyan")}               mini game: hex decoding challenge (learn encoding)`,
+      `  ${tone("crack", "cyan")}                mini game: password hash cracking simulation`,
+      `  ${tone("patch", "cyan")}                mini game: vulnerability patching challenge`,
       `  ${tone("stash", "cyan")}                list collected credential artifacts`,
       `  ${tone("ls", "cyan")}                   list files on current node (owned only)`,
       `  ${tone("cat <path>", "cyan")}           read file on current node`,
@@ -1750,6 +1754,390 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
       `mail-read-${m.id}`,
     );
   }
+
+  // ── Mini Games ─────────────────────────────────────────────────────────────
+
+  /**
+   * Shared mini-game runner: present a puzzle, collect a choice, give feedback.
+   * Returns true if the player got the correct answer (possibly after retries).
+   */
+  async function runMiniGamePuzzle(puzzle, puzzleNum, totalPuzzles, sceneName) {
+    const cw = textWrapWidth();
+    const pickHint = isWebUi() ? "Press 1, 2, or 3." : "Type 1, 2, or 3 and press Enter.";
+    const declined = new Set();
+    for (;;) {
+      clearTerminalScreen(sceneName, "form");
+      console.log("");
+      console.log(
+        `${tone(`Puzzle ${puzzleNum}/${totalPuzzles}`, "dim")}  ${tone(puzzle.label, "bold")}`,
+      );
+      console.log("");
+      // Puzzle-type specific display handled by caller via preDisplay hook
+      for (let i = 0; i < puzzle.options.length; i++) {
+        const opt = puzzle.options[i];
+        const dimmed = declined.has(i);
+        const numTone = dimmed ? "dim" : "cyan";
+        const textTone = dimmed ? "dim" : "yellow";
+        console.log(`  ${tone(`[${i + 1}]`, numTone)} ${tone(opt.label, textTone)}`);
+      }
+      console.log("");
+      let idx;
+      for (;;) {
+        const pick = await waitForChoice3(pickHint);
+        idx = Math.min(2, Math.max(0, pick - 1));
+        if (declined.has(idx)) {
+          console.log("");
+          console.log(tone("Already declined. Choose a different option.", "yellow"));
+          console.log("");
+          continue;
+        }
+        break;
+      }
+      if (idx === puzzle.correctIdx) {
+        clearTerminalScreen(`${sceneName}-correct`, "form");
+        console.log("");
+        console.log(`${tone("✔ Correct.", "green")}`);
+        console.log("");
+        for (const l of wrap(puzzle.feedback, cw)) console.log(tone(l, "dim"));
+        console.log("");
+        await waitForEnterContinue(t("press_enter_continue"));
+        return true;
+      }
+      clearTerminalScreen(`${sceneName}-wrong`, "form");
+      console.log("");
+      console.log(`${tone("✘ Not quite.", "yellow")}`);
+      console.log("");
+      const rejectMsg = puzzle.rejectFeedback[idx] ?? "That option is not correct.";
+      for (const l of wrap(rejectMsg, cw)) console.log(tone(l, "dim"));
+      console.log("");
+      await waitForEnterContinue(t("press_enter_continue"));
+      declined.add(idx);
+    }
+  }
+
+  /**
+   * `cipher` mini game: hex-decode intercepted payloads.
+   * Pick the correct plaintext that matches the hex dump.
+   */
+  async function runCipherGame() {
+    const cw = textWrapWidth();
+    const puzzles = CIPHER_PUZZLES.slice(0, MINI_GAME_ROUNDS);
+    let correct = 0;
+
+    for (let i = 0; i < puzzles.length; i++) {
+      const p = puzzles[i];
+      const sceneName = `cipher-puzzle-${i + 1}`;
+      clearTerminalScreen(sceneName, "form");
+      console.log("");
+      console.log(
+        `${tone(`Puzzle ${i + 1}/${puzzles.length}`, "dim")}  ${tone(p.label, "bold")}`,
+      );
+      console.log("");
+      console.log(tone("HEX DUMP", "magenta"));
+
+      // Format hex in groups of 4 bytes (8 hex chars) per column
+      const hexChunks = p.hex.match(/.{1,8}/g) ?? [];
+      let hexLine = "";
+      for (let c = 0; c < hexChunks.length; c++) {
+        hexLine += hexChunks[c].replace(/.{2}/g, (b) => `${b} `).trim();
+        if (c < hexChunks.length - 1) hexLine += "  ";
+      }
+      for (const l of wrap(hexLine, cw)) {
+        console.log(`  ${tone(l, "cyan")}`);
+      }
+      console.log("");
+      console.log(tone("Which text string does this hex encode?", "dim"));
+      console.log("");
+
+      const pickHint = isWebUi() ? "Press 1, 2, or 3." : "Type 1, 2, or 3 and press Enter.";
+      const declined = new Set();
+      let solved = false;
+      for (;;) {
+        for (let j = 0; j < p.options.length; j++) {
+          const dimmed = declined.has(j);
+          const numTone = dimmed ? "dim" : "cyan";
+          const textTone = dimmed ? "dim" : "yellow";
+          console.log(`  ${tone(`[${j + 1}]`, numTone)} ${tone(p.options[j].label, textTone)}`);
+        }
+        console.log("");
+        let idx;
+        for (;;) {
+          const pick = await waitForChoice3(pickHint);
+          idx = Math.min(2, Math.max(0, pick - 1));
+          if (declined.has(idx)) {
+            console.log("");
+            console.log(tone("Already declined. Choose a different option.", "yellow"));
+            console.log("");
+            for (let j = 0; j < p.options.length; j++) {
+              const dimmed = declined.has(j);
+              const numTone = dimmed ? "dim" : "cyan";
+              const textTone = dimmed ? "dim" : "yellow";
+              console.log(`  ${tone(`[${j + 1}]`, numTone)} ${tone(p.options[j].label, textTone)}`);
+            }
+            console.log("");
+            continue;
+          }
+          break;
+        }
+        if (idx === p.correctIdx) {
+          clearTerminalScreen(`${sceneName}-correct`, "form");
+          console.log("");
+          console.log(`${tone("✔ Correct.", "green")}`);
+          console.log("");
+          for (const l of wrap(p.feedback, cw)) console.log(tone(l, "dim"));
+          console.log("");
+          await waitForEnterContinue(t("press_enter_continue"));
+          correct++;
+          solved = true;
+          break;
+        }
+        clearTerminalScreen(`${sceneName}-wrong`, "form");
+        console.log("");
+        console.log(
+          `${tone(`Puzzle ${i + 1}/${puzzles.length}`, "dim")}  ${tone(p.label, "bold")}`,
+        );
+        console.log("");
+        console.log(tone("HEX DUMP", "magenta"));
+        for (const l of wrap(hexLine, cw)) {
+          console.log(`  ${tone(l, "cyan")}`);
+        }
+        console.log("");
+        console.log(tone("Which text string does this hex encode?", "dim"));
+        console.log("");
+        console.log(`${tone("✘ Not quite.", "yellow")}`);
+        console.log("");
+        const rejectMsg = p.rejectFeedback[idx] ?? "That option is not correct.";
+        for (const l of wrap(rejectMsg, cw)) console.log(tone(l, "dim"));
+        console.log("");
+        await waitForEnterContinue(t("press_enter_continue"));
+        declined.add(idx);
+        clearTerminalScreen(`${sceneName}-retry`, "form");
+        console.log("");
+        console.log(
+          `${tone(`Puzzle ${i + 1}/${puzzles.length}`, "dim")}  ${tone(p.label, "bold")}`,
+        );
+        console.log("");
+        console.log(tone("HEX DUMP", "magenta"));
+        for (const l of wrap(hexLine, cw)) {
+          console.log(`  ${tone(l, "cyan")}`);
+        }
+        console.log("");
+        console.log(tone("Which text string does this hex encode?", "dim"));
+        console.log("");
+      }
+      if (!solved) break; // shouldn't happen
+    }
+
+    clearTerminalScreen("cipher-result", "form");
+    console.log("");
+    console.log(
+      `${tone("CIPHER CHALLENGE COMPLETE", "bold")}  ${tone(`${correct}/${puzzles.length} correct`, correct === puzzles.length ? "green" : "yellow")}`,
+    );
+    console.log("");
+    const tip = "Hex encoding maps each byte to two hex digits (0–9, a–f). Real forensics tools like xxd, hexdump, or CyberChef can decode streams like these instantly — understanding the byte-by-byte mapping helps you read packet dumps and understand how data is encoded at rest or in transit.";
+    for (const l of wrap(tip, cw)) console.log(tone(l, "dim"));
+    console.log("");
+    await waitForEnterContinue(t("press_enter_continue"));
+  }
+
+  /**
+   * `crack` mini game: identify a password from a simulated hash.
+   * Pick the candidate password that matches the displayed hash.
+   */
+  async function runCrackGame() {
+    const cw = textWrapWidth();
+    const puzzles = CRACK_PUZZLES.slice(0, MINI_GAME_ROUNDS);
+    let correct = 0;
+
+    for (let i = 0; i < puzzles.length; i++) {
+      const p = puzzles[i];
+      const sceneName = `crack-puzzle-${i + 1}`;
+      const pickHint = isWebUi() ? "Press 1, 2, or 3." : "Type 1, 2, or 3 and press Enter.";
+      const declined = new Set();
+
+      const printPuzzleHead = () => {
+        console.log("");
+        console.log(
+          `${tone(`Puzzle ${i + 1}/${puzzles.length}`, "dim")}  ${tone(p.label, "bold")}`,
+        );
+        console.log("");
+        console.log(tone("CREDENTIAL HASH (simulated bcrypt-style)", "magenta"));
+        console.log(`  ${tone(p.hashPrefix, "dim")}${tone(p.hashSuffix, "cyan")}`);
+        console.log("");
+        console.log(tone("Which of these passwords generated this hash?", "dim"));
+        console.log("");
+      };
+
+      clearTerminalScreen(sceneName, "form");
+      printPuzzleHead();
+
+      for (;;) {
+        for (let j = 0; j < p.candidates.length; j++) {
+          const dimmed = declined.has(j);
+          const numTone = dimmed ? "dim" : "cyan";
+          const textTone = dimmed ? "dim" : "yellow";
+          console.log(`  ${tone(`[${j + 1}]`, numTone)} ${tone(p.candidates[j], textTone)}`);
+        }
+        console.log("");
+        let idx;
+        for (;;) {
+          const pick = await waitForChoice3(pickHint);
+          idx = Math.min(2, Math.max(0, pick - 1));
+          if (declined.has(idx)) {
+            console.log("");
+            console.log(tone("Already declined. Choose a different option.", "yellow"));
+            console.log("");
+            for (let j = 0; j < p.candidates.length; j++) {
+              const dimmed = declined.has(j);
+              const numTone = dimmed ? "dim" : "cyan";
+              const textTone = dimmed ? "dim" : "yellow";
+              console.log(`  ${tone(`[${j + 1}]`, numTone)} ${tone(p.candidates[j], textTone)}`);
+            }
+            console.log("");
+            continue;
+          }
+          break;
+        }
+        if (idx === p.correctIdx) {
+          clearTerminalScreen(`${sceneName}-correct`, "form");
+          console.log("");
+          console.log(`${tone("✔ Correct.", "green")}  Hash matched: ${tone(p.candidates[idx], "yellow")}`);
+          console.log("");
+          for (const l of wrap(p.feedback, cw)) console.log(tone(l, "dim"));
+          console.log("");
+          await waitForEnterContinue(t("press_enter_continue"));
+          correct++;
+          break;
+        }
+        clearTerminalScreen(`${sceneName}-wrong`, "form");
+        printPuzzleHead();
+        console.log(`${tone("✘ Not quite.", "yellow")}  ${tone(p.candidates[idx], "dim")} did not match.`);
+        console.log("");
+        const rejectMsg = p.rejectFeedback[idx] ?? "That candidate did not match the hash.";
+        for (const l of wrap(rejectMsg, cw)) console.log(tone(l, "dim"));
+        console.log("");
+        await waitForEnterContinue(t("press_enter_continue"));
+        declined.add(idx);
+        clearTerminalScreen(`${sceneName}-retry`, "form");
+        printPuzzleHead();
+      }
+    }
+
+    clearTerminalScreen("crack-result", "form");
+    console.log("");
+    console.log(
+      `${tone("HASH CRACK COMPLETE", "bold")}  ${tone(`${correct}/${puzzles.length} correct`, correct === puzzles.length ? "green" : "yellow")}`,
+    );
+    console.log("");
+    const tip = "Password hashing (bcrypt, argon2, scrypt) is designed to be slow and non-reversible — but dictionary attacks hash every candidate in a wordlist and compare. Defenders can add a salt (random per-user prefix) so attackers must crack each hash separately. Takeaway: use a password manager; avoid predictable patterns even in long passwords.";
+    for (const l of wrap(tip, cw)) console.log(tone(l, "dim"));
+    console.log("");
+    await waitForEnterContinue(t("press_enter_continue"));
+  }
+
+  /**
+   * `patch` mini game: pick the correct security fix for a vulnerable code snippet.
+   */
+  async function runPatchGame() {
+    const cw = textWrapWidth();
+    const puzzles = PATCH_PUZZLES.slice(0, MINI_GAME_ROUNDS);
+    let correct = 0;
+
+    for (let i = 0; i < puzzles.length; i++) {
+      const p = puzzles[i];
+      const sceneName = `patch-puzzle-${i + 1}`;
+      const pickHint = isWebUi() ? "Press 1, 2, or 3." : "Type 1, 2, or 3 and press Enter.";
+      const declined = new Set();
+
+      const printPuzzleHead = () => {
+        console.log("");
+        console.log(
+          `${tone(`Puzzle ${i + 1}/${puzzles.length}`, "dim")}  ${tone(p.vuln, "bold")}`,
+        );
+        console.log("");
+        console.log(tone("VULNERABLE CODE", "magenta"));
+        for (const l of p.code) {
+          console.log(`  ${tone(l, "cyan")}`);
+        }
+        console.log("");
+        console.log(tone("Which fix correctly addresses the vulnerability?", "dim"));
+        console.log("");
+      };
+
+      clearTerminalScreen(sceneName, "form");
+      printPuzzleHead();
+
+      for (;;) {
+        for (let j = 0; j < p.options.length; j++) {
+          const dimmed = declined.has(j);
+          const numTone = dimmed ? "dim" : "cyan";
+          const textTone = dimmed ? "dim" : "yellow";
+          const opt = p.options[j];
+          console.log(`  ${tone(`[${j + 1}]`, numTone)} ${tone(opt.label, textTone)}`);
+        }
+        console.log("");
+        let idx;
+        for (;;) {
+          const pick = await waitForChoice3(pickHint);
+          idx = Math.min(2, Math.max(0, pick - 1));
+          if (declined.has(idx)) {
+            console.log("");
+            console.log(tone("Already declined. Choose a different option.", "yellow"));
+            console.log("");
+            for (let j = 0; j < p.options.length; j++) {
+              const dimmed = declined.has(j);
+              const numTone = dimmed ? "dim" : "cyan";
+              const textTone = dimmed ? "dim" : "yellow";
+              console.log(`  ${tone(`[${j + 1}]`, numTone)} ${tone(p.options[j].label, textTone)}`);
+            }
+            console.log("");
+            continue;
+          }
+          break;
+        }
+        if (idx === p.correctIdx) {
+          clearTerminalScreen(`${sceneName}-correct`, "form");
+          console.log("");
+          console.log(`${tone("✔ Correct patch applied.", "green")}`);
+          console.log("");
+          console.log(tone("FIX APPLIED", "green"));
+          for (const l of p.options[idx].fix) {
+            console.log(`  ${tone(l, "dim")}`);
+          }
+          console.log("");
+          for (const l of wrap(p.feedback, cw)) console.log(tone(l, "dim"));
+          console.log("");
+          await waitForEnterContinue(t("press_enter_continue"));
+          correct++;
+          break;
+        }
+        clearTerminalScreen(`${sceneName}-wrong`, "form");
+        printPuzzleHead();
+        console.log(`${tone("✘ Insufficient fix.", "yellow")}`);
+        console.log("");
+        const rejectMsg = p.rejectFeedback[idx] ?? "That fix does not fully address the vulnerability.";
+        for (const l of wrap(rejectMsg, cw)) console.log(tone(l, "dim"));
+        console.log("");
+        await waitForEnterContinue(t("press_enter_continue"));
+        declined.add(idx);
+        clearTerminalScreen(`${sceneName}-retry`, "form");
+        printPuzzleHead();
+      }
+    }
+
+    clearTerminalScreen("patch-result", "form");
+    console.log("");
+    console.log(
+      `${tone("PATCH CHALLENGE COMPLETE", "bold")}  ${tone(`${correct}/${puzzles.length} correct`, correct === puzzles.length ? "green" : "yellow")}`,
+    );
+    console.log("");
+    const tip = "Real-world code review tools (SAST) and dependency scanners can flag many of these patterns automatically — but understanding why the correct fix works is what separates a reviewer from a rubber-stamper. Each of these vulnerability classes (SQLi, XSS, path traversal) appears in OWASP Top 10.";
+    for (const l of wrap(tip, cw)) console.log(tone(l, "dim"));
+    console.log("");
+    await waitForEnterContinue(t("press_enter_continue"));
+  }
+
+  // ── End Mini Games ──────────────────────────────────────────────────────────
 
   /** Simulated mapping: wargame input → ssh / psql strings (education only; no DB runs). */
   function runSqlSimulator(raw) {
@@ -2587,6 +2975,24 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
       case "sql":
         await loading("Resolving SQL bridge (mapping)...", 180);
         risk = runSqlSimulator(arg);
+        break;
+      case "cipher":
+        await loading("Loading hex decoding challenge...", 200, { tickKind: "enum" });
+        await runCipherGame();
+        risk = 0;
+        skipStatusAfter = true;
+        break;
+      case "crack":
+        await loading("Loading hash cracking simulation...", 200, { tickKind: "exploit" });
+        await runCrackGame();
+        risk = 0;
+        skipStatusAfter = true;
+        break;
+      case "patch":
+        await loading("Loading vulnerability patching challenge...", 200, { tickKind: "enum" });
+        await runPatchGame();
+        risk = 0;
+        skipStatusAfter = true;
         break;
       case "stash":
         showStash();
