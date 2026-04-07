@@ -57,9 +57,9 @@ setWaitEnterContinueImpl(async (footerHint = "") => {
   await waitForLine();
 });
 
-const initialSnapshot = null;
+const noInitialSnapshot = null;
 
-const session = createMissionSession(mission, initialSnapshot, {
+const session = createMissionSession(mission, noInitialSnapshot, {
   contactAliasSeed: "direct-cipher",
 });
 

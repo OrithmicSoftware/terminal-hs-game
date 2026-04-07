@@ -38,7 +38,7 @@ test(
       child.stdin?.end("1\n\n2\n\n2\n\n\n");
     });
 
-    assert.equal(result.code, 0, `expected exit 0, got ${result.code}. stderr:\n${result.err}`);
+    assert.equal(result.code, 0, `expected exit 0, got ${result.code}. err:\n${result.err}`);
     assert.match(result.out, /CIPHER MINI-GAME/);
     assert.doesNotMatch(result.out, /Operation Ghost Proxy/);
     assert.match(result.out, /CIPHER CHALLENGE COMPLETE/);
