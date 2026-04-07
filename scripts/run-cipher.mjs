@@ -65,7 +65,7 @@ const session = createMissionSession(mission, noInitialSnapshot, {
 
 async function main() {
   try {
-    clearTerminalScreen("cipher-direct-launch", "form");
+    clearTerminalScreen("standalone-cipher-launcher", "form");
     console.log("");
     console.log(tone("CIPHER MINI-GAME", "bold"));
     console.log(tone("Hex decoding challenge", "magenta"));
