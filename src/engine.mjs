@@ -2118,7 +2118,8 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
             `${tone("✘ Patrol would spot that route.", "yellow")}  ${tone(`${arrowGlyph(direction)} ${step.options[idx].label}`, "dim")}`,
           );
           console.log("");
-          // `rejectFeedback` follows the original option order with the correct move removed.
+          // `rejectFeedback` follows the original option order with the correct move removed:
+          // wrong moves before `correctIdx` keep their index, and wrong moves after it shift left by one.
           const rejectIdx = idx < step.correctIdx ? idx : idx - 1;
           const rejectMsg = step.rejectFeedback[rejectIdx] ?? "That move crosses the patrol lane.";
           for (const line of wrap(rejectMsg, cw)) console.log(tone(line, "dim"));
