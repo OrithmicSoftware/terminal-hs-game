@@ -289,7 +289,7 @@ test("initial gate messages rotate from localized phrase pools", () => {
   const alias = { displayName: "E. Forester" };
   const [line1, line2] = getInitialGateMessages("Nyx", alias);
 
-  assert.match(line1, /You're up, Nyx\..*I'm E\. Forester\./);
+  assert.match(line1, /You're up, Nyx\..+?I'm E\. Forester\./);
   assert.match(line2, /Handler package is staged\./);
   assert.equal(storage.get("hktm_chat_gate_intro_i"), "1");
   assert.equal(storage.get("hktm_chat_gate_instruction_i"), "1");
