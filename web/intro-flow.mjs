@@ -19,6 +19,7 @@ export { REGIONS, DEFAULT_OPERATOR_REGION_ID, DEFAULT_OPERATOR_CODENAME };
 export const LS_PROFILE = "hktm_operator_profile";
 /** Same key as `web/campaign-browser.mjs` — persisted campaign save. */
 const LS_CAMPAIGN = "hktm_campaign_save";
+const VALID_MINIGAME_TYPES = new Set(["cipher", "crack", "patch"]);
 
 /** True when a browser campaign save exists (returning session). */
 export function hasExistingCampaignSave() {
@@ -40,6 +41,17 @@ export function isE2eUrl() {
     return new URLSearchParams(globalThis.location?.search ?? "").get("e2e") === "1";
   } catch {
     return false;
+  }
+}
+
+export function getRequestedMiniGame() {
+  try {
+    const value = new URLSearchParams(globalThis.location?.search ?? "").get("minigame");
+    if (!value) return null;
+    const normalized = String(value).trim().toLowerCase();
+    return VALID_MINIGAME_TYPES.has(normalized) ? normalized : null;
+  } catch {
+    return null;
   }
 }
 
@@ -216,11 +228,25 @@ export function showOperatorDialog() {
 
 export async function runIntroSequence() {
   try {
+    const requestedMiniGame = getRequestedMiniGame();
     if (isE2eUrl()) {
       const existing = loadOperatorProfile();
       if (!existing) {
         saveProfile({ regionId: "PAC-RIM", codename: "E2E-OP", schemaVersion: 1 });
       }
+      return;
+    }
+
+    if (requestedMiniGame) {
+      if (!loadOperatorProfile()) {
+        saveProfile({
+          regionId: DEFAULT_OPERATOR_REGION_ID,
+          codename: DEFAULT_OPERATOR_CODENAME,
+          schemaVersion: 1,
+        });
+      }
+      sessionStorage.setItem("hktm_splash_done", "1");
+      sessionStorage.setItem("hktm_terminal_boot_done", "1");
       return;
     }
 
