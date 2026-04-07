@@ -23,5 +23,5 @@ test("web landing page keeps custom same-page navigation animation with sticky-h
   assert.match(webIndexHtml, /event\.target instanceof Element \? event\.target\.closest\('a\[href\]'\) : null/);
   assert.match(webIndexHtml, /url\.origin !== window\.location\.origin \|\| url\.pathname !== window\.location\.pathname/);
   assert.match(webIndexHtml, /document\.querySelector\('\.hktm-site-header'\)/);
-  assert.match(webIndexHtml, /window\.history\.replaceState\(null, '', url\.hash\)/);
+  assert.match(webIndexHtml, /window\.history\.replaceState\(null, undefined, url\.hash\)/);
 });
