@@ -29,7 +29,7 @@ import {
   runTerminalSoundSelfTest,
 } from "./ui-sounds.mjs";
 import { bootBrowserCampaign } from "./campaign-browser.mjs";
-import { runIntroSequence, clearOperatorProfileCache } from "./intro-flow.mjs";
+import { runIntroSequence, clearOperatorProfileCache, getRequestedMiniGame } from "./intro-flow.mjs";
 import { initGhostChat, clearMissionBriefingCache } from "./ghost-chat.mjs";
 import { dismissIncomingMessageHint } from "./terminal-loading.mjs";
 import { requestAnimTurbo } from "../src/anim-sleep-core.mjs";
@@ -959,9 +959,13 @@ globalThis.__HKTM_RESTORE_STEP_HISTORY = restoreLiveFromStepHistoryIfNeeded;
 
 (async () => {
   initGhostChat();
+  const requestedMiniGame = getRequestedMiniGame();
   await runIntroSequence();
   await bootBrowserCampaign();
   await waitForTerminalShellIdle();
+  if (requestedMiniGame) {
+    await globalThis.__HKTM_RUN_COMMAND?.(requestedMiniGame);
+  }
   showInitialRenderTime();
 })().catch((err) => {
   console.error(err);

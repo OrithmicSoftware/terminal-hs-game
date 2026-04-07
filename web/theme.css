@@ -295,6 +295,114 @@ a {
   text-shadow: 0 0 10px rgba(61, 255, 122, 0.18);
 }
 
+.hktm-minigames-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.hktm-minigame-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(92, 225, 230, 0.16);
+  border-radius: 18px;
+  padding: 1.15rem;
+  background:
+    linear-gradient(180deg, rgba(10, 18, 14, 0.96), rgba(5, 9, 7, 0.98)),
+    radial-gradient(circle at top right, rgba(224, 112, 255, 0.14), transparent 36%);
+  box-shadow:
+    inset 0 0 0 1px rgba(7, 16, 11, 0.82),
+    0 18px 48px rgba(0, 0, 0, 0.28);
+}
+
+.hktm-minigame-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(90deg, rgba(92, 225, 230, 0.05) 0 1px, transparent 1px 18px),
+    repeating-linear-gradient(0deg, rgba(61, 255, 122, 0.04) 0 1px, transparent 1px 18px);
+  pointer-events: none;
+  opacity: 0.45;
+}
+
+.hktm-minigame-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.hktm-minigame-card-top {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.9rem;
+  align-items: start;
+}
+
+.hktm-minigame-logo {
+  min-width: 5.35rem;
+  margin: 0;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid rgba(92, 225, 230, 0.18);
+  background: rgba(4, 10, 7, 0.72);
+  color: var(--green);
+  font-size: 0.8rem;
+  line-height: 1.1;
+  text-align: center;
+  box-shadow: inset 0 0 0 1px rgba(7, 16, 11, 0.82);
+}
+
+.hktm-minigame-logo--crack {
+  color: var(--yellow);
+}
+
+.hktm-minigame-logo--patch {
+  color: var(--magenta);
+}
+
+.hktm-minigame-label {
+  margin: 0;
+  color: var(--cyan);
+  font-size: 0.73rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.hktm-minigame-title {
+  margin: 0.3rem 0 0;
+  color: #f0fff4;
+  font-size: 1.36rem;
+  line-height: 1.04;
+}
+
+.hktm-minigame-slogan,
+.hktm-minigame-copy {
+  margin: 0;
+  color: var(--text);
+}
+
+.hktm-minigame-slogan {
+  margin-top: 0.45rem;
+  color: #d8f5de;
+  font-size: 0.88rem;
+}
+
+.hktm-minigame-copy {
+  margin-top: 1rem;
+  min-height: 5.7rem;
+  font-size: 0.94rem;
+  line-height: 1.65;
+}
+
+.hktm-minigame-actions {
+  margin-top: 1rem;
+}
+
+.hktm-minigame-actions .hktm-btn-primary {
+  width: 100%;
+  justify-content: center;
+  text-decoration: none;
+}
+
 .chrome {
   max-width: 960px;
   margin: 0 auto;
@@ -702,6 +810,10 @@ header {
   .hktm-landing h1 {
     max-width: none;
   }
+
+  .hktm-minigames-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -1095,6 +1207,18 @@ header {
   .hktm-mechanic-card,
   .hktm-roadmap-col {
     border-radius: 12px;
+  }
+
+  .hktm-minigame-card {
+    border-radius: 12px;
+  }
+
+  .hktm-minigame-card-top {
+    grid-template-columns: 1fr;
+  }
+
+  .hktm-minigame-logo {
+    width: fit-content;
   }
 
   .hktm-lore-visual {
