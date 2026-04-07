@@ -89,10 +89,8 @@ function waitForDigitKeypress(max) {
 }
 
 function keypressToDirection(str, key) {
-  if (!key) {
-    return DIRECTION_ALIAS_MAP.get(String(str ?? "").trim().toLowerCase()) ?? null;
-  }
-  return DIRECTION_ALIAS_MAP.get(String(key.name ?? "").toLowerCase()) ?? null;
+  const raw = key?.name ?? str;
+  return DIRECTION_ALIAS_MAP.get(String(raw ?? "").trim().toLowerCase()) ?? null;
 }
 
 /**

@@ -517,7 +517,7 @@ test("mini-games data: INFILTRATE_PUZZLES has valid steps and reject feedback", 
   for (const puzzle of INFILTRATE_PUZZLES) {
     assert.ok(Array.isArray(puzzle.steps) && puzzle.steps.length >= 3, `expected multiple steps for ${puzzle.id}`);
     for (const [idx, step] of puzzle.steps.entries()) {
-      assert.ok(step.options.length >= 2 && step.options.length <= 4, `expected 2-4 options for ${puzzle.id} step ${idx + 1}`);
+      assert.equal(step.options.length, 3, `expected 3 options for ${puzzle.id} step ${idx + 1}`);
       assert.ok(step.correctIdx >= 0 && step.correctIdx < step.options.length, `correctIdx out of range for ${puzzle.id} step ${idx + 1}`);
       assert.equal(step.rejectFeedback.length, step.options.length - 1, `expected reject feedback for each wrong move in ${puzzle.id} step ${idx + 1}`);
       assert.ok(Array.isArray(step.board) && step.board.length >= 1, `expected board lines for ${puzzle.id} step ${idx + 1}`);
