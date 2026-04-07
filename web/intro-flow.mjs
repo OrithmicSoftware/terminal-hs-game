@@ -244,8 +244,6 @@ export async function runIntroSequence() {
           codename: DEFAULT_OPERATOR_CODENAME,
           schemaVersion: 1,
         });
-      } else {
-        loadOperatorProfile();
       }
       sessionStorage.setItem("hktm_splash_done", "1");
       sessionStorage.setItem("hktm_terminal_boot_done", "1");
