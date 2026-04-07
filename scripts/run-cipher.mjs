@@ -16,9 +16,27 @@ const rl = readline.createInterface({
   terminal: process.stdin.isTTY === true,
 });
 
+const pendingLines = [];
+const pendingResolvers = [];
+
+rl.on("line", (line) => {
+  const text = String(line ?? "");
+  const next = pendingResolvers.shift();
+  if (next) {
+    next(text);
+    return;
+  }
+  pendingLines.push(text);
+});
+
 function waitForLine() {
   return new Promise((resolve) => {
-    rl.once("line", (line) => resolve(String(line ?? "")));
+    const queued = pendingLines.shift();
+    if (queued !== undefined) {
+      resolve(queued);
+      return;
+    }
+    pendingResolvers.push(resolve);
   });
 }
 
@@ -43,14 +61,18 @@ const session = createMissionSession(mission, null, {
   contactAliasSeed: "direct-cipher",
 });
 
-try {
-  await session.printBanner();
-  console.log("");
-  console.log(tone("Launching direct cipher challenge…", "dim"));
-  console.log("");
-  await session.execute("cipher");
-} finally {
-  setWaitChoiceImpl(null);
-  setWaitEnterContinueImpl(null);
-  rl.close();
+async function main() {
+  try {
+    await session.printBanner();
+    console.log("");
+    console.log(tone("Launching direct cipher challenge…", "dim"));
+    console.log("");
+    await session.execute("cipher");
+  } finally {
+    setWaitChoiceImpl(null);
+    setWaitEnterContinueImpl(null);
+    rl.close();
+  }
 }
+
+await main();
