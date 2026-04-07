@@ -3,7 +3,7 @@ import path from "node:path";
 import readline from "node:readline";
 import { fileURLToPath } from "node:url";
 import { createMissionSession } from "../src/engine.mjs";
-import { setWaitChoiceImpl, setWaitEnterContinueImpl } from "../src/ui.mjs";
+import { clearTerminalScreen, setWaitChoiceImpl, setWaitEnterContinueImpl } from "../src/ui.mjs";
 import { tone } from "../src/colors.mjs";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -63,9 +63,12 @@ const session = createMissionSession(mission, null, {
 
 async function main() {
   try {
-    await session.printBanner();
+    clearTerminalScreen("cipher-direct-launch", "form");
     console.log("");
-    console.log(tone("Launching direct cipher challenge…", "dim"));
+    console.log(tone("CIPHER MINI-GAME", "bold"));
+    console.log(tone("Hex decoding challenge", "magenta"));
+    console.log("");
+    console.log(tone("Decode each intercepted hex string and pick the matching plaintext.", "dim"));
     console.log("");
     await session.execute("cipher");
   } finally {

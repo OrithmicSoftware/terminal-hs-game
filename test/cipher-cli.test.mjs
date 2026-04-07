@@ -39,7 +39,8 @@ test(
     });
 
     assert.equal(result.code, 0, `expected exit 0, got ${result.code}. stderr:\n${result.err}`);
-    assert.match(result.out, /Launching direct cipher challenge/);
+    assert.match(result.out, /CIPHER MINI-GAME/);
+    assert.doesNotMatch(result.out, /Operation Ghost Proxy/);
     assert.match(result.out, /CIPHER CHALLENGE COMPLETE/);
   },
 );
