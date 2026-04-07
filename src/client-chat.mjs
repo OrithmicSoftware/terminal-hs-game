@@ -199,7 +199,7 @@ export function getInitialGateMessages(codename, alias) {
 
 export function getChatQuickReplies() {
   const replies = [];
-  for (let i = 1; i < MAX_QUICK_REPLY_SLOTS; i += 1) {
+  for (let i = 1; i <= MAX_QUICK_REPLY_SLOTS; i += 1) {
     const labelKey = `chat_reply_${i}_label`;
     const payloadKey = `chat_reply_${i}`;
     const responseKey = `chat_reply_${i}_response`;
