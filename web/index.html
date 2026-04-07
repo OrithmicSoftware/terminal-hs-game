@@ -10,8 +10,167 @@
     <link rel="apple-touch-icon" href="/favicon.svg" />
     <link rel="stylesheet" href="/theme.css" />
     <link rel="stylesheet" href="/ghost-ui.css" />
+    <link rel="stylesheet" href="/crt-display.css" />
+    <!-- Early-apply CRT theme classes from localStorage to avoid flash of wrong palette -->
+    <script>
+      (function () {
+        try {
+          var ls = localStorage, r = document.documentElement.classList;
+          var t = ls.getItem('hktm_crt_theme');
+          if (t === 'amber') r.add('crt-theme-amber');
+          else if (t === 'ibm') r.add('crt-theme-ibm');
+          if (ls.getItem('hktm_crt_scanlines') !== '0') r.add('crt-fx-scanlines');
+          if (ls.getItem('hktm_crt_bloom') !== '0') r.add('crt-fx-bloom');
+          if (ls.getItem('hktm_crt_grain') === '1') r.add('crt-fx-grain');
+          if (ls.getItem('hktm_crt_flicker') === '1') r.add('crt-fx-flicker');
+        } catch (e) { /* ignore */ }
+      })();
+    </script>
+    <style>
+      /* ── Landing-page CRT effect extensions ──────────────────────────── */
+      /* The game's crt-display.css targets #term-wrap which lives on play.html;
+         these rules redirect the same fx-* classes to work on the landing page. */
+
+      /* Scanlines: fixed overlay above all content */
+      html.crt-fx-scanlines body::before {
+        content: "";
+        pointer-events: none;
+        position: fixed;
+        inset: 0;
+        z-index: 9998;
+        background: repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 1px,
+          rgba(0, 0, 0, 0.18) 1px,
+          rgba(0, 0, 0, 0.18) 2px
+        );
+        mix-blend-mode: multiply;
+        opacity: 0.55;
+      }
+
+      /* Noise / grain overlay */
+      html.crt-fx-grain body::after {
+        content: "";
+        pointer-events: none;
+        position: fixed;
+        inset: 0;
+        z-index: 9997;
+        opacity: 0.07;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+        background-size: 180px 180px;
+        mix-blend-mode: overlay;
+      }
+
+      /* Phosphor bloom on pixel art and the hero heading */
+      html.crt-fx-bloom .hktm-pixel-art {
+        text-shadow:
+          0 0 3px color-mix(in srgb, var(--green) 35%, transparent),
+          0 0 8px color-mix(in srgb, var(--green) 12%, transparent);
+      }
+      html.crt-fx-bloom #hktm-landing-title {
+        text-shadow:
+          0 0 18px rgba(61, 255, 122, 0.28),
+          0 0 32px rgba(0, 0, 0, 0.35),
+          0 0 8px color-mix(in srgb, var(--green) 18%, transparent);
+      }
+      html.crt-fx-bloom.crt-theme-amber .hktm-pixel-art {
+        text-shadow:
+          0 0 3px color-mix(in srgb, var(--green) 40%, transparent),
+          0 0 10px color-mix(in srgb, #ffb84a 15%, transparent);
+      }
+      html.crt-fx-bloom.crt-theme-ibm .hktm-pixel-art {
+        text-shadow:
+          0 0 2px color-mix(in srgb, var(--green) 45%, transparent),
+          0 0 6px color-mix(in srgb, #55ff55 12%, transparent);
+      }
+
+      /* Subtle flicker on the whole page */
+      html.crt-fx-flicker body {
+        animation: hktm-crt-flicker 0.12s steps(2) infinite;
+      }
+
+      /* ── Glitch overlay (landing-page equivalent of .hktm-glitch-overlay) ── */
+      #hktm-landing-glitch-overlay {
+        pointer-events: none;
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        opacity: 0;
+        background:
+          linear-gradient(90deg,
+            transparent 0%,
+            rgba(61, 255, 122, 0.12) 30%,
+            rgba(255, 61, 138, 0.10) 60%,
+            transparent 100%),
+          repeating-linear-gradient(0deg,
+            transparent,
+            transparent 2px,
+            rgba(0, 255, 120, 0.06) 2px,
+            rgba(0, 255, 120, 0.06) 3px);
+        mix-blend-mode: screen;
+      }
+
+      html.hktm-glitch-active #hktm-landing-glitch-overlay {
+        animation: hktm-landing-overlay-pulse 0.4s steps(2) 3;
+      }
+
+      @keyframes hktm-landing-overlay-pulse {
+        0%, 100% { opacity: 0; transform: translate(0); }
+        25%  { opacity: 1; transform: translate(-4px, 0); }
+        50%  { opacity: 0; transform: translate(4px, 0); }
+        75%  { opacity: 1; transform: translate(0, -3px); }
+      }
+
+      html.hktm-glitch-active body {
+        animation: hktm-landing-glitch-body 0.4s steps(2) 3 !important;
+      }
+
+      @keyframes hktm-landing-glitch-body {
+        0%, 100% { filter: none; transform: translate(0); }
+        20% { filter: hue-rotate(90deg) contrast(1.5) brightness(1.15); transform: translate(-6px, 2px); }
+        40% { filter: saturate(3) hue-rotate(-30deg); transform: translate(5px, -3px); }
+        60% { filter: hue-rotate(-70deg) brightness(1.25); transform: translate(-4px, 2px); }
+        80% { filter: contrast(1.6) saturate(2.5); transform: translate(6px, -1px); }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html.crt-fx-flicker body { animation: none; }
+        html.crt-fx-scanlines.crt-fx-flicker body::before { animation: none; }
+        html.hktm-glitch-active body { animation: none !important; }
+        html.hktm-glitch-active #hktm-landing-glitch-overlay { animation: none; opacity: 0; }
+      }
+
+      /* Display settings button in the site header */
+      .hktm-disp-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+        padding: 0.3rem 0.55rem;
+        border-radius: 4px;
+        border: 1px solid rgba(31, 51, 40, 0.9);
+        background: transparent;
+        color: var(--dim);
+        cursor: pointer;
+        font-family: inherit;
+        font-size: 0.78rem;
+        letter-spacing: 0.04em;
+        line-height: 1;
+        transition: border-color 0.14s ease, color 0.14s ease, background-color 0.14s ease;
+      }
+      .hktm-disp-btn:hover {
+        border-color: rgba(61, 255, 122, 0.5);
+        color: var(--green);
+        background: rgba(61, 255, 122, 0.07);
+      }
+      .hktm-disp-btn svg { display: block; }
+    </style>
   </head>
   <body>
+    <!-- Glitch visual overlay — activated by html.hktm-glitch-active class -->
+    <div id="hktm-landing-glitch-overlay" aria-hidden="true"></div>
+
     <header class="hktm-site-header" role="banner">
       <div class="hktm-site-header-inner">
         <a class="hktm-site-logo" href="#hktm-s-home" aria-label="Terminal HackSim — top of page">
@@ -21,14 +180,21 @@
         <nav class="hktm-site-nav" aria-label="Page sections">
           <a class="hktm-site-nav-link" href="#hktm-s-home" data-hktm-nav>Home</a>
           <a class="hktm-site-nav-link" href="#hktm-landing-mission-board" data-hktm-nav>Mission board</a>
+          <a class="hktm-site-nav-link" href="#hktm-s-mechanics" data-hktm-nav>Mechanics</a>
+          <a class="hktm-site-nav-link" href="#hktm-s-lore" data-hktm-nav>Lore</a>
+          <a class="hktm-site-nav-link" href="#hktm-s-roadmap" data-hktm-nav>Roadmap</a>
         </nav>
         <div class="hktm-site-header-end">
-          <a class="hktm-btn-primary hktm-site-play-btn" href="./play" target="_blank" rel="noopener">Boot the uplink</a>
+          <a class="hktm-btn-primary hktm-site-play-btn" href="./play" target="_blank" rel="noopener" aria-label="Play Terminal HackSim" style="padding:0.3rem 0.73rem;line-height:1;display:inline-flex;align-items:center;justify-content:center;"><img src="/favicon.svg" width="14" height="14" alt="" aria-hidden="true" style="display:block;" /></a>
+          <button type="button" class="hktm-disp-btn" id="hktm-disp-btn" aria-label="Display settings" title="Display settings">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H9.5a.5.5 0 0 0 0 1H11a.5.5 0 0 1 0 1H5a.5.5 0 0 1 0-1h1.5a.5.5 0 0 0 0-1H2a2 2 0 0 1-2-2V4zm2-1a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H2z"/>
+            </svg>
+          </button>
           <a class="hktm-site-github" href="https://github.com/OrithmicSoftware/terminal-hs-game" target="_blank" rel="noopener" aria-label="View source on GitHub">
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
               <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
             </svg>
-            GitHub
           </a>
         </div>
       </div>
@@ -105,8 +271,8 @@
     <!-- ═══════════════════════════════════════════════════
          MODULE 1 — MECHANICS BREAKDOWN
          ═══════════════════════════════════════════════════ -->
-    <section class="hktm-section hktm-mechanics" aria-labelledby="hktm-mechanics-title">
-      <div class="hktm-section-header">
+    <section id="hktm-s-mechanics" class="hktm-section hktm-mechanics" aria-labelledby="hktm-mechanics-title">
+      <div class="hktm-section-header" data-reveal>
         <p class="hktm-section-kicker">Field manual // operator protocol</p>
         <h2 id="hktm-mechanics-title">Three moves. One window. Zero margin.</h2>
         <p class="hktm-section-lead">
@@ -116,7 +282,7 @@
       </div>
       <div class="hktm-mechanics-grid">
 
-        <div class="hktm-mechanic-card">
+        <div class="hktm-mechanic-card" data-reveal>
           <div class="hktm-mechanic-art" aria-hidden="true">
             <pre class="hktm-pixel-art hktm-pixel-art--cyan">
  ╔═════════════╗
@@ -136,7 +302,7 @@
           </p>
         </div>
 
-        <div class="hktm-mechanic-card">
+        <div class="hktm-mechanic-card" data-reveal>
           <div class="hktm-mechanic-art" aria-hidden="true">
             <pre class="hktm-pixel-art hktm-pixel-art--magenta">
  ┌─────────────────┐
@@ -156,7 +322,7 @@
           </p>
         </div>
 
-        <div class="hktm-mechanic-card">
+        <div class="hktm-mechanic-card" data-reveal>
           <div class="hktm-mechanic-art" aria-hidden="true">
             <pre class="hktm-pixel-art hktm-pixel-art--red">
  ╔════════════════╗
@@ -183,9 +349,9 @@
     <!-- ═══════════════════════════════════════════════════
          MODULE 2 — WORLD / LORE TEASER
          ═══════════════════════════════════════════════════ -->
-    <section class="hktm-section hktm-lore" aria-labelledby="hktm-lore-title">
+    <section id="hktm-s-lore" class="hktm-section hktm-lore" aria-labelledby="hktm-lore-title">
       <div class="hktm-lore-inner">
-        <div class="hktm-lore-copy">
+        <div class="hktm-lore-copy" data-reveal>
           <p class="hktm-section-kicker">Signal intercept // classified excerpt</p>
           <h2 id="hktm-lore-title">The grid doesn't forgive. The handler doesn't wait.</h2>
           <p class="hktm-lore-body">
@@ -204,7 +370,7 @@
             "You already accepted the contract. Stop reading the dossier and start the clock."
           </p>
         </div>
-        <div class="hktm-lore-visual" aria-hidden="true">
+        <div class="hktm-lore-visual" data-reveal aria-hidden="true">
           <pre class="hktm-pixel-art hktm-pixel-art--lore">
     ▓▓▓▓░░░░░░░░▓▓▓▓
   ░░████░░░░░░████░░
@@ -231,8 +397,8 @@
     <!-- ═══════════════════════════════════════════════════
          MODULE 3 — ALPHA CONTENT + ROADMAP TEASER
          ═══════════════════════════════════════════════════ -->
-    <section class="hktm-section hktm-roadmap" aria-labelledby="hktm-roadmap-title">
-      <div class="hktm-section-header">
+    <section id="hktm-s-roadmap" class="hktm-section hktm-roadmap" aria-labelledby="hktm-roadmap-title">
+      <div class="hktm-section-header" data-reveal>
         <p class="hktm-section-kicker">Build log // sprint bravo + beyond</p>
         <h2 id="hktm-roadmap-title">Playable now. More incoming.</h2>
         <p class="hktm-section-lead">
@@ -243,7 +409,7 @@
       </div>
       <div class="hktm-roadmap-grid">
 
-        <div class="hktm-roadmap-col hktm-roadmap-col--done">
+        <div class="hktm-roadmap-col hktm-roadmap-col--done" data-reveal>
           <p class="hktm-roadmap-col-label">
             <span class="hktm-dot hktm-dot--green"></span>Live in alpha
           </p>
@@ -271,7 +437,7 @@
           </ul>
         </div>
 
-        <div class="hktm-roadmap-col hktm-roadmap-col--next">
+        <div class="hktm-roadmap-col hktm-roadmap-col--next" data-reveal>
           <p class="hktm-roadmap-col-label">
             <span class="hktm-dot hktm-dot--amber"></span>Next on the board
           </p>
@@ -295,7 +461,7 @@
           </ul>
         </div>
 
-        <div class="hktm-roadmap-col hktm-roadmap-col--future">
+        <div class="hktm-roadmap-col hktm-roadmap-col--future" data-reveal>
           <p class="hktm-roadmap-col-label">
             <span class="hktm-dot hktm-dot--dim"></span>Signal on the horizon
           </p>
@@ -334,6 +500,174 @@
       </div>
     </footer>
 
+    <!-- ── Display / CRT settings dialog ─────────────────────────────── -->
+    <dialog id="hktm-display-dialog" class="hktm-crt-dialog" aria-labelledby="hktm-display-dialog-title">
+      <div class="hktm-crt-dialog-inner">
+        <h3 id="hktm-display-dialog-title">Display settings</h3>
+        <p class="hktm-crt-hint">
+          Cathode-style presets and overlays — same options as the in-game terminal. Saved in this browser only.
+        </p>
+        <div class="hktm-crt-field">
+          <label for="hktm-disp-theme">Color preset</label>
+          <select id="hktm-disp-theme" autocomplete="off">
+            <option value="green">PIP green (default)</option>
+            <option value="amber">Amber phosphor</option>
+            <option value="ibm">IBM / DOS blue</option>
+          </select>
+        </div>
+        <div class="hktm-crt-checks">
+          <label><input type="checkbox" id="hktm-disp-scanlines" autocomplete="off" /> Horizontal scanlines</label>
+          <label><input type="checkbox" id="hktm-disp-bloom" autocomplete="off" /> Phosphor glow (bloom)</label>
+          <label><input type="checkbox" id="hktm-disp-grain" autocomplete="off" /> Noise / grain</label>
+          <label><input type="checkbox" id="hktm-disp-flicker" autocomplete="off" /> Subtle flicker</label>
+          <label style="display:flex;align-items:center;gap:.4rem;">
+            <input type="checkbox" id="hktm-disp-glitch" autocomplete="off" /> Periodic glitch bursts
+            <button type="button" id="hktm-disp-glitch-test" style="font-size:0.68rem;padding:0.1rem 0.45rem;background:transparent;border:1px solid var(--dim);color:var(--cyan);border-radius:3px;cursor:pointer;font-family:inherit;">Test now</button>
+          </label>
+        </div>
+        <div class="hktm-crt-actions">
+          <button type="button" class="ghost" id="hktm-disp-reset">Reset defaults</button>
+          <button type="button" class="ghost" id="hktm-disp-close">Close</button>
+        </div>
+      </div>
+    </dialog>
+
+    <script>
+      // ── Display prefs + periodic glitch ────────────────────────────────
+      (function () {
+        var LS = 'hktm_crt_';
+        // Matches game defaults: scanlines+bloom ON, grain+flicker OFF
+        var DEFAULT = { theme: 'green', scanlines: true, bloom: true, grain: false, flicker: false, glitch: true };
+
+        function readPrefs() {
+          try {
+            var ls = localStorage;
+            var raw = ls.getItem(LS + 'theme');
+            return {
+              theme: raw === 'amber' || raw === 'ibm' ? raw : 'green',
+              scanlines: ls.getItem(LS + 'scanlines') !== '0',
+              bloom: ls.getItem(LS + 'bloom') !== '0',
+              grain: ls.getItem(LS + 'grain') === '1',
+              flicker: ls.getItem(LS + 'flicker') === '1',
+              glitch: ls.getItem(LS + 'glitch') !== '0',
+            };
+          } catch (e) { return Object.assign({}, DEFAULT); }
+        }
+
+        function writePrefs(p) {
+          try {
+            var ls = localStorage;
+            ls.setItem(LS + 'theme', p.theme);
+            ls.setItem(LS + 'scanlines', p.scanlines ? '1' : '0');
+            ls.setItem(LS + 'bloom', p.bloom ? '1' : '0');
+            ls.setItem(LS + 'grain', p.grain ? '1' : '0');
+            ls.setItem(LS + 'flicker', p.flicker ? '1' : '0');
+            ls.setItem(LS + 'glitch', p.glitch ? '1' : '0');
+          } catch (e) { /* ignore */ }
+        }
+
+        function applyPrefs(p) {
+          var r = document.documentElement.classList;
+          r.remove('crt-theme-amber', 'crt-theme-ibm');
+          if (p.theme === 'amber') r.add('crt-theme-amber');
+          if (p.theme === 'ibm') r.add('crt-theme-ibm');
+          r.toggle('crt-fx-scanlines', Boolean(p.scanlines));
+          r.toggle('crt-fx-bloom', Boolean(p.bloom));
+          r.toggle('crt-fx-grain', Boolean(p.grain));
+          r.toggle('crt-fx-flicker', Boolean(p.flicker));
+        }
+
+        function syncForm(p) {
+          var themeEl = document.getElementById('hktm-disp-theme');
+          if (themeEl) themeEl.value = p.theme;
+          [['hktm-disp-scanlines', p.scanlines], ['hktm-disp-bloom', p.bloom],
+           ['hktm-disp-grain', p.grain], ['hktm-disp-flicker', p.flicker],
+           ['hktm-disp-glitch', p.glitch]].forEach(function (pair) {
+            var el = document.getElementById(pair[0]);
+            if (el) el.checked = pair[1];
+          });
+        }
+
+        var dlg = document.getElementById('hktm-display-dialog');
+        var openBtn = document.getElementById('hktm-disp-btn');
+
+        openBtn && openBtn.addEventListener('click', function () {
+          syncForm(readPrefs());
+          dlg && dlg.showModal();
+        });
+
+        document.getElementById('hktm-disp-close') &&
+          document.getElementById('hktm-disp-close').addEventListener('click', function () {
+            dlg && dlg.close();
+          });
+
+        document.getElementById('hktm-disp-reset') &&
+          document.getElementById('hktm-disp-reset').addEventListener('click', function () {
+            writePrefs(DEFAULT);
+            applyPrefs(DEFAULT);
+            syncForm(DEFAULT);
+          });
+
+        function persistFromForm() {
+          var themeEl = document.getElementById('hktm-disp-theme');
+          var theme = themeEl && (themeEl.value === 'amber' || themeEl.value === 'ibm') ? themeEl.value : 'green';
+          var next = {
+            theme: theme,
+            scanlines: !!(document.getElementById('hktm-disp-scanlines') || {}).checked,
+            bloom: !!(document.getElementById('hktm-disp-bloom') || {}).checked,
+            grain: !!(document.getElementById('hktm-disp-grain') || {}).checked,
+            flicker: !!(document.getElementById('hktm-disp-flicker') || {}).checked,
+            glitch: !!(document.getElementById('hktm-disp-glitch') || {}).checked,
+          };
+          writePrefs(next);
+          applyPrefs(next);
+        }
+
+        ['hktm-disp-theme','hktm-disp-scanlines','hktm-disp-bloom','hktm-disp-grain','hktm-disp-flicker','hktm-disp-glitch'].forEach(function (id) {
+          var el = document.getElementById(id);
+          if (el) el.addEventListener('change', persistFromForm);
+        });
+
+        // Sync checkboxes to match what was applied by early-apply head script
+        syncForm(readPrefs());
+
+        // ── Periodic glitch ────────────────────────────────────────────────
+        function glitchEnabled() {
+          try { return localStorage.getItem(LS + 'glitch') !== '0'; } catch(e) { return true; }
+        }
+
+        function fireGlitch() {
+          if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+          var root = document.documentElement;
+          // Remove first so re-triggering restarts the animation
+          root.classList.remove('hktm-glitch-active');
+          requestAnimationFrame(function () {
+            root.classList.add('hktm-glitch-active');
+            setTimeout(function () { root.classList.remove('hktm-glitch-active'); }, 1200);
+          });
+        }
+
+        // "Test now" button — fires immediately regardless of enabled toggle
+        var testBtn = document.getElementById('hktm-disp-glitch-test');
+        testBtn && testBtn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          fireGlitch();
+        });
+
+        var glitchTimer = null;
+        function scheduleGlitch() {
+          clearTimeout(glitchTimer);
+          if (!glitchEnabled()) return;
+          var delay = 4000 + Math.random() * 6000;
+          glitchTimer = setTimeout(function () { fireGlitch(); scheduleGlitch(); }, delay);
+        }
+        // Fire first glitch after 1.5 s on page load
+        setTimeout(function () {
+          if (glitchEnabled()) { fireGlitch(); scheduleGlitch(); }
+        }, 1500);
+      })();
+    </script>
+
     <script type="module">
       // Highlight the active nav link based on which section is in view
       const links = document.querySelectorAll('[data-hktm-nav]');
@@ -355,6 +689,50 @@
         }, { rootMargin: '-20% 0px -70% 0px' });
         sections.forEach(s => io.observe(s));
       }
+    </script>
+
+    <script>
+      // ── SCROLL REVEAL ────────────────────────────────────────
+      // Assigns stagger indices to sibling [data-reveal] groups,
+      // then triggers .hktm-revealed via IntersectionObserver.
+      (function () {
+        var els = Array.from(document.querySelectorAll('[data-reveal]'));
+
+        if (!('IntersectionObserver' in window)) {
+          els.forEach(function (el) { el.classList.add('hktm-revealed'); });
+          return;
+        }
+
+        // Assign stagger index based on position among siblings
+        els.forEach(function (el) {
+          var siblings = el.parentElement
+            ? Array.from(el.parentElement.querySelectorAll(':scope > [data-reveal]'))
+            : [el];
+          var idx = siblings.indexOf(el);
+          if (idx > 0) el.style.setProperty('--reveal-i', idx);
+        });
+
+        // Double rAF: guarantees the browser paints opacity:0 BEFORE
+        // the observer fires, so the transition is always visible.
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () {
+            var io = new IntersectionObserver(function (entries) {
+              entries.forEach(function (entry) {
+                if (entry.isIntersecting) {
+                  entry.target.classList.add('hktm-revealed');
+                  io.unobserve(entry.target);
+                }
+              });
+            }, {
+              // Trigger when element is at least 80px above the bottom edge
+              rootMargin: '0px 0px -80px 0px',
+              threshold: 0
+            });
+
+            els.forEach(function (el) { io.observe(el); });
+          });
+        });
+      })();
     </script>
   </body>
 </html>
