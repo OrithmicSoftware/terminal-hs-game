@@ -803,7 +803,7 @@
           animateScrollTo(targetY, durationMs);
         }
 
-        window.history.replaceState(null, undefined, url.hash);
+        window.history.replaceState(null, '', url.hash);
       });
 
       if ('IntersectionObserver' in window && sections.length) {
