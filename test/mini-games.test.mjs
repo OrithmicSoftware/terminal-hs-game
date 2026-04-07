@@ -339,7 +339,9 @@ test("infiltrate: wrong then correct answer shows patrol warning then advances",
   const session = createMissionSession(loadM1(), null, { contactAliasSeed: "mini-infiltrate-wrong" });
 
   const firstStep = INFILTRATE_PUZZLES[0].steps[0];
-  const firstWrong = firstStep.options.find((_, idx) => idx !== firstStep.correctIdx).direction;
+  const firstWrongOption = firstStep.options.find((_, idx) => idx !== firstStep.correctIdx);
+  assert.ok(firstWrongOption, "expected at least one wrong move option");
+  const firstWrong = firstWrongOption.direction;
   const remainingCorrect = INFILTRATE_PUZZLES.flatMap((p, puzzleIdx) =>
     p.steps
       .filter((_, stepIdx) => !(puzzleIdx === 0 && stepIdx === 0))
