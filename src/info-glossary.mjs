@@ -19,7 +19,7 @@ export const INFO_GLOSSARY = {
     about:
       "ShadowNet IM: your contract contact (procedural display name per save) reaches you through this channel — browser drawer or terminal pager — not a real messaging service.",
     exploit:
-      "In this game: type chat to open ShadowNet IM (browser: drawer; terminal: inline channel). After boot you get a hint that you have an incoming message — run chat when you are ready; the drawer does not open by itself. Inside the channel you get quick reply options including /brief to request the mission brief. Type /exit to close the channel. Use chat close on web to hide the drawer. info chat shows this glossary entry.",
+      "In this game: type chat to open ShadowNet IM (browser: drawer; terminal: inline channel). After boot you get a hint that you have an incoming message — run chat when you are ready; the drawer does not open by itself. Inside the channel you get quick reply options including “What should I do?” to request the mission brief and “Leave” to exit. You can still type /brief and /exit manually. Use chat close on web to hide the drawer. info chat shows this glossary entry.",
   },
   clear: {
     about:
