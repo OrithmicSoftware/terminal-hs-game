@@ -730,25 +730,87 @@
     </script>
 
     <script type="module">
-      // Highlight the active nav link based on which section is in view
+      // Highlight the active nav link based on which section is in view,
+      // and animate same-page nav jumps with a sticky-header offset.
       const links = document.querySelectorAll('[data-hktm-nav]');
       const sections = [...new Set(
-        [...links].map(l => document.querySelector(new URL(l.href).hash))
+        [...links].map((l) => document.querySelector(new URL(l.href).hash))
                   .filter(Boolean)
       )];
+
+      let scrollAnimationFrame = null;
+
+      function animateScrollTo(targetY, durationMs) {
+        if (scrollAnimationFrame != null) {
+          window.cancelAnimationFrame(scrollAnimationFrame);
+          scrollAnimationFrame = null;
+        }
+
+        const startY = window.scrollY;
+        const deltaY = targetY - startY;
+        const startTs = window.performance.now();
+
+        const tick = (nowTs) => {
+          const t = Math.min(1, (nowTs - startTs) / durationMs);
+          const eased = t < 0.5
+            ? 4 * t * t * t
+            : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+          window.scrollTo(0, startY + deltaY * eased);
+
+          if (t < 1) {
+            scrollAnimationFrame = window.requestAnimationFrame(tick);
+            return;
+          }
+
+          scrollAnimationFrame = null;
+        };
+
+        scrollAnimationFrame = window.requestAnimationFrame(tick);
+      }
+
+      document.addEventListener('click', (event) => {
+        const link = event.target instanceof Element ? event.target.closest('a[href]') : null;
+        if (!(link instanceof HTMLAnchorElement)) return;
+
+        const url = new URL(link.href, window.location.href);
+        if (url.origin !== window.location.origin || url.pathname !== window.location.pathname) return;
+        if (!url.hash || url.hash.length < 2) return;
+
+        const target = document.querySelector(url.hash);
+        if (!(target instanceof HTMLElement)) return;
+
+        event.preventDefault();
+
+        if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          target.scrollIntoView();
+        } else {
+          const header = document.querySelector('.hktm-site-header');
+          const headerHeight = header instanceof HTMLElement ? header.getBoundingClientRect().height : 0;
+          const y = target.getBoundingClientRect().top + window.scrollY - headerHeight - 8;
+          const targetY = Math.max(0, y);
+          const distance = Math.abs(targetY - window.scrollY);
+          const durationMs = Math.max(420, Math.min(900, distance * 0.7));
+
+          animateScrollTo(targetY, durationMs);
+        }
+
+        window.history.replaceState(null, '', url.hash);
+      });
+
       if ('IntersectionObserver' in window && sections.length) {
-        const io = new IntersectionObserver(entries => {
-          entries.forEach(entry => {
+        const io = new IntersectionObserver((entries) => {
+          entries.forEach((entry) => {
             if (entry.isIntersecting) {
               const id = '#' + entry.target.id;
-              links.forEach(l => {
+              links.forEach((l) => {
                 const match = new URL(l.href).hash === id;
                 l.setAttribute('aria-current', match ? 'true' : 'false');
               });
             }
           });
         }, { rootMargin: '-20% 0px -70% 0px' });
-        sections.forEach(s => io.observe(s));
+        sections.forEach((s) => io.observe(s));
       }
     </script>
 
