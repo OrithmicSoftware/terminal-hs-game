@@ -604,29 +604,6 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
     );
   }
 
-  async function showContactChatSession() {
-    const m2Handoff = isM2HandoffContract(mission, missionIndex);
-    const openScene = m2Handoff ? "chat-session-m2-handoff-open" : "chat-session-open";
-    const contractScene = m2Handoff ? "chat-contract-m2-handoff" : "chat-contract";
-    const closeScene = m2Handoff ? "chat-session-m2-handoff-close" : "chat-session-close";
-    const preserveChatOnSuccess = !isWebUi() && state.finished && state.result === "success";
-    if (!isWebUi()) clearTerminalScreen(openScene);
-    const flat = [];
-    for (const line of getContactContractLines(mission, contactAlias, { missionIndex, missionTotal })) {
-      if (line === "") flat.push("");
-      else flat.push(...wrap(line, textWrapWidth()));
-    }
-    await boxPaged(
-      tone(`${contactAlias.tag} — ShadowNet IM`, "bold"),
-      flat,
-      getUiOptions().width,
-      t("pager_help_line"),
-      contractScene,
-      { clearOnExit: !preserveChatOnSuccess },
-    );
-    if (!isWebUi() && !preserveChatOnSuccess) clearTerminalScreen(closeScene);
-    if (isWebUi()) globalThis.__HKTM_GHOST_CHAT_OPEN?.({ forced: false });
-  }
   const state = {
     mission,
     nodeById,
