@@ -242,4 +242,10 @@ export const INFO_GLOSSARY = {
     exploit:
       "In this game: patch presents vulnerable code snippets (SQL injection, XSS, path traversal) and asks you to choose the correct fix from three options. Teaches secure coding patterns from OWASP Top 10. No trace cost.",
   },
+  infiltrate: {
+    about:
+      "Stealth-routing puzzles are about reading a fixed patrol pattern, then moving only when the board state gives you a safe lane. The tension comes from deterministic timing rather than reflexes.",
+    exploit:
+      "In this game: infiltrate runs a Hitman GO-inspired mini-game — small ASCII boards, visible patrol routes, and one correct move per turn. You read the route, steal the objective, and leave before the patrol cycle closes. No trace cost.",
+  },
 };
