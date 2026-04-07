@@ -4,11 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0a0f0c" />
-    <meta name="hktm-git-version" content="341b8b6" />
+    <meta name="hktm-git-version" content="67a50d9" />
     <title>Terminal HackSim — boot the uplink</title>
     <link rel="icon" href="/terminal-hs-game/favicon.svg" type="image/svg+xml" sizes="any" />
     <link rel="apple-touch-icon" href="/terminal-hs-game/favicon.svg" />
-    <script type="module" crossorigin src="/terminal-hs-game/assets/play-wh3fI7Mu.js"></script>
+    <script type="module" crossorigin src="/terminal-hs-game/assets/play-DfqZBdTB.js"></script>
     <link rel="modulepreload" crossorigin href="/terminal-hs-game/assets/crt-display-DZJpta2z.js">
     <link rel="stylesheet" crossorigin href="/terminal-hs-game/assets/crt-display-5JNaaA9J.css">
   </head>
@@ -27,7 +27,7 @@
           decoding="async"
         />
         <div class="hktm-splash-title">TERMINAL HACKSIM</div>
-        <span class="hktm-splash-version" title="Git revision">341b8b6</span>
+        <span class="hktm-splash-version" title="Git revision">67a50d9</span>
       </div>
       <p class="hktm-splash-sub">
         The grids went dark — the truth went behind glass. Pick a sector. Dig for what's real.
@@ -85,7 +85,7 @@
       (function () {
         try {
           var params = new URLSearchParams(location.search);
-          if (params.get("e2e") === "1" || params.get("minigame")) return;
+          if (params.get("e2e") === "1") return;
           if (sessionStorage.getItem("hktm_splash_done")) return;
           document.documentElement.classList.add("hktm-boot-pending");
           var sp = document.getElementById("hktm-splash");
@@ -167,7 +167,7 @@
             decoding="async"
           />
           <span class="title">TERMINAL HACKSIM</span>
-          <span class="hktm-git-version" title="Git revision">341b8b6</span>
+          <span class="hktm-git-version" title="Git revision">67a50d9</span>
           <span class="badge">browser α</span>
         </div>
         <span class="header-actions">
