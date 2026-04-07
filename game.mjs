@@ -19,6 +19,7 @@ import {
   setWaitDirectionImpl,
   logScreenStep,
   logInfoPauseStep,
+  resolveDirectionAlias,
 } from "./src/ui.mjs";
 import { tone, highlightCommandHints } from "./src/colors.mjs";
 import { setLanguage, t } from "./src/i18n.mjs";
@@ -520,9 +521,9 @@ setWaitDirectionImpl((footerHint, allowedDirections = []) => {
         process.exit(1);
         return;
       }
-      const name = String(key?.name ?? "").toLowerCase();
-      if (allowedDirections.includes(name)) {
-        finish(name);
+      const direction = resolveDirectionAlias(key?.name ?? str);
+      if (allowedDirections.includes(direction)) {
+        finish(direction);
       }
     };
     setImmediate(() => {
