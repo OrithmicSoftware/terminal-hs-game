@@ -7,14 +7,14 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const webIndexPath = path.join(__dirname, "..", "web", "index.html");
 const webIndexHtml = fs.readFileSync(webIndexPath, "utf8");
+const playHtmlPath = path.join(__dirname, "..", "web", "play.html");
+const playHtmlSource = fs.readFileSync(playHtmlPath, "utf8");
 const campaignBrowserPath = path.join(__dirname, "..", "web", "campaign-browser.mjs");
 const campaignBrowserSource = fs.readFileSync(campaignBrowserPath, "utf8");
 const introFlowPath = path.join(__dirname, "..", "web", "intro-flow.mjs");
 const introFlowSource = fs.readFileSync(introFlowPath, "utf8");
 const webMainPath = path.join(__dirname, "..", "web", "main.js");
 const webMainSource = fs.readFileSync(webMainPath, "utf8");
-const introFlowPath = path.join(__dirname, "..", "web", "intro-flow.mjs");
-const introFlowSource = fs.readFileSync(introFlowPath, "utf8");
 
 test("web landing page presents game-focused copy and stylized HUD details", () => {
   assert.match(webIndexHtml, /Live operator dossier \/\/ fiction-first terminal run/);
@@ -33,6 +33,13 @@ test("web landing page keeps custom same-page navigation animation with sticky-h
   assert.match(webIndexHtml, /document\.querySelector\('\.hktm-site-header'\)/);
   assert.match(webIndexHtml, /window\.history\.replaceState\(null, '', url\.hash\)/);
 });
+
+test("web landing page glitch script is conflict-free and still drives overlay opacity", () => {
+  assert.doesNotMatch(webIndexHtml, /^(<<<<<<<|=======|>>>>>>>)\s/m);
+  assert.match(webIndexHtml, /function fireGlitch\(\)/);
+  assert.match(webIndexHtml, /ov\.style\.opacity\s*=\s*String\(fr\.oo\);/);
+});
+
 test("web landing page does not expose minigame section or launch links", () => {
   assert.doesNotMatch(webIndexHtml, /id="hktm-s-minigames"/);
   assert.doesNotMatch(webIndexHtml, /href="\.\/play\?minigame=/);
