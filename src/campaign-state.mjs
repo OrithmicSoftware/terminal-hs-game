@@ -26,6 +26,10 @@ export function createInitialCampaignState(missions) {
     seenTerminalBoot: false,
     /** After first ShadowNet IM `/exit`, suppress boot "incoming message" hint on future sessions. */
     shadowNetImIntroCompleted: false,
+    /** Browser: ShadowNet IM transcript (append-only; survives mission advance + reload). */
+    ghostChatMessages: [],
+    /** Last mission id for which `postMissionBriefingToChat` ran (dedupe vs snapshot restore). */
+    ghostChatLastBriefedMissionId: null,
     operatorRegionId: "",
     operatorCodename: "",
     missions: missions.map((m) => ({
@@ -66,6 +70,8 @@ export function ensureCampaignConsistency(state, missions) {
   }
   if (typeof state.seenTerminalBoot !== "boolean") state.seenTerminalBoot = false;
   if (typeof state.shadowNetImIntroCompleted !== "boolean") state.shadowNetImIntroCompleted = false;
+  if (!Array.isArray(state.ghostChatMessages)) state.ghostChatMessages = [];
+  if (typeof state.ghostChatLastBriefedMissionId !== "string") state.ghostChatLastBriefedMissionId = null;
   if (typeof state.operatorRegionId !== "string") state.operatorRegionId = "";
   if (typeof state.operatorCodename !== "string") state.operatorCodename = "";
   return state;

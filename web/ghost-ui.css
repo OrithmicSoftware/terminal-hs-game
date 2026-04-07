@@ -290,8 +290,8 @@ body.hktm-glitch-pulse {
 }
 
 .hktm-splash-pixel-mascot {
-  width: 64px;
-  height: 64px;
+  width: 200px;
+  height: 160px;
   image-rendering: pixelated;
   margin-bottom: 1.25rem;
   position: relative;
@@ -302,10 +302,10 @@ body.hktm-glitch-pulse {
 .hktm-splash-pixel-mascot::before {
   content: "";
   position: absolute;
-  inset: 0;
+  top: 12px;
+  left: 32px;
   width: 8px;
   height: 8px;
-  margin: auto;
   box-shadow:
     4px 0 0 0 #3dff7a,
     12px 0 0 0 #3dff7a,
@@ -408,6 +408,21 @@ body.hktm-glitch-pulse {
   max-width: min(36rem, 92vw);
   text-align: center;
   line-height: 1.5;
+}
+
+.hktm-splash-wip {
+  margin-top: 0.85rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #f5a623;
+  text-shadow: 0 0 8px rgba(245, 166, 35, 0.45);
+  border: 1px solid rgba(245, 166, 35, 0.35);
+  border-radius: 3px;
+  padding: 0.15rem 0.6rem;
+  background: rgba(245, 166, 35, 0.07);
+  text-align: center;
 }
 
 .hktm-splash-bar {
@@ -820,23 +835,17 @@ body.hktm-glitch-pulse {
   display: inline-block;
   min-width: 1.25em;
   letter-spacing: 0.05em;
-  animation: hktm-chat-dots-blink 0.55s step-end infinite;
 }
 
-@keyframes hktm-chat-dots-blink {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.2;
-  }
+.hktm-chat-typing-dot {
+  display: inline-block;
+  transition: opacity 0.18s ease;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hktm-chat-typing-dots {
-    animation: none;
-    opacity: 0.85;
+  .hktm-chat-typing-dot {
+    transition: none;
+    opacity: 0.85 !important;
   }
 }
 

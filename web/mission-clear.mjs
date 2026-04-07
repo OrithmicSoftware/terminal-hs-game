@@ -22,6 +22,9 @@ export function shouldClearMissionWeb(line) {
   const [a] = lower.split(/\s+/);
   /* Match game.mjs: info owns pager + pause steps; no pre-command clear. */
   if (a === "info") return false;
+  if (lower.startsWith("compose mail")) return false;
+  if (lower === "mail") return false;
+  if (a === "sendmail") return false;
   const mission = new Set([
     "help",
     "clear",

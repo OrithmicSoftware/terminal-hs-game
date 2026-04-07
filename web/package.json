@@ -13,7 +13,7 @@
   },
   "homepage": "https://github.com/OrithmicSoftware/terminal-hs-game/tree/main/web",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
     "dev:clear": "node ./scripts/vite-clear-dev.mjs",
     "build": "vite build",
     "preview": "vite preview",

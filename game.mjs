@@ -23,7 +23,7 @@ import { tone, highlightCommandHints } from "./src/colors.mjs";
 import { setLanguage, t } from "./src/i18n.mjs";
 import { createInitialCampaignState, ensureCampaignConsistency } from "./src/campaign-state.mjs";
 import { BOOT_RENDER_CPS } from "./src/boot-constants.mjs";
-import { getInitialGateMessages, getMissionBriefChatMessages } from "./src/client-chat.mjs";
+import { getInitialGateMessages } from "./src/client-chat.mjs";
 import { resolveContactAlias } from "./src/contact-alias.mjs";
 import { runTerminalIntroSequence, runTerminalLoadingSequence } from "./src/terminal-boot-cli.mjs";
 import { animSleep } from "./src/anim-sleep-core.mjs";
@@ -117,8 +117,9 @@ function shouldClearScreen(line) {
   const [a] = lower.split(/\s+/);
   /* `info` logs its own [SCENE … type=log] + pause; skip pre-command clear so HKTM_DEBUG is not noisy. */
   if (a === "info") return false;
-  /* Compose-mail / sendmail phishing wizard clears each step with [SCENE … type=form]. */
+  /* Mail spear-phish wizard clears each step with [SCENE … type=form]; sendmail only appears in SMTP logs. */
   if (lower.startsWith("compose mail")) return false;
+  if (lower === "mail") return false;
   if (a === "sendmail") return false;
   const mission = new Set([
     "help",
@@ -170,8 +171,7 @@ const STATIC_TAB_COMMANDS = [
   "map",
   "mail",
   "mail list",
-  "compose mail",
-  "sendmail",
+  "mail read",
   "next",
   "continue",
   "next mission",
@@ -221,11 +221,15 @@ function missionTabCompletions(mission) {
   return out;
 }
 
-function createTabCompleter(getMission) {
+function createTabCompleter(getMission, getSession) {
   return (line) => {
     const m = getMission();
     const merged = [...STATIC_TAB_COMMANDS, ...missionTabCompletions(m)];
-    const uniq = [...new Set(merged)].sort((a, b) => a.localeCompare(b));
+    let uniq = [...new Set(merged)].sort((a, b) => a.localeCompare(b));
+    const session = getSession?.();
+    if (m?.id === "m1-ghost-proxy" && typeof session?.isTabCommandAllowed === "function") {
+      uniq = uniq.filter((cmd) => session.isTabCommandAllowed(cmd));
+    }
     const prefix = line.trimStart().toLowerCase();
     const hits = uniq.filter((c) => c.toLowerCase().startsWith(prefix));
     return [hits, line];
@@ -360,21 +364,6 @@ function printIncomingMessageHint() {
   console.log("");
 }
 
-function printMissionBriefTerminal(state, mission) {
-  const lines = getMissionBriefChatMessages(mission, {
-    missionIndex: state.currentMissionIndex,
-    missionTotal: campaign.length,
-  });
-  const w = Math.max(40, computeFrameWidth(state.uiMode) - 4);
-  console.log("");
-  for (const line of lines) {
-    for (const row of wrap(line, w)) {
-      console.log(`${tone("[brief]", "cyan")} ${tone(row, "yellow")}`);
-    }
-  }
-  console.log("");
-}
-
 function activateMission(state, missionIndex) {
   const mission = campaign[missionIndex];
   const missionState = state.missions[missionIndex];
@@ -386,6 +375,12 @@ function activateMission(state, missionIndex) {
     missionIndex,
     missionTotal: campaign.length,
     composeMailReadyCheckpoint,
+    shadowNetImIntroCompleted: state.shadowNetImIntroCompleted,
+    skipM1ToolLock:
+      composeMailCheckpoint ||
+      composeMailReadyCheckpoint ||
+      startupCheckpoint === "mission-shell" ||
+      startupCheckpoint === "mission-complete-m1",
     afterInfoRestore: async (runDefaultRestore) => {
       if (!chatGatePending) {
         await runDefaultRestore();
@@ -445,7 +440,7 @@ const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout,
   terminal: true,
-  completer: createTabCompleter(() => mission),
+  completer: createTabCompleter(() => mission, () => session),
 });
 
 /** When true, the main `rl.on("line")` handler yields to the choice listener. */
@@ -695,7 +690,7 @@ async function runTerminalClientChatGate() {
     console.log("");
   }
 
-  const cmdRe = /(\/brief|\/exit|\bcompose mail\b|\binfo phishing\b|\binfo chat\b|\bmail list\b|\bchat\b)/g;
+  const cmdRe = /(\/brief|\/exit|\bmail\b|\binfo phishing\b|\binfo chat\b|\bmail list\b|\bchat\b)/g;
   function chatLine(text) {
     return String(text)
       .split(cmdRe)
@@ -775,12 +770,12 @@ async function runTerminalClientChatGate() {
           eraseReadlineInputLine();
           if (briefShown) {
             await showTypingThenLine(
-              `Brief's in your terminal. Start with compose mail — info phishing if you need the theory. — ${alias.signoff}`,
+              t("chat_gate_exit_after_brief").replace("%s", alias.signoff),
               "chat",
             );
           } else {
             await showTypingThenLine(
-              `Channel on standby. Type chat anytime to reopen. — ${alias.signoff}`,
+              t("chat_gate_exit_standby").replace("%s", alias.signoff),
               "chat",
             );
           }
@@ -799,7 +794,8 @@ async function runTerminalClientChatGate() {
             console.log("\n".repeat(20));
           }
           await runTerminalLoadingSequence({ instant: true });
-          printMissionBriefTerminal(campaignState, mission);
+          logScreenStep("mission-brief");
+          await session.printBanner({ instant: true, scrollbackBrief: true });
           campaignState.shadowNetImIntroCompleted = true;
           saveCampaignState(campaignState);
           try { rl.setPrompt(""); } catch { /* ignore */ }
@@ -831,7 +827,6 @@ async function runTerminalClientChatGate() {
       if (quick) {
         chatLineConsumer = null;
         eraseReadlineInputLine();
-        console.log(`${tone("[YOU]", "magenta")} ${quick.text}`);
         quick.used = true;
         void (async () => {
           if (quick.response) {
@@ -1082,7 +1077,15 @@ rl.on("line", async (line) => {
       clearTerminal("chat-gate-open");
       await runTerminalClientChatGate();
       printOperationFooter(campaignState);
-      if (!rlClosed) rl.prompt();
+      if (!rlClosed) {
+        try {
+          rl.resume();
+        } catch {
+          /* ignore */
+        }
+        rl.setPrompt(tone("> ", "green"));
+        rl.prompt();
+      }
       return;
     }
     if (trimmed.startsWith("info")) {
@@ -1174,7 +1177,7 @@ async function main() {
       /* ignore */
     }
     bootComplete = true;
-    await session.execute("compose mail");
+    await session.execute("mail");
     persistCurrentSnapshot();
     if (session.state.finished) {
       await moveToNextMission();

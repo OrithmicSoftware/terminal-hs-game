@@ -20,6 +20,8 @@ let forced = false;
 let ghostChatSeeded = false;
 /** Avoid posting the same mission brief twice in one page session (refresh resets). */
 let lastBriefedMissionId = null;
+/** True while rebuilding IM from campaign save (skip persist + dedupe hooks). */
+let restoringGhostChat = false;
 
 /** Matches `chat_reply_*` keys in i18n.mjs (survey-style enumerated replies). */
 const CHAT_QUICK_REPLY_COUNT = 3;
@@ -33,7 +35,7 @@ function typingDelayMs() {
   } catch {
     /* ignore */
   }
-  return 520 + Math.random() * 420;
+  return 1500 + Math.random() * 1500;
 }
 
 function contactAliasOrFallback() {
@@ -84,6 +86,25 @@ function scrollLogToEnd() {
 }
 
 /**
+ * @param {"client" | "op" | "amanda" | "corporate" | "ghost"} role
+ * @param {string} text
+ * @param {object} opts
+ */
+function recordGhostChatLine(role, text, opts = {}) {
+  if (restoringGhostChat) return;
+  try {
+    globalThis.__HKTM_APPEND_GHOST_CHAT_ENTRY?.({
+      role,
+      text: String(text ?? ""),
+      forced: Boolean(opts.forced),
+      contactTag: opts.contactTag,
+    });
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
  * Immediate append (operator / sync paths).
  * @param {"client" | "op" | "amanda" | "corporate" | "ghost"} role
  */
@@ -93,6 +114,7 @@ export function appendMessage(role, text, opts = {}) {
   body.textContent = text;
   logEl.appendChild(div);
   scrollLogToEnd();
+  recordGhostChatLine(role, text, opts);
 }
 
 /**
@@ -111,13 +133,41 @@ export async function appendMessageAnimated(role, text, opts = {}) {
   }
 
   const { div, body } = buildMessageShell(role, opts);
-  body.innerHTML = `<span class="hktm-chat-typing"><span class="hktm-chat-typing-label">${escapeHtml(t("chat_typing"))}</span><span class="hktm-chat-typing-dots">...</span></span>`;
+  const typingSpan = document.createElement("span");
+  typingSpan.className = "hktm-chat-typing";
+  const label = document.createElement("span");
+  label.className = "hktm-chat-typing-label";
+  label.textContent = t("chat_typing");
+  typingSpan.appendChild(label);
+  const dotsContainer = document.createElement("span");
+  dotsContainer.className = "hktm-chat-typing-dots";
+  const dots = [];
+  for (let i = 0; i < 3; i++) {
+    const dot = document.createElement("span");
+    dot.className = "hktm-chat-typing-dot";
+    dot.textContent = ".";
+    dotsContainer.appendChild(dot);
+    dots.push(dot);
+  }
+  typingSpan.appendChild(dotsContainer);
+  body.appendChild(typingSpan);
   logEl.appendChild(div);
   scrollLogToEnd();
 
-  await animSleep(typingDelayMs());
+  const blinkInterval = setInterval(() => {
+    for (const dot of dots) {
+      dot.style.opacity = Math.random() > 0.4 ? "1" : "0.15";
+    }
+  }, 280);
+
+  try {
+    await animSleep(typingDelayMs());
+  } finally {
+    clearInterval(blinkInterval);
+  }
   body.textContent = text;
   scrollLogToEnd();
+  recordGhostChatLine(role, text, opts);
 }
 
 function escapeHtml(s) {
@@ -159,6 +209,51 @@ export function openGhostChat(options = {}) {
 
 export function clearMissionBriefingCache() {
   lastBriefedMissionId = null;
+  try {
+    globalThis.__HKTM_CLEAR_GHOST_BRIEF_ID_FOR_RETRY?.();
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Restore ShadowNet IM from campaign save (browser). Call after initGhostChat + campaign load.
+ * @param {{ ghostChatMessages?: unknown[], ghostChatLastBriefedMissionId?: string | null }} campaignState
+ */
+export function hydrateGhostChatFromCampaign(campaignState) {
+  if (!rootEl || !logEl || !campaignState) return;
+  const messages = Array.isArray(campaignState.ghostChatMessages) ? campaignState.ghostChatMessages : [];
+  if (messages.length === 0) {
+    lastBriefedMissionId = null;
+    return;
+  }
+  lastBriefedMissionId =
+    typeof campaignState.ghostChatLastBriefedMissionId === "string"
+      ? campaignState.ghostChatLastBriefedMissionId
+      : null;
+  restoringGhostChat = true;
+  try {
+    logEl.innerHTML = "";
+    ghostChatSeeded = true;
+    for (const m of messages) {
+      if (!m || typeof m !== "object") continue;
+      const role = m.role ?? "client";
+      const text = String(m.text ?? "");
+      appendMessage(role, text, {
+        forced: Boolean(m.forced),
+        contactTag: typeof m.contactTag === "string" ? m.contactTag : undefined,
+      });
+    }
+  } finally {
+    restoringGhostChat = false;
+  }
+}
+
+/** Full reset of drawer transcript (campaign reset). */
+export function resetGhostChatLogForNewCampaign() {
+  lastBriefedMissionId = null;
+  ghostChatSeeded = false;
+  if (logEl) logEl.innerHTML = "";
 }
 
 /**
@@ -170,12 +265,20 @@ export async function postMissionBriefingToChat(mission, ctx) {
   if (!rootEl || !logEl) return;
   if (lastBriefedMissionId === mission.id) return;
   lastBriefedMissionId = mission.id;
+  try {
+    globalThis.__HKTM_SYNC_GHOST_BRIEF_MISSION_ID?.(mission.id);
+  } catch {
+    /* ignore */
+  }
   ghostChatSeeded = true;
   const missionIndex = ctx.missionIndex ?? 0;
   const m2Handoff = isM2HandoffContract(mission, missionIndex);
   const lines = getMissionBriefChatMessages(mission, ctx);
   glitchPulse();
   let i = 0;
+  if (m2Handoff && logEl.childElementCount > 0) {
+    await appendMessageAnimated("client", t("chat_im_thread_continue"), { forced: false });
+  }
   if (m2Handoff) {
     await appendMessageAnimated("client", t("chat_contract_post_m1_congrats"), { forced: true });
     i += 1;
@@ -233,7 +336,6 @@ async function runBriefGateSequence(resolveGate) {
   const closeBtn = rootEl.querySelector("[data-hktm-chat-close]");
   const quickRepliesEl = rootEl.querySelector("#hktm-chat-quick-replies");
 
-  logEl.innerHTML = "";
   ghostChatSeeded = true;
 
   glitchPulse();
@@ -373,7 +475,19 @@ export function initGhostChat() {
       input.value = "";
       input.dispatchEvent(new Event("input", { bubbles: true }));
     }
-    if (text.toLowerCase() === "/brief") {
+    const lower = text.toLowerCase();
+    if (lower === "/exit" || lower === "exit") {
+      markReplyUsed(text);
+      globalThis.__HKTM_ON_SHADOW_NET_IM_EXIT?.();
+      const alias = contactAliasOrFallback();
+      await animSleep(isE2eUrl() ? 0 : 280 + Math.random() * 200);
+      await appendMessageAnimated("client", t("chat_exit_standby").replace("%s", alias.signoff), {
+        forced: false,
+      });
+      closeGhostChat();
+      return;
+    }
+    if (lower === "/brief") {
       markReplyUsed(text);
       const ctx = globalThis.__HKTM_GET_MISSION_BRIEF_CONTEXT?.();
       const delay = isE2eUrl() ? 0 : 280;
