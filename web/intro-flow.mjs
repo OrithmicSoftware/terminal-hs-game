@@ -19,7 +19,7 @@ export { REGIONS, DEFAULT_OPERATOR_REGION_ID, DEFAULT_OPERATOR_CODENAME };
 export const LS_PROFILE = "hktm_operator_profile";
 /** Same key as `web/campaign-browser.mjs` — persisted campaign save. */
 const LS_CAMPAIGN = "hktm_campaign_save";
-const MINI_GAMES = new Set(["cipher", "crack", "patch"]);
+const VALID_MINIGAME_TYPES = new Set(["cipher", "crack", "patch"]);
 
 /** True when a browser campaign save exists (returning session). */
 export function hasExistingCampaignSave() {
@@ -49,7 +49,7 @@ export function getRequestedMiniGame() {
     const value = new URLSearchParams(globalThis.location?.search ?? "").get("minigame");
     if (!value) return null;
     const normalized = String(value).trim().toLowerCase();
-    return MINI_GAMES.has(normalized) ? normalized : null;
+    return VALID_MINIGAME_TYPES.has(normalized) ? normalized : null;
   } catch {
     return null;
   }
