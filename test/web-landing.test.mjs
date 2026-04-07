@@ -8,10 +8,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const webIndexPath = path.join(__dirname, "..", "web", "index.html");
 const webIndexHtml = fs.readFileSync(webIndexPath, "utf8");
 
-test("web landing page exposes end-user facing copy and outbound links", () => {
-  assert.match(webIndexHtml, /Browser story demo — under construction/);
-  assert.match(webIndexHtml, /Slip into a neon terminal thriller built for curious players\./);
-  assert.match(webIndexHtml, /https:\/\/github\.com\/OrithmicSoftware\/terminal-hs-game/);
-  assert.match(webIndexHtml, /https:\/\/github\.com\/sponsors\/OrithmicSoftware/);
-  assert.match(webIndexHtml, /class="hktm-landing-pixel-art"/);
+test("web landing page presents game-focused copy and stylized HUD details", () => {
+  assert.match(webIndexHtml, /Live operator dossier \/\/ fiction-first terminal run/);
+  assert.match(webIndexHtml, /Hack the grid\. Dodge the trace\. Decide how the mission ends\./);
+  assert.match(webIndexHtml, /Boot the uplink/);
+  assert.match(webIndexHtml, /Inspect the mission board/);
+  assert.match(webIndexHtml, /Operator HUD/);
+  assert.match(webIndexHtml, /<span>HP<\/span>\s*<strong>92\/100<\/strong>/);
+  assert.match(webIndexHtml, /class="hktm-landing-pixel-art hktm-landing-pixel-art--wide"/);
 });

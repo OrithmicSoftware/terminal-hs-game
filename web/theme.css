@@ -32,10 +32,16 @@ body {
   line-height: 1.45;
   min-height: 100vh;
   background-color: var(--bg);
-  background-image: var(--wallpaper-overlay), url("/crt-wallpaper.png");
-  background-size: cover, cover;
-  background-position: center, center;
-  background-repeat: no-repeat;
+  background-image:
+    var(--wallpaper-overlay),
+    radial-gradient(circle at 20% 18%, rgba(224, 112, 255, 0.14) 0, rgba(224, 112, 255, 0.02) 18%, transparent 32%),
+    linear-gradient(180deg, rgba(7, 16, 11, 0.08), rgba(7, 16, 11, 0.08)),
+    repeating-linear-gradient(90deg, rgba(92, 225, 230, 0.04) 0 2px, transparent 2px 22px),
+    repeating-linear-gradient(0deg, rgba(61, 255, 122, 0.03) 0 2px, transparent 2px 22px),
+    url("/crt-wallpaper.png");
+  background-size: cover, cover, cover, 22px 22px, 22px 22px, cover;
+  background-position: center, center, center, center, center, center;
+  background-repeat: no-repeat, no-repeat, no-repeat, repeat, repeat, no-repeat;
   background-attachment: fixed;
 }
 
@@ -61,11 +67,32 @@ a {
 
 .hktm-landing-copy,
 .hktm-landing-panel {
+  position: relative;
+  overflow: hidden;
   border: 1px solid #1f3328;
   background: linear-gradient(180deg, rgba(8, 14, 10, 0.94), rgba(6, 10, 8, 0.96));
   box-shadow:
     0 0 0 1px rgba(7, 16, 11, 0.9),
     0 18px 50px rgba(0, 0, 0, 0.35);
+}
+
+.hktm-landing-copy::before,
+.hktm-landing-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(135deg, rgba(92, 225, 230, 0.08), transparent 38%),
+    repeating-linear-gradient(90deg, rgba(92, 225, 230, 0.05) 0 1px, transparent 1px 16px),
+    repeating-linear-gradient(0deg, rgba(61, 255, 122, 0.04) 0 1px, transparent 1px 16px);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.hktm-landing-copy > *,
+.hktm-landing-panel > * {
+  position: relative;
+  z-index: 1;
 }
 
 .hktm-landing-copy {
@@ -155,6 +182,12 @@ a {
   padding: 1.1rem 1.15rem;
 }
 
+.hktm-landing-panel--scene {
+  background:
+    linear-gradient(180deg, rgba(14, 20, 16, 0.95), rgba(6, 10, 8, 0.98)),
+    linear-gradient(90deg, rgba(224, 112, 255, 0.08), transparent 40%);
+}
+
 .hktm-landing-pixel-art {
   margin: 0;
   color: var(--green);
@@ -162,6 +195,53 @@ a {
   line-height: 1.1;
   text-align: center;
   text-shadow: 0 0 10px rgba(61, 255, 122, 0.25);
+}
+
+.hktm-landing-pixel-art--wide {
+  font-size: clamp(0.62rem, 1.15vw, 0.76rem);
+  letter-spacing: 0.02em;
+}
+
+.hktm-landing-scene {
+  position: relative;
+  margin: 0.15rem 0 0;
+  padding: 1rem 0.75rem 0.85rem;
+  min-height: 10.5rem;
+  border: 1px solid rgba(92, 225, 230, 0.16);
+  background:
+    linear-gradient(180deg, rgba(10, 16, 13, 0.7), rgba(3, 7, 5, 0.92)),
+    radial-gradient(circle at 76% 24%, rgba(224, 112, 255, 0.35) 0, rgba(224, 112, 255, 0.06) 16%, transparent 28%);
+  box-shadow:
+    inset 0 0 0 1px rgba(8, 16, 12, 0.85),
+    inset 0 -28px 55px rgba(0, 0, 0, 0.38);
+}
+
+.hktm-landing-scene::before {
+  content: "";
+  position: absolute;
+  top: 1.1rem;
+  right: 2rem;
+  width: 0.72rem;
+  height: 0.72rem;
+  background: var(--magenta);
+  box-shadow:
+    0.72rem 0 0 var(--magenta),
+    1.44rem 0 0 var(--magenta),
+    0 0.72rem 0 var(--magenta),
+    0.72rem 0.72rem 0 var(--yellow),
+    1.44rem 0.72rem 0 var(--magenta),
+    0.72rem 1.44rem 0 var(--magenta);
+  opacity: 0.95;
+}
+
+.hktm-landing-scene::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(90deg, rgba(92, 225, 230, 0.04) 0 2px, transparent 2px 18px),
+    repeating-linear-gradient(0deg, rgba(61, 255, 122, 0.04) 0 2px, transparent 2px 18px);
+  pointer-events: none;
 }
 
 .hktm-landing-panel-copy {
@@ -180,6 +260,39 @@ a {
 
 .hktm-landing-list li + li {
   margin-top: 0.45rem;
+}
+
+.hktm-landing-hud {
+  display: grid;
+  gap: 0.45rem;
+  margin-bottom: 0.9rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid rgba(61, 255, 122, 0.2);
+  background: linear-gradient(180deg, rgba(6, 14, 10, 0.86), rgba(3, 8, 6, 0.96));
+  box-shadow: inset 0 0 0 1px rgba(8, 16, 12, 0.9);
+}
+
+.hktm-landing-hud-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid rgba(92, 225, 230, 0.12);
+  color: var(--text);
+  font-size: 0.88rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.hktm-landing-hud-row:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.hktm-landing-hud-row strong {
+  color: #f0fff4;
+  text-shadow: 0 0 10px rgba(61, 255, 122, 0.18);
 }
 
 .chrome {

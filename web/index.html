@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0a0f0c" />
     <meta name="hktm-git-version" content="%HKTM_GIT_VERSION%" />
-    <title>Terminal HackSim (HKTM) — browser story demo</title>
+    <title>Terminal HackSim — neon operator terminal</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" sizes="any" />
     <link rel="apple-touch-icon" href="/favicon.svg" />
     <link rel="stylesheet" href="/theme.css" />
@@ -157,67 +157,68 @@
 
     <section class="hktm-landing" aria-labelledby="hktm-landing-title">
       <div class="hktm-landing-copy">
-        <p class="hktm-landing-kicker">Browser story demo — under construction</p>
-        <h1 id="hktm-landing-title">Slip into a neon terminal thriller built for curious players.</h1>
+        <p class="hktm-landing-kicker">Live operator dossier // fiction-first terminal run</p>
+        <h1 id="hktm-landing-title">Hack the grid. Dodge the trace. Decide how the mission ends.</h1>
         <p class="hktm-landing-lead">
-          Terminal HackSim drops you into a dark ops channel where handlers, false fronts, and brittle networks
-          unfold one command at a time. It is part interactive fiction, part terminal toybox, and part retro
-          hacking fantasy.
+          Terminal HackSim is a neon command-line thriller about hot briefs, brittle networks, fake inboxes, and
+          the handler in your ear telling you to keep moving. Every mission beat plays out in a glowing browser
+          terminal built to feel like a late-night cyberpunk operation.
         </p>
         <p class="hktm-landing-note">
-          This experience is still <strong>under construction</strong>, so expect active polish, new scenes, and
-          rough edges while the story world comes online.
+          The alpha is already playable: boot into the uplink, read the brief, work the mail op, and watch the
+          trace bar before it watches you.
         </p>
         <div class="hktm-landing-actions">
-          <a class="hktm-btn-primary" href="#hktm-app-shell">Enter the terminal</a>
-          <a
-            class="hktm-btn-ghost"
-            href="https://github.com/OrithmicSoftware/terminal-hs-game"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="View on GitHub (opens in new tab)"
-            >View on GitHub</a
-          >
-          <a
-            class="hktm-btn-ghost hktm-funding-btn"
-            href="https://github.com/sponsors/OrithmicSoftware"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Fund development (opens in new tab)"
-            >Fund development ↗</a
-          >
+          <a class="hktm-btn-primary" href="#hktm-app-shell">Boot the uplink</a>
+          <a class="hktm-btn-ghost" href="#hktm-landing-mission-board">Inspect the mission board</a>
         </div>
         <div class="hktm-landing-story">
-          <p class="hktm-landing-story-label">Story hook</p>
+          <p class="hktm-landing-story-label">Tonight's contract</p>
           <p>
-            A ghost handler has a contract. A corporate grid has a crack in it. Your job is to take the brief, read
-            the room, and decide how deep to go before the trace finds you.
+            Sable has a live brief. Orion has a weak seam in the grid. Your job is to build the lure, crack the
+            mailbox, and stay cool while every reply risks lighting up the trace meter.
           </p>
         </div>
       </div>
       <div class="hktm-landing-side">
-        <div class="hktm-landing-panel">
-          <p class="hktm-landing-panel-label">Pixel ops board</p>
-          <pre class="hktm-landing-pixel-art" aria-hidden="true">
-    ██      ██
-  ██▒▒██  ██▒▒██
-██▒▒▒▒▒▒██▒▒▒▒▒▒██
-██▒▒██▒▒▒▒▒▒██▒▒██
-██▒▒▒▒▒▒██▒▒▒▒▒▒██
-  ██▒▒▒▒▒▒▒▒▒▒██
-    ██▒▒▒▒▒▒██
-      ██  ██
-          </pre>
+        <div class="hktm-landing-panel hktm-landing-panel--scene" id="hktm-landing-mission-board">
+          <p class="hktm-landing-panel-label">Pixel sector view</p>
+          <div class="hktm-landing-scene" aria-hidden="true">
+            <pre class="hktm-landing-pixel-art hktm-landing-pixel-art--wide">
+      ░░        ░░        ░░
+  ░░██░░░░  ░░██░░░░  ░░██░░
+░░██████░░░░██████░░░░██████░░
+  ██  ██████  ██  ██████  ██
+  ██  ██░░██  ██  ██░░██  ██
+████████░░████████░░████████
+██░░░░██░░██░░░░██░░██░░░░██
+████████████████████████████
+            </pre>
+          </div>
           <p class="hktm-landing-panel-copy">
-            Ghost traffic is flickering, the brief is hot, and the browser build is ready for first-contact runs.
+            Rain over the tower blocks, signal bloom over the skyline, one terminal waiting for a clean first move.
           </p>
         </div>
         <div class="hktm-landing-panel hktm-landing-panel--mini">
-          <p class="hktm-landing-panel-label">What is live right now</p>
+          <p class="hktm-landing-panel-label">Operator HUD</p>
+          <div class="hktm-landing-hud" aria-label="Operator HUD">
+            <div class="hktm-landing-hud-row">
+              <span>HP</span>
+              <strong>92/100</strong>
+            </div>
+            <div class="hktm-landing-hud-row">
+              <span>Trace</span>
+              <strong>08/42</strong>
+            </div>
+            <div class="hktm-landing-hud-row">
+              <span>Heat</span>
+              <strong>Low</strong>
+            </div>
+          </div>
           <ul class="hktm-landing-list">
-            <li>Dark terminal UI with splash, chat, and CRT-style effects</li>
-            <li>Story-driven browser campaign intro with mission flow</li>
-            <li>Playable alpha state while new content is still being built</li>
+            <li>CRT-glow terminal UI with splash, chat, and mission brief flow</li>
+            <li>Playable browser op built around mail lures, trace pressure, and handler chatter</li>
+            <li>Stylized alpha presentation shaped around the game world instead of the repository</li>
           </ul>
         </div>
       </div>
