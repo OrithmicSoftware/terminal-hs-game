@@ -29,6 +29,7 @@ import { getInitialGateMessages } from "./src/client-chat.mjs";
 import { resolveContactAlias } from "./src/contact-alias.mjs";
 import { runTerminalIntroSequence, runTerminalLoadingSequence } from "./src/terminal-boot-cli.mjs";
 import { animSleep } from "./src/anim-sleep-core.mjs";
+import { animatePhraseDecode } from "./src/word-decode.mjs";
 import { readLineWithGhostDefault } from "./src/terminal-readline-ghost.mjs";
 import { CHECKPOINT_IDS, formatCheckpointListForCli } from "./src/checkpoints.mjs";
 
@@ -739,8 +740,8 @@ async function runTerminalClientChatGate() {
         console.log(`  ${tone(r.key, "green")}  ${tone(r.label, "cyan")}`);
       }
     }
-    console.log(`  ${tone("/brief", "green")}  ${tone("Mission brief", "yellow")}`);
-    console.log(`  ${tone("/exit", "green")}  ${tone("Close ShadowNet IM", "dim")}`);
+    console.log(`  ${tone("4", "green")}  ${tone("Send me the brief", "yellow")}`);
+    console.log(`  ${tone("5", "green")}  ${tone("Leave", "dim")}`);
     console.log("");
   }
 
@@ -767,25 +768,73 @@ async function runTerminalClientChatGate() {
 
   async function showTypingThenLine(text, color) {
     const prefix = `${tone(`[${tag}]`, "cyan")} `;
-    await showTypingIndicator();
-    const colored = color === "chat" ? chatLine(text) : tone(text, color ?? "yellow");
-    console.log(`${prefix}${colored}`);
+    // Remove typing indicator; animate immediately.
+    if (color === "chat") {
+      const render = (s) => {
+        if (process.stdout.isTTY) {
+          process.stdout.write("\r\x1b[2K" + prefix + chatLine(s));
+        } else {
+          process.stdout.write(prefix + chatLine(s));
+        }
+      };
+      // Split long text into sentences and animate each as its own line.
+      const sentences = String(text).match(/[^.!?]+[.!?]*/g) || [String(text)];
+      for (const sent of sentences) {
+        const s = sent.trim();
+        if (!s) continue;
+        await animatePhraseDecode(s, render, { frameMs: 6, revealPerCharMs: 2 });
+        process.stdout.write("\n");
+        // tiny pause between sentences
+        // eslint-disable-next-line no-await-in-loop
+        await animSleep(40);
+      }
+    } else {
+      const colored = tone(text, color ?? "yellow");
+      console.log(`${prefix}${colored}`);
+    }
   }
 
   async function showTypingThenLines(textRows, color) {
     if (!textRows.length) return;
     const prefix = `${tone(`[${tag}]`, "cyan")} `;
-    await showTypingIndicator();
+    // Remove typing indicator; animate immediately. Split rows into sentences.
     for (const row of textRows) {
-      const colored = color === "chat" ? chatLine(row) : tone(row, color ?? "yellow");
-      console.log(`${prefix}${colored}`);
+      if (color === "chat") {
+        const render = (s) => {
+          if (process.stdout.isTTY) {
+            process.stdout.write("\r\x1b[2K" + prefix + chatLine(s));
+          } else {
+            process.stdout.write(prefix + chatLine(s));
+          }
+        };
+        const sentences = String(row).match(/[^.!?]+[.!?]*/g) || [String(row)];
+        for (const sent of sentences) {
+          const s = sent.trim();
+          if (!s) continue;
+          await animatePhraseDecode(s, render, { frameMs: 6, revealPerCharMs: 2 });
+          process.stdout.write("\n");
+          // eslint-disable-next-line no-await-in-loop
+          await animSleep(40);
+        }
+      } else {
+        const colored = tone(row, color ?? "yellow");
+        console.log(`${prefix}${colored}`);
+      }
     }
   }
 
   async function printBriefInChat() {
     const prefix = `${tone(`[${tag}]`, "cyan")} `;
-    await showTypingIndicator();
-    console.log(`${prefix}${chatLine("Uploading brief…")}`);
+    // animate the "Uploading brief…" chat line (faster decode)
+    const render = (s) => {
+      if (process.stdout.isTTY) {
+        process.stdout.write("\r\x1b[2K" + prefix + chatLine(s));
+      } else {
+        process.stdout.write(prefix + chatLine(s));
+      }
+    };
+    await animatePhraseDecode("Uploading brief…", render, { frameMs: 6, revealPerCharMs: 2 });
+    process.stdout.write("\n");
     await animSleep(400);
     await session.printBanner({ instant: true });
     briefShown = true;
@@ -818,7 +867,7 @@ async function runTerminalClientChatGate() {
       const msg = String(raw ?? "").trim();
       const lower = msg.toLowerCase();
 
-      if (lower === "/exit" || lower === "exit") {
+      if (lower === "/exit" || lower === "exit" || msg === "5") {
         chatLineConsumer = null;
         void (async () => {
           eraseReadlineInputLine();
@@ -859,11 +908,11 @@ async function runTerminalClientChatGate() {
         return;
       }
 
-      if (lower === "/brief") {
+      if (lower === "/brief" || msg === "4") {
         chatLineConsumer = null;
         void (async () => {
           eraseReadlineInputLine();
-          console.log(`${tone("[YOU]", "magenta")} /brief`);
+          console.log(`${tone("[YOU]", "magenta")} ${msg}`);
           await printBriefInChat();
           console.log("");
           await showTypingThenLine(
