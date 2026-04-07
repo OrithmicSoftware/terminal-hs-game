@@ -7,6 +7,7 @@ import {
   getUiOptions,
   notifyBell,
   waitForChoice3,
+  waitForArrowDirection,
   playTestBeep,
   clearTerminalScreen,
   logInfoPauseStep,
@@ -1779,6 +1780,16 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
     console.log("");
   }
 
+  function arrowGlyph(direction) {
+    return direction === "up"
+      ? "↑"
+      : direction === "down"
+        ? "↓"
+        : direction === "left"
+          ? "←"
+          : "→";
+  }
+
   /**
    * Shared choice loop used by all three mini games.
    * Waits for 1-3, rejects already-declined picks with a warning.
@@ -2038,7 +2049,9 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
     const cw = textWrapWidth();
     const puzzles = INFILTRATE_PUZZLES.slice(0, MINI_GAME_ROUNDS);
     let cleanRuns = 0;
-    const pickHint = isWebUi() ? "Press 1, 2, or 3." : "Type 1, 2, or 3 and press Enter.";
+    const pickHint = isWebUi()
+      ? "Use the arrow keys to move."
+      : "Use the arrow keys to move (standalone launcher also accepts up/down/left/right).";
 
     for (let i = 0; i < puzzles.length; i++) {
       const p = puzzles[i];
@@ -2056,8 +2069,7 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
       for (let stepIdx = 0; stepIdx < p.steps.length; stepIdx++) {
         const step = p.steps[stepIdx];
         const sceneName = `${sceneBase}-step-${stepIdx + 1}`;
-        const declined = new Set();
-        const optionLabels = step.options.map((o) => o.label);
+        const availableDirections = step.options.map((o) => o.direction);
 
         const printHead = () => {
           console.log("");
@@ -2074,17 +2086,25 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
           console.log("");
           console.log(tone(step.prompt, "dim"));
           console.log("");
+          console.log(tone("MOVE", "magenta"));
+          for (const option of step.options) {
+            const glyph = arrowGlyph(option.direction);
+            console.log(`  ${tone(glyph, "cyan")} ${tone(option.label, "yellow")}`);
+          }
+          console.log("");
         };
 
         clearTerminalScreen(sceneName, "form");
         printHead();
         for (;;) {
-          printMiniGameOptions(optionLabels, declined);
-          const idx = await awaitMiniGameChoice(optionLabels, declined, pickHint);
+          const direction = await waitForArrowDirection(availableDirections, pickHint);
+          const idx = step.options.findIndex((o) => o.direction === direction);
           if (idx === step.correctIdx) {
             clearTerminalScreen(`${sceneName}-correct`, "form");
             console.log("");
-            console.log(`${tone("✔ Clean move.", "green")}`);
+            console.log(
+              `${tone("✔ Clean move.", "green")}  ${tone(`${arrowGlyph(direction)} ${step.options[idx].label}`, "dim")}`,
+            );
             console.log("");
             for (const line of wrap(step.feedback, cw)) console.log(tone(line, "dim"));
             console.log("");
@@ -2094,13 +2114,14 @@ export function createMissionSession(mission, initialSnapshot = null, sessionOpt
           levelClean = false;
           clearTerminalScreen(`${sceneName}-wrong`, "form");
           printHead();
-          console.log(`${tone("✘ Patrol would spot that route.", "yellow")}`);
+          console.log(
+            `${tone("✘ Patrol would spot that route.", "yellow")}  ${tone(`${arrowGlyph(direction)} ${step.options[idx].label}`, "dim")}`,
+          );
           console.log("");
           const rejectMsg = step.rejectFeedback[idx] ?? "That move crosses the patrol lane.";
           for (const line of wrap(rejectMsg, cw)) console.log(tone(line, "dim"));
           console.log("");
           await waitForEnterContinue(t("press_enter_continue"));
-          declined.add(idx);
           clearTerminalScreen(`${sceneName}-retry`, "form");
           printHead();
         }

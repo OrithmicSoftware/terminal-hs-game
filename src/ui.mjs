@@ -51,9 +51,14 @@ export function setPagerHooks(hooks) {
 
 /** Node `game.mjs` wires readline-based choice; tests / headless fall back to raw keypress. */
 let waitChoiceImpl = null;
+let waitDirectionImpl = null;
 
 export function setWaitChoiceImpl(fn) {
   waitChoiceImpl = typeof fn === "function" ? fn : null;
+}
+
+export function setWaitDirectionImpl(fn) {
+  waitDirectionImpl = typeof fn === "function" ? fn : null;
 }
 
 function waitForDigitKeypress(max) {
@@ -71,6 +76,24 @@ function waitForDigitKeypress(max) {
     };
     process.stdin.on("keypress", onKey);
   });
+}
+
+function keypressToDirection(str, key) {
+  if (!key) {
+    const text = String(str ?? "").trim().toLowerCase();
+    if (text === "up" || text === "w") return "up";
+    if (text === "down" || text === "s") return "down";
+    if (text === "left" || text === "a") return "left";
+    if (text === "right" || text === "d") return "right";
+    return null;
+  }
+  const name = String(key.name ?? "").toLowerCase();
+  if (name === "up" || name === "down" || name === "left" || name === "right") return name;
+  if (name === "w") return "up";
+  if (name === "s") return "down";
+  if (name === "a") return "left";
+  if (name === "d") return "right";
+  return null;
 }
 
 /**
@@ -104,6 +127,50 @@ export async function waitForChoiceN(max, footerHint = "") {
 /** @deprecated Use waitForChoiceN(3, footerHint) instead. */
 export async function waitForChoice3(footerHint = "") {
   return waitForChoiceN(3, footerHint);
+}
+
+/**
+ * Wait for one of the allowed arrow directions.
+ * @param {Array<"up" | "down" | "left" | "right">} allowedDirections
+ * @param {string} [footerHint]
+ * @returns {Promise<"up" | "down" | "left" | "right">}
+ */
+export async function waitForArrowDirection(allowedDirections, footerHint = "") {
+  const allowed = Array.from(new Set((allowedDirections ?? []).filter(Boolean)));
+  if (allowed.length === 0) {
+    throw new Error("waitForArrowDirection requires at least one allowed direction");
+  }
+  if (waitDirectionImpl) {
+    return waitDirectionImpl(footerHint, allowed);
+  }
+  if (footerHint) console.log(tone(footerHint, "dim"));
+  if (!process.stdin.isTTY) return allowed[0];
+  pagerHooks.pause();
+  try {
+    if (process.stdin.isTTY) process.stdin.setRawMode(true);
+    return await new Promise((resolve) => {
+      const onKey = (str, key) => {
+        if (key?.ctrl && key.name === "c") {
+          process.stdin.removeListener("keypress", onKey);
+          process.exit(1);
+        }
+        const direction = keypressToDirection(str, key);
+        if (!direction || !allowed.includes(direction)) return;
+        process.stdin.removeListener("keypress", onKey);
+        resolve(direction);
+      };
+      process.stdin.on("keypress", onKey);
+    });
+  } finally {
+    if (process.stdin.isTTY) {
+      try {
+        process.stdin.setRawMode(false);
+      } catch {
+        /* ignore */
+      }
+    }
+    pagerHooks.resume();
+  }
 }
 
 /**

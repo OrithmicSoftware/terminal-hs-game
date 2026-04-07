@@ -75,21 +75,21 @@ test(
 
       child.stdin?.end(
         "\n" +
-        "1\n\n" +
-        "2\n\n" +
-        "3\n\n" +
+        "right\n\n" +
+        "right\n\n" +
+        "down\n\n" +
         "\n" +
         "\n" +
-        "1\n\n" +
-        "1\n\n" +
-        "2\n\n" +
-        "1\n\n" +
+        "right\n\n" +
+        "down\n\n" +
+        "right\n\n" +
+        "right\n\n" +
         "\n" +
         "\n" +
-        "2\n\n" +
-        "2\n\n" +
-        "2\n\n" +
-        "1\n\n" +
+        "up\n\n" +
+        "up\n\n" +
+        "down\n\n" +
+        "right\n\n" +
         "\n" +
         "\n",
       );
@@ -99,5 +99,6 @@ test(
     assert.match(result.out, /INFILTRATE MINI-GAME/);
     assert.doesNotMatch(result.out, /Operation Ghost Proxy/);
     assert.match(result.out, /INFILTRATION ROUTE COMPLETE/);
+    assert.match(result.out, /MOVE/);
   },
 );

@@ -116,6 +116,11 @@ export function setWaitChoiceImpl(_) {
   /* browser uses waitForChoice3 native implementation */
 }
 
+/** Web build does not use Node `setWaitDirectionImpl`; export exists for parity with `ui.mjs`. */
+export function setWaitDirectionImpl(_) {
+  /* browser uses waitForArrowDirection native implementation */
+}
+
 /**
  * Wait for 1 / 2 / 3 (focus terminal; `#cmd` hidden via pager hooks).
  * @param {string} [footerHint]
@@ -139,6 +144,32 @@ export function waitForChoice3(footerHint = "") {
       }
       pagerHooks.resume();
       resolve(picked);
+    };
+  });
+}
+
+export function waitForArrowDirection(allowedDirections = [], footerHint = "") {
+  if (footerHint) console.log(tone(footerHint, "dim"));
+  pagerHooks.pause();
+  try {
+    globalThis.__HKTM_CHOICE_WAIT_BEGIN?.();
+  } catch {
+    /* ignore */
+  }
+  return new Promise((resolve) => {
+    choiceResolve = (picked) => {
+      const direction = String(picked ?? "").toLowerCase();
+      if (allowedDirections.length > 0 && !allowedDirections.includes(direction)) {
+        return;
+      }
+      choiceResolve = null;
+      try {
+        globalThis.__HKTM_CHOICE_WAIT_END?.();
+      } catch {
+        /* ignore */
+      }
+      pagerHooks.resume();
+      resolve(direction);
     };
   });
 }

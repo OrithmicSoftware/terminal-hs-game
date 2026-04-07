@@ -9,7 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createMissionSession } from "../src/engine.mjs";
-import { setWaitEnterContinueImpl, setWaitChoiceImpl } from "../src/ui.mjs";
+import { setWaitDirectionImpl, setWaitEnterContinueImpl, setWaitChoiceImpl } from "../src/ui.mjs";
 import { CIPHER_PUZZLES, CRACK_PUZZLES, PATCH_PUZZLES, INFILTRATE_PUZZLES } from "../src/mini-games.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -42,6 +42,7 @@ beforeEach(() => {
 afterEach(() => {
   delete process.env.HKTM_E2E;
   delete process.env.NO_ANIM;
+  setWaitDirectionImpl(null);
   setWaitEnterContinueImpl(null);
   setWaitChoiceImpl(null);
 });
@@ -311,9 +312,9 @@ test("patch: does not add trace to game state", async () => {
 test("infiltrate: runs all levels with correct answers and shows INFILTRATION ROUTE COMPLETE", async () => {
   const session = createMissionSession(loadM1(), null, { contactAliasSeed: "mini-infiltrate-correct" });
 
-  const correctChoices = INFILTRATE_PUZZLES.flatMap((p) => p.steps.map((step) => step.correctIdx + 1));
-  let choiceIdx = 0;
-  setWaitChoiceImpl(() => Promise.resolve(correctChoices[choiceIdx++] ?? 1));
+  const correctMoves = INFILTRATE_PUZZLES.flatMap((p) => p.steps.map((step) => step.options[step.correctIdx].direction));
+  let moveIdx = 0;
+  setWaitDirectionImpl(() => Promise.resolve(correctMoves[moveIdx++] ?? "right"));
   setWaitEnterContinueImpl(() => Promise.resolve());
 
   const cap = captureConsoleLog();
@@ -338,15 +339,15 @@ test("infiltrate: wrong then correct answer shows patrol warning then advances",
   const session = createMissionSession(loadM1(), null, { contactAliasSeed: "mini-infiltrate-wrong" });
 
   const firstStep = INFILTRATE_PUZZLES[0].steps[0];
-  const firstWrong = (firstStep.correctIdx + 1) % firstStep.options.length + 1;
+  const firstWrong = firstStep.options.find((_, idx) => idx !== firstStep.correctIdx).direction;
   const remainingCorrect = INFILTRATE_PUZZLES.flatMap((p, puzzleIdx) =>
     p.steps
       .filter((_, stepIdx) => !(puzzleIdx === 0 && stepIdx === 0))
-      .map((step) => step.correctIdx + 1),
+      .map((step) => step.options[step.correctIdx].direction),
   );
-  const choices = [firstWrong, firstStep.correctIdx + 1, ...remainingCorrect];
-  let choiceIdx = 0;
-  setWaitChoiceImpl(() => Promise.resolve(choices[choiceIdx++] ?? 1));
+  const moves = [firstWrong, firstStep.options[firstStep.correctIdx].direction, ...remainingCorrect];
+  let moveIdx = 0;
+  setWaitDirectionImpl(() => Promise.resolve(moves[moveIdx++] ?? "right"));
   setWaitEnterContinueImpl(() => Promise.resolve());
 
   const cap = captureConsoleLog();
@@ -371,9 +372,9 @@ test("infiltrate: does not add trace to game state", async () => {
   const session = createMissionSession(loadM1(), null, { contactAliasSeed: "mini-infiltrate-trace" });
   const initialTrace = session.state.trace;
 
-  const correctChoices = INFILTRATE_PUZZLES.flatMap((p) => p.steps.map((step) => step.correctIdx + 1));
-  let choiceIdx = 0;
-  setWaitChoiceImpl(() => Promise.resolve(correctChoices[choiceIdx++] ?? 1));
+  const correctMoves = INFILTRATE_PUZZLES.flatMap((p) => p.steps.map((step) => step.options[step.correctIdx].direction));
+  let moveIdx = 0;
+  setWaitDirectionImpl(() => Promise.resolve(correctMoves[moveIdx++] ?? "right"));
   setWaitEnterContinueImpl(() => Promise.resolve());
 
   const cap = captureConsoleLog();
@@ -514,10 +515,13 @@ test("mini-games data: INFILTRATE_PUZZLES has valid steps and reject feedback", 
   for (const puzzle of INFILTRATE_PUZZLES) {
     assert.ok(Array.isArray(puzzle.steps) && puzzle.steps.length >= 3, `expected multiple steps for ${puzzle.id}`);
     for (const [idx, step] of puzzle.steps.entries()) {
-      assert.equal(step.options.length, 3, `expected 3 options for ${puzzle.id} step ${idx + 1}`);
-      assert.ok(step.correctIdx >= 0 && step.correctIdx <= 2, `correctIdx out of range for ${puzzle.id} step ${idx + 1}`);
-      assert.ok(step.rejectFeedback.length === 2, `expected 2 rejectFeedback entries for ${puzzle.id} step ${idx + 1}`);
+      assert.ok(step.options.length >= 2 && step.options.length <= 4, `expected 2-4 options for ${puzzle.id} step ${idx + 1}`);
+      assert.ok(step.correctIdx >= 0 && step.correctIdx < step.options.length, `correctIdx out of range for ${puzzle.id} step ${idx + 1}`);
+      assert.equal(step.rejectFeedback.length, step.options.length - 1, `expected reject feedback for each wrong move in ${puzzle.id} step ${idx + 1}`);
       assert.ok(Array.isArray(step.board) && step.board.length >= 1, `expected board lines for ${puzzle.id} step ${idx + 1}`);
+      for (const option of step.options) {
+        assert.ok(["up", "down", "left", "right"].includes(option.direction), `expected arrow direction for ${puzzle.id} step ${idx + 1}`);
+      }
     }
   }
 });

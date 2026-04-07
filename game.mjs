@@ -16,6 +16,7 @@ import {
   waitForEnterContinueRaw,
   setWaitEnterContinueImpl,
   setWaitChoiceImpl,
+  setWaitDirectionImpl,
   logScreenStep,
   logInfoPauseStep,
 } from "./src/ui.mjs";
@@ -469,6 +470,64 @@ setWaitChoiceImpl((footerHint, max = 3) => {
       /* ignore */
     }
     rl.once("line", one);
+  });
+});
+
+setWaitDirectionImpl((footerHint, allowedDirections = []) => {
+  return new Promise((resolve) => {
+    if (!process.stdin.isTTY) {
+      resolve(allowedDirections[0] ?? "right");
+      return;
+    }
+    if (footerHint) console.log(tone(footerHint, "dim"));
+    choicePending = true;
+    try {
+      rl.pause();
+    } catch {
+      /* ignore */
+    }
+    try {
+      process.stdin.setRawMode(true);
+    } catch {
+      choicePending = false;
+      resolve(allowedDirections[0] ?? "right");
+      return;
+    }
+    drainStdinSync();
+    const finish = (direction) => {
+      process.stdin.removeListener("keypress", onKey);
+      try {
+        process.stdin.setRawMode(false);
+      } catch {
+        /* ignore */
+      }
+      choicePending = false;
+      try {
+        rl.pause();
+      } catch {
+        /* ignore */
+      }
+      resolve(direction);
+    };
+    const onKey = (str, key) => {
+      if (key?.ctrl && key.name === "c") {
+        process.stdin.removeListener("keypress", onKey);
+        try {
+          process.stdin.setRawMode(false);
+        } catch {
+          /* ignore */
+        }
+        process.exit(1);
+        return;
+      }
+      const name = String(key?.name ?? "").toLowerCase();
+      if (allowedDirections.includes(name)) {
+        finish(name);
+      }
+    };
+    setImmediate(() => {
+      process.stdin.on("keypress", onKey);
+    });
   });
 });
 
