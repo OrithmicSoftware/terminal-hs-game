@@ -33,6 +33,13 @@ test("web landing page keeps custom same-page navigation animation with sticky-h
   assert.match(webIndexHtml, /document\.querySelector\('\.hktm-site-header'\)/);
   assert.match(webIndexHtml, /window\.history\.replaceState\(null, '', url\.hash\)/);
 });
+
+test("web landing page glitch script is conflict-free and still drives overlay opacity", () => {
+  assert.doesNotMatch(webIndexHtml, /^(<<<<<<<|=======|>>>>>>>)\s/m);
+  assert.match(webIndexHtml, /function fireGlitch\(\)/);
+  assert.match(webIndexHtml, /ov\.style\.opacity\s*=\s*String\(fr\.oo\);/);
+});
+
 test("web landing page does not expose minigame section or launch links", () => {
   assert.doesNotMatch(webIndexHtml, /id="hktm-s-minigames"/);
   assert.doesNotMatch(webIndexHtml, /href="\.\/play\?minigame=/);
