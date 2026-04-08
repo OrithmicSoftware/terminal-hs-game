@@ -32,16 +32,13 @@ jobs:
         id: preview
         run: |
           BRANCH_NAME="${GITHUB_REF_NAME}"
+          # Lowercase, replace non-alphanumeric runs with "-", then trim edge "-".
           BRANCH_SLUG="$(echo "${BRANCH_NAME}" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')"
           if [ -z "${BRANCH_SLUG}" ]; then
-            BRANCH_SLUG="preview"
+            BRANCH_SLUG="preview-${GITHUB_SHA::7}"
           fi
 
-          if [ "${BRANCH_SLUG}" = "staging" ]; then
-            DEPLOY_SUBPATH="staging"
-          else
-            DEPLOY_SUBPATH="staging/${BRANCH_SLUG}"
-          fi
+          DEPLOY_SUBPATH="staging/${BRANCH_SLUG}"
 
           echo "deploy_subpath=${DEPLOY_SUBPATH}" >> "${GITHUB_OUTPUT}"
           echo "base_path=/terminal-hs-game/${DEPLOY_SUBPATH}/" >> "${GITHUB_OUTPUT}"
