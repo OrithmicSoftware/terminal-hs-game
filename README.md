@@ -16,6 +16,8 @@ Safe, educational hacking simulation for terminal gameplay. Published by [Orithm
 | **License** | MIT |
 | **CLI** | Node 18+, `node game.mjs` — **primary** gameplay surface |
 | **Browser** | `npm run web:dev` (Vite shell; same missions, different UX) |
+| **Website — landing** | https://orithmicsoftware.github.io/terminal-hs-game/ |
+| **Website — play** | https://orithmicsoftware.github.io/terminal-hs-game/play.html |
 
 ```text
 ╔════════════════════════════════════════════════════════════╗
