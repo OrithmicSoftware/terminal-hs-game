@@ -15,14 +15,17 @@ export async function animatePhraseDecode(phrase, renderFn, opts = {}) {
   const revealPerCharMs = typeof opts.revealPerCharMs === "number" ? opts.revealPerCharMs : 28;
 
   // Keep whitespace tokens so we can reassemble the phrase exactly.
-  const tokens = String(phrase ?? "").split(/(\s+)/);
+  const sourceTokens = String(phrase ?? "").split(/(\s+)/);
+  const tokens = sourceTokens.map((token) =>
+    /^\s+$/.test(token) || token.length === 0 ? token : Array.from({ length: token.length }, () => "▯").join(""),
+  );
 
   const effectiveFrameMs = (ms) => (isAnimTurbo() ? Math.max(0, Math.floor(ms / 12)) : ms);
 
   const render = (toks) => renderFn(toks.join(""));
 
-  for (let ti = 0; ti < tokens.length; ti++) {
-    const token = tokens[ti];
+  for (let ti = 0; ti < sourceTokens.length; ti++) {
+    const token = sourceTokens[ti];
     // Skip pure whitespace tokens.
     if (/^\s+$/.test(token) || token.length === 0) continue;
 
