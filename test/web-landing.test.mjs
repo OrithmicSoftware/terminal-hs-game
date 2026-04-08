@@ -40,7 +40,11 @@ test("web landing page keeps custom same-page navigation animation with sticky-h
 
 test("web landing page glitch script is conflict-free and still drives overlay opacity", () => {
   assert.doesNotMatch(webIndexHtml, /^(<<<<<<<|=======|>>>>>>>)\s/m);
-  assert.match(webIndexHtml, /function fireGlitch\(\)/);
+  assert.match(webIndexHtml, /function fireGlitch\(glitchType\)/);
+  assert.match(webIndexHtml, /function pickGlitchType\(\)/);
+  assert.match(webIndexHtml, /var GLITCH_TYPES = \['', '--short', '--short', '--partial', '--short', '', '--partial', '--overlay'\];/);
+  assert.match(webIndexHtml, /'--overlay': \{ stepMs: 90, frames:/);
+  assert.match(webIndexHtml, /var pattern = patterns\[type\] \|\| patterns\[''\];/);
   assert.match(webIndexHtml, /ov\.style\.opacity\s*=\s*String\(fr\.oo\);/);
   assert.doesNotMatch(webIndexHtml, /id="hktm-disp-glitch-test"/);
   assert.match(webIndexHtml, /id="hktm-header-glitch-btn"/);
