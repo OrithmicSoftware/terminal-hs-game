@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0a0f0c" />
-    <meta name="hktm-git-version" content="43392a3" />
+    <meta name="hktm-git-version" content="09b4a86" />
     <title>Terminal HackSim — neon operator terminal</title>
     <link rel="icon" href="/terminal-hs-game/favicon.svg" type="image/svg+xml" sizes="any" />
     <link rel="apple-touch-icon" href="/terminal-hs-game/favicon.svg" />
@@ -542,10 +542,7 @@
           <label><input type="checkbox" id="hktm-disp-bloom" autocomplete="off" /> Phosphor glow (bloom)</label>
           <label><input type="checkbox" id="hktm-disp-grain" autocomplete="off" /> Noise / grain</label>
           <label><input type="checkbox" id="hktm-disp-flicker" autocomplete="off" /> Subtle flicker</label>
-          <label style="display:flex;align-items:center;gap:.4rem;">
-            <input type="checkbox" id="hktm-disp-glitch" autocomplete="off" /> Periodic glitch bursts
-            <button type="button" id="hktm-disp-glitch-test" style="font-size:0.68rem;padding:0.1rem 0.45rem;background:transparent;border:1px solid var(--dim);color:var(--cyan);border-radius:3px;cursor:pointer;font-family:inherit;">Test now</button>
-          </label>
+          <label><input type="checkbox" id="hktm-disp-glitch" autocomplete="off" /> Periodic glitch bursts</label>
         </div>
         <div class="hktm-crt-actions">
           <button type="button" class="ghost" id="hktm-disp-reset">Reset defaults</button>
@@ -688,13 +685,6 @@
             }, i * 110);
           });
         }
-
-        // "Test now" button in dialog
-        var testBtn = document.getElementById('hktm-disp-glitch-test');
-        testBtn && testBtn.addEventListener('click', function (e) {
-          e.stopPropagation();
-          fireGlitch();
-        });
 
         // Glitch button in header
         var headerGlitchBtn = document.getElementById('hktm-header-glitch-btn');
