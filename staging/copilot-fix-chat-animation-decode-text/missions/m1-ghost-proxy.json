@@ -1,0 +1,189 @@
+{
+  "id": "m1-ghost-proxy",
+  "title": "Operation Ghost Proxy",
+  "brief": "Draft and deliver a spear-phishing lure targeting an Orion Logistics employee. Harvest their corporate email password.",
+  "story": {
+    "handler": { "name": "Sable" },
+    "time": "02:13",
+    "region": "Orion Logistics / staging segment",
+    "debrief": {
+      "success": "Password harvested. That credential opens the staging segment for the next contract. Stay off-grid until the lure page expires.",
+      "fail": "You burned the session. Orion's SOC will flag the domain and warn their users. If you retry, pick your lure more carefully."
+    }
+  },
+  "emails": [
+    {
+      "id": "PHISH-ORI-01",
+      "from": "handler-comms@orithmic.private",
+      "subject": "Lure sent — Orion training portal (read once)",
+      "body": "Operator—\n\nSpear-phishing lure is delivered to the target mailbox. They should see a plausible \"session refresh\" page on a typo-domain we control.\n\nWhat is phishing? In short: fake messages or sites that impersonate a trusted party so the victim types a password into the attacker's form. We are not breaking cryptography here — we are catching what they submit.\n\nWhen the harvest hits, use that material as staging trust on your local SSH surface before the gateway hop will authenticate you.\n\n— Sable"
+    },
+    {
+      "id": "OPS-GR-001",
+      "from": "operations@orithmic.private",
+      "subject": "Operator brief — Ghost Proxy (slot confirmed)",
+      "body": "Operator—\n\nYou are cleared for staging segment access only.\n\nRules of engagement:\n- No destructive payloads on production billing paths.\n- If Orion SOC escalates, acknowledge spoof/laylow before retrying noisy steps.\n- Submit evidence through the encrypted handler channel only.\n\nIf this message reaches the wrong mailbox, burn the session and report.\n\n— Sable, Handler"
+    },
+    {
+      "id": "LEG-ALR-992",
+      "from": "legal-alerts@helix.trust",
+      "subject": "Automated retention notice",
+      "body": "This channel is monitored. By continuing you accept cross-border arbitration under Helix Standard Terms R-12. Logs may be retained seven years for disputes. Nothing in this notice waives operator indemnities."
+    },
+    {
+      "id": "INT-ORI-14",
+      "from": "intel-feed@orion.internal",
+      "subject": "Staging topology (last verified — unofficial)",
+      "body": "Unofficial routing: local → gw-edge → app-api → db-core.\n\nEdge requires staged trust before connect. Do not rely on this map for warranty claims; graph is authoritative in-game."
+    }
+  ],
+  "connectGates": [
+    {
+      "from": "local",
+      "to": "gw-edge",
+      "afterExploit": { "node": "local", "exploitId": "weak-ssh" }
+    },
+    {
+      "from": "gw-edge",
+      "to": "app-api",
+      "afterExploit": { "node": "gw-edge", "exploitId": "weak-ssh" }
+    }
+  ],
+  "tutorial": {
+    "steps": []
+  },
+  "startNode": "local",
+  "security": {
+    "maxTrace": 42
+  },
+  "objective": {
+    "summary": "Harvest the target's corporate email password via spear-phishing lure.",
+    "type": "phishing",
+    "requiredNode": "local",
+    "exfilFiles": []
+  },
+  "edges": [
+    ["local", "gw-edge"],
+    ["gw-edge", "app-api"],
+    ["app-api", "db-core"]
+  ],
+  "nodes": [
+    {
+      "id": "local",
+      "services": [
+        {
+          "name": "ssh",
+          "protocol": "tcp",
+          "port": 22,
+          "exploitId": "weak-ssh",
+          "noise": 2,
+          "stagingOnly": true,
+          "vulnRef": "Staging SSH client — establish operator trust material before the edge gateway accepts your session (not a second compromise of local)"
+        }
+      ],
+      "noise": {
+        "enum": 0
+      },
+      "files": []
+    },
+    {
+      "id": "gw-edge",
+      "services": [
+        {
+          "name": "ssh",
+          "protocol": "tcp",
+          "port": 22,
+          "exploitId": "weak-ssh",
+          "noise": 4,
+          "vulnRef": "CVE-2024-6387 (OpenSSH regreSSHion) — unauthenticated RCE class on affected versions"
+        }
+      ],
+      "noise": {
+        "enum": 2
+      },
+      "files": [
+        {
+          "path": "/var/log/auth.log",
+          "content": "Failed key attempts from app-api. Maintenance account still enabled."
+        },
+        {
+          "path": "/home/ops/maintenance-note.txt",
+          "content": "Reminder: rotate the app maintenance artifact after the quarter close.",
+          "artifact": {
+            "id": "artifact-app-maint",
+            "description": "A maintenance credential artifact that can unlock alternate access paths to app-api in this game."
+          }
+        },
+        {
+          "path": "/etc/routes.txt",
+          "content": "upstream: app-api"
+        }
+      ]
+    },
+    {
+      "id": "app-api",
+      "services": [
+        {
+          "name": "http",
+          "protocol": "tcp",
+          "port": 8080,
+          "exploitId": "template-rce",
+          "noise": 5,
+          "vulnRef": "SSTI / OGNL-style template injection (cf. CVE-2022-26134 class — server-side template RCE)"
+        },
+        {
+          "name": "ssh",
+          "protocol": "tcp",
+          "port": 22,
+          "exploitId": "artifact-ssh",
+          "noise": 2,
+          "requiresArtifacts": ["artifact-app-maint"],
+          "vulnRef": "SSH auth surface — alternate path when maintenance key artifact is available (no CVE; access gating)"
+        }
+      ],
+      "noise": {
+        "enum": 3
+      },
+      "files": [
+        {
+          "path": "/opt/app/.env",
+          "content": "DB_HOST=db-core\nDB_USER=svc_report\nDB_PASS=rotating-token"
+        },
+        {
+          "path": "/opt/app/logs/error.log",
+          "content": "stacktrace: query endpoint retries against db-core failed at 00:16"
+        },
+        {
+          "path": "/opt/intel/sql-bridge-note.txt",
+          "content": "INTERNAL — ticket search API builds SQL with string concat (title = '\" + user + \"'). Red-team note: try sql demo / sql translate in the wargame to see how your input maps to psql. Fix = prepared statements + least privilege DB role."
+        }
+      ]
+    },
+    {
+      "id": "db-core",
+      "services": [
+        {
+          "name": "postgres",
+          "protocol": "tcp",
+          "port": 5432,
+          "exploitId": "misconfig-copy",
+          "noise": 6,
+          "vulnRef": "CVE-2019-9193 (PostgreSQL COPY FROM PROGRAM) — dangerous COPY / superuser misconfig class"
+        }
+      ],
+      "noise": {
+        "enum": 4
+      },
+      "files": [
+        {
+          "path": "/data/client_billing.csv",
+          "content": "client_id,invoice_usd,flag\nOR-102,87500,manual_adjustment\nOR-225,119000,manual_adjustment"
+        },
+        {
+          "path": "/data/audit_notes.txt",
+          "content": "Do not expose manual adjustments before quarter close."
+        }
+      ]
+    }
+  ]
+}
