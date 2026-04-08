@@ -655,25 +655,51 @@
           try { return localStorage.getItem(LS + 'glitch') !== '0'; } catch(e) { return true; }
         }
 
-        // Glitch types: '' = full, '--short' = fast twitch, '--partial' = body-only
-        // Weighted list: short fires most often, full and partial are less common
-        var GLITCH_TYPES = ['', '--short', '--short', '--partial', '--short', '', '--partial'];
-        var GLITCH_DURATIONS = { '': 950, '--short': 220, '--partial': 600 };
+        // Glitch types: '' = full, '--short' = fast twitch, '--partial' = body-only, '--overlay' = overlay pulse only
+        // Weighted list: short fires most often, full and partial are less common, overlay is rare
+        var GLITCH_TYPES = ['', '--short', '--short', '--partial', '--short', '', '--partial', '--overlay'];
 
-        function fireGlitch() {
+        function pickGlitchType() {
+          return GLITCH_TYPES[Math.floor(Math.random() * GLITCH_TYPES.length)] || '';
+        }
+
+        function fireGlitch(glitchType) {
           if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
           var body = document.body;
           var ov = document.getElementById('hktm-landing-glitch-overlay');
+          var type = (typeof glitchType === 'string') ? glitchType : pickGlitchType();
           // JS-driven frames: reliable in Chrome/Safari/Firefox regardless of scroll-root quirks
-          var frames = [
-            { f: 'hue-rotate(90deg) contrast(2.2) brightness(1.4)', x: -9, y:  3, oo: 0.9,  ox: -10, oy:  0 },
-            { f: 'saturate(4.5) hue-rotate(-55deg)',                 x:  8, y: -5, oo: 0,    ox:   8, oy:  0 },
-            { f: 'hue-rotate(-100deg) brightness(1.6)',              x: -6, y:  3, oo: 0.85, ox:  -7, oy:  4 },
-            { f: 'contrast(2.8) saturate(3.5)',                      x:  7, y: -3, oo: 0,    ox:   5, oy: -3 },
-            { f: 'hue-rotate(130deg) brightness(0.75)',              x: -4, y:  4, oo: 0.75, ox:  -5, oy:  2 },
-            { f: 'saturate(2.5) hue-rotate(50deg)',                  x:  5, y: -2, oo: 0.2,  ox:   3, oy:  0 },
-            { f: '',                                                  x:  0, y:  0, oo: 0,    ox:   0, oy:  0 },
-          ];
+          var patterns = {
+            '': { stepMs: 110, frames: [
+              { f: 'hue-rotate(90deg) contrast(2.2) brightness(1.4)', x: -9, y:  3, oo: 0.9,  ox: -10, oy:  0 },
+              { f: 'saturate(4.5) hue-rotate(-55deg)',                 x:  8, y: -5, oo: 0,    ox:   8, oy:  0 },
+              { f: 'hue-rotate(-100deg) brightness(1.6)',              x: -6, y:  3, oo: 0.85, ox:  -7, oy:  4 },
+              { f: 'contrast(2.8) saturate(3.5)',                      x:  7, y: -3, oo: 0,    ox:   5, oy: -3 },
+              { f: 'hue-rotate(130deg) brightness(0.75)',              x: -4, y:  4, oo: 0.75, ox:  -5, oy:  2 },
+              { f: 'saturate(2.5) hue-rotate(50deg)',                  x:  5, y: -2, oo: 0.2,  ox:   3, oy:  0 },
+              { f: '',                                                  x:  0, y:  0, oo: 0,    ox:   0, oy:  0 },
+            ]},
+            '--short': { stepMs: 75, frames: [
+              { f: 'hue-rotate(120deg) contrast(2)', x: -6, y:  0, oo: 0.8, ox: -5, oy: 0 },
+              { f: 'saturate(3.5) brightness(1.2)',  x:  5, y: -2, oo: 0.3, ox:  4, oy: 0 },
+              { f: '',                               x:  0, y:  0, oo: 0,   ox:  0, oy: 0 },
+            ]},
+            '--partial': { stepMs: 110, frames: [
+              { f: 'saturate(3) hue-rotate(60deg)', x: -3, y:  0, oo: 0, ox: 0, oy: 0 },
+              { f: 'contrast(2)',                   x:  3, y: -2, oo: 0, ox: 0, oy: 0 },
+              { f: 'hue-rotate(-40deg)',            x: -2, y:  2, oo: 0, ox: 0, oy: 0 },
+              { f: 'saturate(2) brightness(1.1)',   x:  2, y:  0, oo: 0, ox: 0, oy: 0 },
+              { f: '',                              x:  0, y:  0, oo: 0, ox: 0, oy: 0 },
+            ]},
+            '--overlay': { stepMs: 90, frames: [
+              { f: '', x: 0, y: 0, oo: 0.9, ox: -10, oy: 0 },
+              { f: '', x: 0, y: 0, oo: 0.2, ox:   8, oy: 0 },
+              { f: '', x: 0, y: 0, oo: 0.8, ox:  -7, oy: 4 },
+              { f: '', x: 0, y: 0, oo: 0,   ox:   0, oy: 0 },
+            ]},
+          };
+          var pattern = patterns[type] || patterns[''];
+          var frames = pattern.frames;
           frames.forEach(function (fr, i) {
             setTimeout(function () {
               body.style.filter    = fr.f;
@@ -682,7 +708,7 @@
                 ov.style.opacity   = String(fr.oo);
                 ov.style.transform = fr.ox === 0 && fr.oy === 0 ? '' : 'translate(' + fr.ox + 'px,' + fr.oy + 'px)';
               }
-            }, i * 110);
+            }, i * pattern.stepMs);
           });
         }
 
