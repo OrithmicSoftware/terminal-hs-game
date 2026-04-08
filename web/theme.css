@@ -1044,9 +1044,82 @@ header {
 
 .hktm-roadmap-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: 1.5fr 1fr;
   gap: 1rem;
 }
+
+.hktm-level-map {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(92, 225, 230, 0.22);
+  border-radius: 18px;
+  padding: 1.15rem;
+  min-height: 18.5rem;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(71, 185, 255, 0.3) 0 12%, transparent 36%),
+    radial-gradient(circle at 80% 70%, rgba(61, 255, 122, 0.2) 0 10%, transparent 32%),
+    linear-gradient(180deg, rgba(22, 146, 205, 0.45), rgba(3, 15, 29, 0.95));
+}
+
+.hktm-level-map-track {
+  position: relative;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.hktm-level-map-track::before {
+  content: "";
+  position: absolute;
+  inset: 2.2rem 2.3rem 1.8rem;
+  border-radius: 999px;
+  border: 2px dashed rgba(255, 255, 255, 0.35);
+  pointer-events: none;
+}
+
+.hktm-level-map-node {
+  position: absolute;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid rgba(19, 33, 38, 0.6);
+  box-shadow:
+    0 6px 14px rgba(0, 0, 0, 0.35),
+    0 0 0 4px rgba(14, 28, 33, 0.35);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.hktm-level-map-node span { pointer-events: none; }
+
+.hktm-level-map-node--done {
+  background: #ff4ec8;
+  color: #fff;
+}
+
+.hktm-level-map-node--next {
+  background: #ffcf4a;
+  color: #412f00;
+}
+
+.hktm-level-map-node--locked {
+  background: #768390;
+  color: #d2dae1;
+}
+
+.hktm-level-map-node--done:nth-child(1) { top: 66%; left: 8%; }
+.hktm-level-map-node--done:nth-child(2) { top: 43%; left: 20%; }
+.hktm-level-map-node--next:nth-child(3) { top: 22%; left: 34%; }
+.hktm-level-map-node--locked:nth-child(4) { top: 44%; left: 49%; }
+.hktm-level-map-node--locked:nth-child(5) { top: 66%; left: 63%; }
+.hktm-level-map-node--locked:nth-child(6) { top: 52%; left: 76%; }
+.hktm-level-map-node--locked:nth-child(7) { top: 30%; left: 86%; }
+.hktm-level-map-node--locked:nth-child(8) { top: 13%; left: 70%; }
 
 .hktm-roadmap-col {
   position: relative;
@@ -1128,6 +1201,14 @@ header {
 @media (max-width: 860px) {
   .hktm-roadmap-grid {
     grid-template-columns: 1fr;
+  }
+  .hktm-level-map {
+    min-height: 15rem;
+  }
+  .hktm-level-map-node {
+    width: 1.95rem;
+    height: 1.95rem;
+    font-size: 0.78rem;
   }
 }
 
