@@ -4,10 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0a0f0c" />
-    <meta name="hktm-git-version" content="cf6e60d" />
+    <meta name="hktm-git-version" content="360b12b" />
     <title>Terminal HackSim — neon operator terminal</title>
-    <link rel="icon" href="/terminal-hs-game/staging/favicon.svg" type="image/svg+xml" sizes="any" />
-    <link rel="apple-touch-icon" href="/terminal-hs-game/staging/favicon.svg" />
+    <link rel="icon" href="/terminal-hs-game/staging/favicon-staging.svg" type="image/svg+xml" sizes="any" />
+    <link rel="apple-touch-icon" href="/terminal-hs-game/staging/favicon-staging.svg" />
     <!-- Early-apply CRT theme classes from localStorage to avoid flash of wrong palette -->
     <script>
       (function () {
@@ -87,55 +87,25 @@
         animation: hktm-crt-flicker 0.12s steps(2) infinite;
       }
 
-      /* ── Glitch overlay (landing-page equivalent of .hktm-glitch-overlay) ── */
+      /* ── Glitch overlay ── */
       #hktm-landing-glitch-overlay {
         pointer-events: none;
         position: fixed;
         inset: 0;
         z-index: 9999;
         opacity: 0;
+        transition: none;
         background:
           linear-gradient(90deg,
-            rgba(61, 255, 122, 0.0) 0%,
-            rgba(61, 255, 122, 0.35) 35%,
-            rgba(255, 61, 138, 0.30) 65%,
-            rgba(61, 255, 122, 0.0) 100%),
+            rgba(61, 255, 122, 0.0)  0%,
+            rgba(61, 255, 122, 0.45) 35%,
+            rgba(255, 61, 138, 0.40) 65%,
+            rgba(61, 255, 122, 0.0)  100%),
           repeating-linear-gradient(0deg,
             transparent,
             transparent 2px,
-            rgba(0, 255, 120, 0.12) 2px,
-            rgba(0, 255, 120, 0.12) 3px);
-        mix-blend-mode: screen;
-      }
-
-      html.hktm-glitch-active #hktm-landing-glitch-overlay {
-        animation: hktm-landing-overlay-pulse 0.9s steps(1) forwards;
-      }
-
-      @keyframes hktm-landing-overlay-pulse {
-        0%   { opacity: 0;   transform: translate(0); }
-        10%  { opacity: 0.9; transform: translate(-8px, 0); }
-        20%  { opacity: 0;   transform: translate(8px, 0); }
-        30%  { opacity: 0.8; transform: translate(-6px, 3px); }
-        50%  { opacity: 0;   transform: translate(4px, -2px); }
-        70%  { opacity: 0.7; transform: translate(-4px, 0); }
-        90%  { opacity: 0.2; transform: translate(2px, 0); }
-        100% { opacity: 0;   transform: translate(0); }
-      }
-
-      html.hktm-glitch-active body {
-        animation: hktm-landing-glitch-body 0.9s steps(1) forwards !important;
-      }
-
-      @keyframes hktm-landing-glitch-body {
-        0%   { filter: none;                                            transform: translate(0); }
-        10%  { filter: hue-rotate(90deg)  contrast(2) brightness(1.3); transform: translate(-8px, 3px); }
-        20%  { filter: saturate(4)        hue-rotate(-50deg);           transform: translate(7px, -4px); }
-        35%  { filter: hue-rotate(-90deg) brightness(1.5);             transform: translate(-5px, 2px); }
-        50%  { filter: contrast(2.5)      saturate(3);                  transform: translate(6px, -2px); }
-        65%  { filter: hue-rotate(120deg) brightness(0.8);             transform: translate(-3px, 3px); }
-        80%  { filter: saturate(2)        hue-rotate(40deg);            transform: translate(4px, -1px); }
-        100% { filter: none;                                            transform: translate(0); }
+            rgba(0, 255, 120, 0.15) 2px,
+            rgba(0, 255, 120, 0.15) 3px);
       }
 
       /* ── Short glitch: fast single-frame twitch (~200ms) ── */
@@ -210,9 +180,9 @@
       }
       .hktm-disp-btn svg { display: block; }
     </style>
-    <script type="module" crossorigin src="/terminal-hs-game/staging/assets/main-DZa42Bdb.js"></script>
-    <link rel="modulepreload" crossorigin href="/terminal-hs-game/staging/assets/crt-display-Bat5ZutV.js">
-    <link rel="stylesheet" crossorigin href="/terminal-hs-game/staging/assets/crt-display-BD_c047a.css">
+    <script type="module" crossorigin src="/terminal-hs-game/staging/assets/main-DVp-ysnI.js"></script>
+    <link rel="modulepreload" crossorigin href="/terminal-hs-game/staging/assets/crt-display-Dp7lefge.js">
+    <link rel="stylesheet" crossorigin href="/terminal-hs-game/staging/assets/crt-display-CgzpWN1Z.css">
   </head>
   <body>
     <!-- Glitch visual overlay — activated by html.hktm-glitch-active class -->
@@ -233,6 +203,11 @@
         </nav>
         <div class="hktm-site-header-end">
           <a class="hktm-btn-primary hktm-site-play-btn" href="./play" target="_blank" rel="noopener" aria-label="Play Terminal HackSim" style="padding:0.3rem 0.73rem;line-height:1;display:inline-flex;align-items:center;justify-content:center;"><img src="/terminal-hs-game/staging/favicon.svg" width="14" height="14" alt="" aria-hidden="true" style="display:block;" /></a>
+          <button type="button" class="hktm-disp-btn" id="hktm-header-glitch-btn" aria-label="Trigger glitch" title="Trigger glitch">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="10" viewBox="0 0 36 10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">
+              <polyline points="0,5 6,0 18,10 30,0 36,5"/>
+            </svg>
+          </button>
           <button type="button" class="hktm-disp-btn" id="hktm-disp-btn" aria-label="Display settings" title="Display settings">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
               <path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H9.5a.5.5 0 0 0 0 1H11a.5.5 0 0 1 0 1H5a.5.5 0 0 1 0-1h1.5a.5.5 0 0 0 0-1H2a2 2 0 0 1-2-2V4zm2-1a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H2z"/>
@@ -690,19 +665,52 @@
 
         function fireGlitch() {
           if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-          var root = document.documentElement;
-          root.classList.remove('hktm-glitch-active', 'hktm-glitch-active--short', 'hktm-glitch-active--partial');
-          void root.offsetWidth; // force reflow so animation restarts
-          var type = GLITCH_TYPES[Math.floor(Math.random() * GLITCH_TYPES.length)];
-          var cls = 'hktm-glitch-active' + type;
-          root.classList.add(cls);
-          setTimeout(function () { root.classList.remove(cls); }, GLITCH_DURATIONS[type]);
+          var body = document.body;
+          var ov = document.getElementById('hktm-landing-glitch-overlay');
+          // JS-driven frames: reliable in Chrome/Safari/Firefox regardless of scroll-root quirks
+          var frames = [
+            { f: 'hue-rotate(90deg) contrast(2.2) brightness(1.4)', x: -9, y:  3, oo: 0.9,  ox: -10, oy:  0 },
+            { f: 'saturate(4.5) hue-rotate(-55deg)',                 x:  8, y: -5, oo: 0,    ox:   8, oy:  0 },
+<<<<<<< HEAD
+            { f: 'hue-rotate(-100deg) brightness(1.6)',              x: -6, y:  3, oo: 0.85, ox:  -7, oy:  4 },
+            { f: 'contrast(2.8) saturate(3.5)',                      x:  7, y: -3, oo: 0,    ox:   5, oy: -3 },
+            { f: 'hue-rotate(130deg) brightness(0.75)',              x: -4, y:  4, oo: 0.75, ox:  -5, oy:  2 },
+            { f: 'saturate(2.5) hue-rotate(50deg)',                  x:  5, y: -2, oo: 0.2,  ox:   3, oy:  0 },
+            { f: '',                                                  x:  0, y:  0, oo: 0,    ox:   0, oy:  0 },
+=======
+            { f: 'hue-rotate(-100deg) brightness(1.6)',               x: -6, y:  3, oo: 0.85, ox:  -7, oy:  4 },
+            { f: 'contrast(2.8) saturate(3.5)',                       x:  7, y: -3, oo: 0,    ox:   5, oy: -3 },
+            { f: 'hue-rotate(130deg) brightness(0.75)',               x: -4, y:  4, oo: 0.75, ox:  -5, oy:  2 },
+            { f: 'saturate(2.5) hue-rotate(50deg)',                   x:  5, y: -2, oo: 0.2,  ox:   3, oy:  0 },
+            { f: '',                                                   x:  0, y:  0, oo: 0,    ox:   0, oy:  0 },
+>>>>>>> origin/copilot/vscode-mnoplce9-nkrq
+          ];
+          frames.forEach(function (fr, i) {
+            setTimeout(function () {
+              body.style.filter    = fr.f;
+              body.style.transform = fr.x === 0 && fr.y === 0 ? '' : 'translate(' + fr.x + 'px,' + fr.y + 'px)';
+              if (ov) {
+<<<<<<< HEAD
+                ov.style.opacity   = String(fr.oo);
+=======
+                ov.style.opacity   = fr.oo;
+>>>>>>> origin/copilot/vscode-mnoplce9-nkrq
+                ov.style.transform = fr.ox === 0 && fr.oy === 0 ? '' : 'translate(' + fr.ox + 'px,' + fr.oy + 'px)';
+              }
+            }, i * 110);
+          });
         }
 
-        // "Test now" button — fires immediately regardless of enabled toggle
+        // "Test now" button in dialog
         var testBtn = document.getElementById('hktm-disp-glitch-test');
         testBtn && testBtn.addEventListener('click', function (e) {
           e.stopPropagation();
+          fireGlitch();
+        });
+
+        // Glitch button in header
+        var headerGlitchBtn = document.getElementById('hktm-header-glitch-btn');
+        headerGlitchBtn && headerGlitchBtn.addEventListener('click', function () {
           fireGlitch();
         });
 

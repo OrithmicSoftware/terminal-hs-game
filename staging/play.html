@@ -4,13 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0a0f0c" />
-    <meta name="hktm-git-version" content="cf6e60d" />
+    <meta name="hktm-git-version" content="360b12b" />
     <title>Terminal HackSim — boot the uplink</title>
-    <link rel="icon" href="/terminal-hs-game/staging/favicon.svg" type="image/svg+xml" sizes="any" />
-    <link rel="apple-touch-icon" href="/terminal-hs-game/staging/favicon.svg" />
-    <script type="module" crossorigin src="/terminal-hs-game/staging/assets/play-BSmKPuJj.js"></script>
-    <link rel="modulepreload" crossorigin href="/terminal-hs-game/staging/assets/crt-display-Bat5ZutV.js">
-    <link rel="stylesheet" crossorigin href="/terminal-hs-game/staging/assets/crt-display-BD_c047a.css">
+    <link rel="icon" href="/terminal-hs-game/staging/favicon-staging.svg" type="image/svg+xml" sizes="any" />
+    <link rel="apple-touch-icon" href="/terminal-hs-game/staging/favicon-staging.svg" />
+    <script type="module" crossorigin src="/terminal-hs-game/staging/assets/play-C906WCLQ.js"></script>
+    <link rel="modulepreload" crossorigin href="/terminal-hs-game/staging/assets/crt-display-Dp7lefge.js">
+    <link rel="stylesheet" crossorigin href="/terminal-hs-game/staging/assets/crt-display-CgzpWN1Z.css">
   </head>
   <body>
     <div id="hktm-splash" class="hktm-hidden" hidden role="dialog" aria-label="Splash">
@@ -27,18 +27,18 @@
           decoding="async"
         />
         <div class="hktm-splash-title">TERMINAL HACKSIM</div>
-        <span class="hktm-splash-version" title="Git revision">cf6e60d</span>
+        <span class="hktm-splash-version" title="Git revision">360b12b</span>
       </div>
       <p class="hktm-splash-sub">
         The grids went dark — the truth went behind glass. Pick a sector. Dig for what's real.
       </p>
       <p class="hktm-splash-wip" aria-label="Under construction">⚠ UNDER CONSTRUCTION</p>
       <div class="hktm-splash-bar" aria-hidden="true"><span></span></div>
-      <p class="hktm-splash-start-hint" id="hktm-splash-start-hint" aria-live="polite">
+      <p class="hktm-splash-start-hint" id="hktm-splash-start-hint" aria-live="polite" hidden>
         Press any key to start…
       </p>
-      <div class="hktm-splash-actions">
-        <button type="button" class="ghost" data-hktm-splash-skip>Skip</button>
+      <div class="hktm-splash-actions" hidden>
+        <button type="button" class="ghost" data-hktm-splash-skip hidden>Skip</button>
       </div>
     </div>
 
@@ -84,17 +84,14 @@
     <script>
       (function () {
         try {
-          if (new URLSearchParams(location.search).get("e2e") === "1") return;
+          var params = new URLSearchParams(location.search);
+          if (params.get("e2e") === "1") return;
           if (sessionStorage.getItem("hktm_splash_done")) return;
           document.documentElement.classList.add("hktm-boot-pending");
           var sp = document.getElementById("hktm-splash");
           if (sp) {
             sp.classList.remove("hktm-hidden");
             sp.hidden = false;
-          }
-          var hint = document.getElementById("hktm-splash-start-hint");
-          if (hint && localStorage.getItem("hktm_campaign_save")) {
-            hint.textContent = "Press any key to continue…";
           }
         } catch (e) {
           /* ignore */
@@ -170,7 +167,7 @@
             decoding="async"
           />
           <span class="title">TERMINAL HACKSIM</span>
-          <span class="hktm-git-version" title="Git revision">cf6e60d</span>
+          <span class="hktm-git-version" title="Git revision">360b12b</span>
           <span class="badge">browser α</span>
         </div>
         <span class="header-actions">
