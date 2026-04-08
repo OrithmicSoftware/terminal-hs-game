@@ -70,6 +70,14 @@ Then open the URL Vite prints (default port from `web/vite.config.js`). **Tests:
 
 **UI lab:** `npm run storybook --prefix web` (component stories + `theme.css`). **Docs:** [docs/README.md](docs/README.md) (story bible, stylebook, PM/GD sprint notes).
 
+## Preview deploy URLs (GitHub Pages)
+
+- `main` / `master` deploy to: `https://orithmicsoftware.github.io/terminal-hs-game/`
+- Other branches deploy to: `https://orithmicsoftware.github.io/terminal-hs-game/staging/<branch-slug>/`
+- The branch slug is generated from the branch name by lowercasing it, replacing non-alphanumeric runs with `-`, and trimming leading/trailing `-`.
+- If a branch name collapses to empty after normalization, the workflow falls back to `preview-<short-sha>`.
+- Example: `feature/new-ui` -> `https://orithmicsoftware.github.io/terminal-hs-game/staging/feature-new-ui/`
+
 ## Alpha release
 
 Git tag **`v0.1.0-alpha.1`** matches `package.json` version `0.1.0-alpha.1`. After pushing to GitHub, open **Releases → Draft a new release**, choose that tag, mark **Set as a pre-release**, and publish.
