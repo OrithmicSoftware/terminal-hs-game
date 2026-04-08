@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: pages-staging
+  group: pages-staging-${{ github.ref_name }}
   cancel-in-progress: true
 
 jobs:
@@ -28,16 +28,40 @@ jobs:
         working-directory: web
         run: npm ci
 
+      - name: Compute deploy path
+        id: preview
+        run: |
+          BRANCH_NAME="${GITHUB_REF_NAME}"
+          BRANCH_SLUG="$(echo "${BRANCH_NAME}" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')"
+          BRANCH_SLUG="${BRANCH_SLUG:0:63}"
+          if [ -z "${BRANCH_SLUG}" ]; then
+            BRANCH_SLUG="preview"
+          fi
+
+          if [ "${BRANCH_SLUG}" = "staging" ]; then
+            DEPLOY_SUBPATH="staging"
+          else
+            DEPLOY_SUBPATH="staging/${BRANCH_SLUG}"
+          fi
+
+          echo "deploy_subpath=${DEPLOY_SUBPATH}" >> "${GITHUB_OUTPUT}"
+          echo "base_path=/terminal-hs-game/${DEPLOY_SUBPATH}/" >> "${GITHUB_OUTPUT}"
+          echo "preview_url=https://orithmicsoftware.github.io/terminal-hs-game/${DEPLOY_SUBPATH}/" >> "${GITHUB_OUTPUT}"
+
       - name: Build
         working-directory: web
         env:
           HKTM_ENV: staging
-        run: npm run build -- --base=/terminal-hs-game/staging/
+        run: npm run build -- --base=${{ steps.preview.outputs.base_path }}
 
-      - name: Deploy to GitHub Pages (staging)
+      - name: Deploy to GitHub Pages (branch preview)
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           folder: web/dist
           branch: gh-pages
-          target-folder: staging
+          target-folder: ${{ steps.preview.outputs.deploy_subpath }}
           clean: true
+
+      - name: Print preview URL
+        run: |
+          echo "Preview URL: ${{ steps.preview.outputs.preview_url }}"
