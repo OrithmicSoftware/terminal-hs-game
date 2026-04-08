@@ -42,6 +42,8 @@ test("web landing page glitch script is conflict-free and still drives overlay o
   assert.doesNotMatch(webIndexHtml, /^(<<<<<<<|=======|>>>>>>>)\s/m);
   assert.match(webIndexHtml, /function fireGlitch\(\)/);
   assert.match(webIndexHtml, /ov\.style\.opacity\s*=\s*String\(fr\.oo\);/);
+  assert.doesNotMatch(webIndexHtml, /id="hktm-disp-glitch-test"/);
+  assert.match(webIndexHtml, /id="hktm-header-glitch-btn"/);
 });
 
 test("web landing page does not expose minigame section or launch links", () => {
