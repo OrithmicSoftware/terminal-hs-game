@@ -3,6 +3,10 @@ import { animSleep, isAnimTurbo } from "./anim-sleep-core.mjs";
 const SPECIAL_CHARS = Array.from("!@#$%^&*()-_=+[]{}<>?/|\\~`⟂◈▯◼◻◉◌");
 const ALPHA = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
+function maskToken(token) {
+  return /^\s+$/.test(token) || token.length === 0 ? token : Array.from({ length: token.length }, () => "▯").join("");
+}
+
 /**
  * Animate a phrase by decoding each word in-place.
  *
@@ -16,9 +20,7 @@ export async function animatePhraseDecode(phrase, renderFn, opts = {}) {
 
   // Keep whitespace tokens so we can reassemble the phrase exactly.
   const sourceTokens = String(phrase ?? "").split(/(\s+)/);
-  const tokens = sourceTokens.map((token) =>
-    /^\s+$/.test(token) || token.length === 0 ? token : Array.from({ length: token.length }, () => "▯").join(""),
-  );
+  const tokens = sourceTokens.map(maskToken);
 
   const effectiveFrameMs = (ms) => (isAnimTurbo() ? Math.max(0, Math.floor(ms / 12)) : ms);
 
