@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0a0f0c" />
+    <meta name="hktm-git-version" content="cd84883" />
+    <title>Terminal HackSim — neon operator terminal</title>
+    <link rel="icon" href="/terminal-hs-game/staging/copilot-adjust-deployment-task-for-staging/favicon-staging.svg" type="image/svg+xml" sizes="any" />
+    <link rel="apple-touch-icon" href="/terminal-hs-game/staging/copilot-adjust-deployment-task-for-staging/favicon-staging.svg" />
+    <!-- Early-apply CRT theme classes from localStorage to avoid flash of wrong palette -->
+    <script>
+      (function () {
+        try {
+          var ls = localStorage, r = document.documentElement.classList;
+          var t = ls.getItem('hktm_crt_theme');
+          if (t === 'amber') r.add('crt-theme-amber');
+          else if (t === 'ibm') r.add('crt-theme-ibm');
+          if (ls.getItem('hktm_crt_scanlines') !== '0') r.add('crt-fx-scanlines');
+          if (ls.getItem('hktm_crt_bloom') !== '0') r.add('crt-fx-bloom');
+          if (ls.getItem('hktm_crt_grain') === '1') r.add('crt-fx-grain');
+          if (ls.getItem('hktm_crt_flicker') === '1') r.add('crt-fx-flicker');
+        } catch (e) { /* ignore */ }
+      })();
+    </script>
+    <style>
+      /* ── Landing-page CRT effect extensions ──────────────────────────── */
+      /* The game's crt-display.css targets #term-wrap which lives on play.html;
+         these rules redirect the same fx-* classes to work on the landing page. */
+
+      /* Scanlines: fixed overlay above all content */
+      html.crt-fx-scanlines body::before {
+        content: "";
+        pointer-events: none;
+        position: fixed;
+        inset: 0;
+        z-index: 9998;
+        background: repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 1px,
+          rgba(0, 0, 0, 0.18) 1px,
+          rgba(0, 0, 0, 0.18) 2px
+        );
+        mix-blend-mode: multiply;
+        opacity: 0.55;
+      }
+
+      /* Noise / grain overlay */
+      html.crt-fx-grain body::after {
+        content: "";
+        pointer-events: none;
+        position: fixed;
+        inset: 0;
+        z-index: 9997;
+        opacity: 0.07;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+        background-size: 180px 180px;
+        mix-blend-mode: overlay;
+      }
+
+      /* Phosphor bloom on pixel art and the hero heading */
+      html.crt-fx-bloom .hktm-pixel-art {
+        text-shadow:
+          0 0 3px color-mix(in srgb, var(--green) 35%, transparent),
+          0 0 8px color-mix(in srgb, var(--green) 12%, transparent);
+      }
+      html.crt-fx-bloom #hktm-landing-title {
+        text-shadow:
+          0 0 18px rgba(61, 255, 122, 0.28),
+          0 0 32px rgba(0, 0, 0, 0.35),
+          0 0 8px color-mix(in srgb, var(--green) 18%, transparent);
+      }
+      html.crt-fx-bloom.crt-theme-amber .hktm-pixel-art {
+        text-shadow:
+          0 0 3px color-mix(in srgb, var(--green) 40%, transparent),
+          0 0 10px color-mix(in srgb, #ffb84a 15%, transparent);
+      }
+      html.crt-fx-bloom.crt-theme-ibm .hktm-pixel-art {
+        text-shadow:
+          0 0 2px color-mix(in srgb, var(--green) 45%, transparent),
+          0 0 6px color-mix(in srgb, #55ff55 12%, transparent);
+      }
+
+      /* Subtle flicker on the whole page */
+      html.crt-fx-flicker body {
+        animation: hktm-crt-flicker 0.12s steps(2) infinite;
+      }
+
+      /* ── Glitch overlay ── */
+      #hktm-landing-glitch-overlay {
+        pointer-events: none;
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        opacity: 0;
+        transition: none;
+        background:
+          linear-gradient(90deg,
+            rgba(61, 255, 122, 0.0)  0%,
+            rgba(61, 255, 122, 0.45) 35%,
+            rgba(255, 61, 138, 0.40) 65%,
+            rgba(61, 255, 122, 0.0)  100%),
+          repeating-linear-gradient(0deg,
+            transparent,
+            transparent 2px,
+            rgba(0, 255, 120, 0.15) 2px,
+            rgba(0, 255, 120, 0.15) 3px);
+      }
+
+      /* ── Short glitch: fast single-frame twitch (~200ms) ── */
+      html.hktm-glitch-active--short body {
+        animation: hktm-landing-glitch-body-short 0.22s steps(1) forwards !important;
+      }
+
+      html.hktm-glitch-active--short #hktm-landing-glitch-overlay {
+        animation: hktm-landing-overlay-pulse-short 0.22s steps(1) forwards;
+      }
+
+      @keyframes hktm-landing-glitch-body-short {
+        0%   { filter: none;                                      transform: translate(0); }
+        30%  { filter: hue-rotate(120deg) contrast(1.8);         transform: translate(-5px, 0); }
+        60%  { filter: saturate(3) brightness(1.2);              transform: translate(4px, -2px); }
+        100% { filter: none;                                      transform: translate(0); }
+      }
+
+      @keyframes hktm-landing-overlay-pulse-short {
+        0%   { opacity: 0;   transform: translate(0); }
+        40%  { opacity: 0.8; transform: translate(-5px, 0); }
+        70%  { opacity: 0.4; transform: translate(4px, 0); }
+        100% { opacity: 0;   transform: translate(0); }
+      }
+
+      /* ── Partial glitch: body transform only, no overlay (~600ms) ── */
+      html.hktm-glitch-active--partial body {
+        animation: hktm-landing-glitch-body-partial 0.6s steps(1) forwards !important;
+      }
+
+      @keyframes hktm-landing-glitch-body-partial {
+        0%   { filter: none;                           transform: translate(0); }
+        15%  { filter: saturate(3) hue-rotate(60deg); transform: translate(-3px, 0); }
+        35%  { filter: contrast(2);                   transform: translate(3px, -2px); }
+        55%  { filter: hue-rotate(-40deg);             transform: translate(-2px, 2px); }
+        75%  { filter: saturate(2) brightness(1.1);   transform: translate(2px, 0); }
+        100% { filter: none;                           transform: translate(0); }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html.crt-fx-flicker body { animation: none; }
+        html.crt-fx-scanlines.crt-fx-flicker body::before { animation: none; }
+        html.hktm-glitch-active body { animation: none !important; }
+        html.hktm-glitch-active #hktm-landing-glitch-overlay { animation: none; opacity: 0; }
+        html.hktm-glitch-active--short body { animation: none !important; }
+        html.hktm-glitch-active--short #hktm-landing-glitch-overlay { animation: none; opacity: 0; }
+        html.hktm-glitch-active--partial body { animation: none !important; }
+      }
+
+      /* Display settings button in the site header */
+      .hktm-disp-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+        padding: 0.3rem 0.55rem;
+        border-radius: 4px;
+        border: 1px solid rgba(31, 51, 40, 0.9);
+        background: transparent;
+        color: var(--dim);
+        cursor: pointer;
+        font-family: inherit;
+        font-size: 0.78rem;
+        letter-spacing: 0.04em;
+        line-height: 1;
+        transition: border-color 0.14s ease, color 0.14s ease, background-color 0.14s ease;
+      }
+      .hktm-disp-btn:hover {
+        border-color: rgba(61, 255, 122, 0.5);
+        color: var(--green);
+        background: rgba(61, 255, 122, 0.07);
+      }
+      .hktm-disp-btn svg { display: block; }
+    </style>
+    <script type="module" crossorigin src="/terminal-hs-game/staging/copilot-adjust-deployment-task-for-staging/assets/main-geI4R445.js"></script>
+    <link rel="modulepreload" crossorigin href="/terminal-hs-game/staging/copilot-adjust-deployment-task-for-staging/assets/crt-display-BaBIw6KL.js">
+    <link rel="stylesheet" crossorigin href="/terminal-hs-game/staging/copilot-adjust-deployment-task-for-staging/assets/crt-display-CJMHcFZ8.css">
+  </head>
+  <body>
+    <!-- Glitch visual overlay — activated by html.hktm-glitch-active class -->
+    <div id="hktm-landing-glitch-overlay" aria-hidden="true"></div>
+
+    <header class="hktm-site-header" role="banner">
+      <div class="hktm-site-header-inner">
+        <a class="hktm-site-logo" href="#hktm-s-home" aria-label="Terminal HackSim — top of page">
+          <img src="/terminal-hs-game/staging/copilot-adjust-deployment-task-for-staging/favicon.svg" width="26" height="26" alt="" aria-hidden="true" />
+          <span class="hktm-site-logo-text">HKTM</span>
+        </a>
+        <nav class="hktm-site-nav" aria-label="Page sections">
+          <a class="hktm-site-nav-link" href="#hktm-s-home" data-hktm-nav>Home</a>
+          <a class="hktm-site-nav-link" href="#hktm-landing-mission-board" data-hktm-nav>Mission board</a>
+          <a class="hktm-site-nav-link" href="#hktm-s-mechanics" data-hktm-nav>Mechanics</a>
+          <a class="hktm-site-nav-link" href="#hktm-s-lore" data-hktm-nav>Lore</a>
+          <a class="hktm-site-nav-link" href="#hktm-s-roadmap" data-hktm-nav>Roadmap</a>
+        </nav>
+        <div class="hktm-site-header-end">
+          <a class="hktm-btn-primary hktm-site-play-btn" href="./play" target="_blank" rel="noopener" aria-label="Play Terminal HackSim" style="padding:0.3rem 0.73rem;line-height:1;display:inline-flex;align-items:center;justify-content:center;"><img src="/terminal-hs-game/staging/copilot-adjust-deployment-task-for-staging/favicon.svg" width="14" height="14" alt="" aria-hidden="true" style="display:block;" /></a>
+          <button type="button" class="hktm-disp-btn" id="hktm-header-glitch-btn" aria-label="Trigger glitch" title="Trigger glitch">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="10" viewBox="0 0 36 10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">
+              <polyline points="0,5 6,0 18,10 30,0 36,5"/>
+            </svg>
+          </button>
+          <button type="button" class="hktm-disp-btn" id="hktm-disp-btn" aria-label="Display settings" title="Display settings">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H9.5a.5.5 0 0 0 0 1H11a.5.5 0 0 1 0 1H5a.5.5 0 0 1 0-1h1.5a.5.5 0 0 0 0-1H2a2 2 0 0 1-2-2V4zm2-1a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H2z"/>
+            </svg>
+          </button>
+          <a class="hktm-site-github" href="https://github.com/OrithmicSoftware/terminal-hs-game" target="_blank" rel="noopener" aria-label="View source on GitHub">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+            </svg>
+          </a>
+        </div>
+      </div>
+    </header>
+    <section id="hktm-s-home" class="hktm-landing" aria-labelledby="hktm-landing-title">
+      <div class="hktm-landing-copy">
+        <p class="hktm-landing-kicker">Live operator dossier // fiction-first terminal run</p>
+        <h1 id="hktm-landing-title">Hack the grid. Dodge the trace. Decide how the mission ends.</h1>
+        <p class="hktm-landing-lead">
+          Terminal HackSim is a neon command-line thriller about hot briefs, brittle networks, fake inboxes, and
+          the handler in your ear telling you to keep moving. Every mission beat plays out in a glowing browser
+          terminal built to feel like a late-night cyberpunk operation.
+        </p>
+        <p class="hktm-landing-note">
+          The alpha is already playable: boot into the uplink, read the brief, work the mail op, and watch the
+          trace bar before it watches you.
+        </p>
+        <div class="hktm-landing-actions">
+          <a class="hktm-btn-primary" href="./play" target="_blank" rel="noopener">Boot the uplink</a>
+          <a class="hktm-btn-ghost" href="#hktm-landing-mission-board">Inspect the mission board</a>
+        </div>
+        <div class="hktm-landing-story">
+          <p class="hktm-landing-story-label">Tonight's contract</p>
+          <p>
+            Sable has a live brief. Orion has a weak seam in the grid. Your job is to build the lure, crack the
+            mailbox, and stay cool while every reply risks lighting up the trace meter.
+          </p>
+        </div>
+      </div>
+      <div class="hktm-landing-side">
+        <div class="hktm-landing-panel hktm-landing-panel--scene">
+          <p class="hktm-landing-panel-label" id="hktm-landing-mission-board">Pixel sector view</p>
+          <div class="hktm-landing-scene" aria-hidden="true">
+            <pre class="hktm-landing-pixel-art hktm-landing-pixel-art--wide">
+      ░░        ░░        ░░
+  ░░██░░░░  ░░██░░░░  ░░██░░
+░░██████░░░░██████░░░░██████░░
+  ██  ██████  ██  ██████  ██
+  ██  ██░░██  ██  ██░░██  ██
+████████░░████████░░████████
+██░░░░██░░██░░░░██░░██░░░░██
+████████████████████████████
+            </pre>
+          </div>
+          <p class="hktm-landing-panel-copy">
+            Rain over the tower blocks, signal bloom over the skyline, one terminal waiting for a clean first move.
+          </p>
+        </div>
+        <div class="hktm-landing-panel hktm-landing-panel--mini">
+          <p class="hktm-landing-panel-label" id="hktm-landing-hud-label">Operator HUD</p>
+          <div class="hktm-landing-hud" aria-labelledby="hktm-landing-hud-label">
+            <div class="hktm-landing-hud-row">
+              <span>HP</span>
+              <strong>92/100</strong>
+            </div>
+            <div class="hktm-landing-hud-row">
+              <span>Trace</span>
+              <strong>08/42</strong>
+            </div>
+            <div class="hktm-landing-hud-row">
+              <span>Heat</span>
+              <strong>Low</strong>
+            </div>
+          </div>
+          <ul class="hktm-landing-list">
+            <li>CRT-glow terminal UI with splash, chat, and mission brief flow</li>
+            <li>Playable browser op built around mail lures, trace pressure, and handler chatter</li>
+            <li>Stylized alpha presentation shaped around the game world instead of the repository</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════
+         MODULE 1 — MECHANICS BREAKDOWN
+         ═══════════════════════════════════════════════════ -->
+    <section id="hktm-s-mechanics" class="hktm-section hktm-mechanics" aria-labelledby="hktm-mechanics-title">
+      <div class="hktm-section-header" data-reveal>
+        <p class="hktm-section-kicker">Field manual // operator protocol</p>
+        <h2 id="hktm-mechanics-title">Three moves. One window. Zero margin.</h2>
+        <p class="hktm-section-lead">
+          Every op runs on the same brutal loop: read the brief, build the lure, watch the trace. Miss a beat and
+          the grid lights you up before the target ever clicks. Learn the rhythm or burn.
+        </p>
+      </div>
+      <div class="hktm-mechanics-grid">
+
+        <div class="hktm-mechanic-card" data-reveal>
+          <div class="hktm-mechanic-art" aria-hidden="true">
+            <pre class="hktm-pixel-art hktm-pixel-art--cyan">
+ ╔═════════════╗
+ ║ BRIEF.txt   ║
+ ║─────────────║
+ ║ TARGET: ORI ║
+ ║ VECTOR: MAIL║
+ ║ WINDOW: 12m ║
+ ║─────────────║
+ ║ [READ ▶]    ║
+ ╚═════════════╝</pre>
+          </div>
+          <p class="hktm-mechanic-label">01 / READ THE BRIEF</p>
+          <p class="hktm-mechanic-copy">
+            Sable drops the dossier. Target company, known weak points, an alias that won't hold long. You have
+            minutes to absorb it, because the trace clock starts the moment you open the uplink.
+          </p>
+        </div>
+
+        <div class="hktm-mechanic-card" data-reveal>
+          <div class="hktm-mechanic-art" aria-hidden="true">
+            <pre class="hktm-pixel-art hktm-pixel-art--magenta">
+ ┌─────────────────┐
+ │ LURE COMPOSER   │
+ │ ▸ sender alias  │
+ │ ▸ subject hook  │
+ │ ▸ payload link  │
+ │                 │
+ │ CREDIBILITY: ██ │
+ │ SUSPICION:  ░░░ │
+ └─────────────────┘</pre>
+          </div>
+          <p class="hktm-mechanic-label">02 / BUILD THE LURE</p>
+          <p class="hktm-mechanic-copy">
+            Craft the phishing mail from a library of aliases, hooks and payloads. Every choice shifts the
+            credibility bar. Too bland and the target ignores you. Too sharp and the filter flags it before dawn.
+          </p>
+        </div>
+
+        <div class="hktm-mechanic-card" data-reveal>
+          <div class="hktm-mechanic-art" aria-hidden="true">
+            <pre class="hktm-pixel-art hktm-pixel-art--red">
+ ╔════════════════╗
+ ║ TRACE MONITOR  ║
+ ║────────────────║
+ ║ ░░██████░░░░░░ ║
+ ║   24% / AMBER  ║
+ ║────────────────║
+ ║ !! REPLY SENT  ║
+ ║ ↑ +6% HEAT     ║
+ ╚════════════════╝</pre>
+          </div>
+          <p class="hktm-mechanic-label">03 / DODGE THE TRACE</p>
+          <p class="hktm-mechanic-copy">
+            Each action bleeds trace. Reply to the mark's questions. Stall the security desk. Every message
+            is a gamble — answer wrong and the bar slides red. Hit the exfil window before it closes or
+            walk away with nothing.
+          </p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════
+         MODULE 2 — WORLD / LORE TEASER
+         ═══════════════════════════════════════════════════ -->
+    <section id="hktm-s-lore" class="hktm-section hktm-lore" aria-labelledby="hktm-lore-title">
+      <div class="hktm-lore-inner">
+        <div class="hktm-lore-copy" data-reveal>
+          <p class="hktm-section-kicker">Signal intercept // classified excerpt</p>
+          <h2 id="hktm-lore-title">The grid doesn't forgive. The handler doesn't wait.</h2>
+          <p class="hktm-lore-body">
+            Somewhere between the neon-bled server towers of Orion Corp and the encrypted back-channels Sable
+            controls, there is a sliver of time where an operator can move clean — no signature, no flag, no
+            name on any log. That window is exactly what you're paid to exploit.
+          </p>
+          <p class="hktm-lore-body">
+            Sable is a broker, not a friend. The jobs come in hot, the cut is fair, and the deniability is
+            total — right up until it isn't. Orion runs a hardened perimeter, three rotating security desks,
+            and an AI threat-tier system that upgrades your priority every time you breathe on the network.
+            The margins are thin. The stories are electric.
+          </p>
+          <p class="hktm-lore-flavour">
+            <span class="hktm-lore-handle">SABLE&nbsp;▶</span>
+            "You already accepted the contract. Stop reading the dossier and start the clock."
+          </p>
+        </div>
+        <div class="hktm-lore-visual" data-reveal aria-hidden="true">
+          <pre class="hktm-pixel-art hktm-pixel-art--lore">
+    ▓▓▓▓░░░░░░░░▓▓▓▓
+  ░░████░░░░░░████░░
+  ░░██░█░░░░░░█░██░░
+██░░████░░██░████░░██
+██░░░░░░░░██░░░░░░░██
+██░░████░░██░████░░██
+██░░██░░░░░░░░░██░░██
+░░████████████████░░
+  ░░░░░░████░░░░░░
+    ░░░░████░░░░
+  ╔══╧════╧══╗
+  ║ .:ORION:. ║
+  ╚═══════════╝</pre>
+          <div class="hktm-lore-tags">
+            <span class="hktm-tag">SECTOR 7-NORTH</span>
+            <span class="hktm-tag hktm-tag--amber">ALERT: LOW</span>
+            <span class="hktm-tag hktm-tag--cyan">NODE: ACTIVE</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════
+         MODULE 3 — ALPHA CONTENT + ROADMAP TEASER
+         ═══════════════════════════════════════════════════ -->
+    <section id="hktm-s-roadmap" class="hktm-section hktm-roadmap" aria-labelledby="hktm-roadmap-title">
+      <div class="hktm-section-header" data-reveal>
+        <p class="hktm-section-kicker">Build log // sprint bravo + beyond</p>
+        <h2 id="hktm-roadmap-title">Playable now. More incoming.</h2>
+        <p class="hktm-section-lead">
+          The alpha drops you straight into Mission 1 with a live terminal, a mail lure to assemble, and a
+          trace bar that doesn't care how nervous you are. Here's what's already live — and what's coming
+          before the next major revision.
+        </p>
+      </div>
+      <div class="hktm-roadmap-grid">
+
+        <div class="hktm-roadmap-col hktm-roadmap-col--done" data-reveal>
+          <p class="hktm-roadmap-col-label">
+            <span class="hktm-dot hktm-dot--green"></span>Live in alpha
+          </p>
+          <ul class="hktm-roadmap-list">
+            <li>
+              <span class="hktm-roadmap-art" aria-hidden="true">▐█▌</span>
+              Full CRT boot sequence — scan lines, flicker, and the uplink handshake animation
+            </li>
+            <li>
+              <span class="hktm-roadmap-art" aria-hidden="true">▐█▌</span>
+              Ghost handler chat — Sable's messages arrive with typewriter timing and colour-coded priority flags
+            </li>
+            <li>
+              <span class="hktm-roadmap-art" aria-hidden="true">▐█▌</span>
+              Mission 1 complete — brief, lure, mail thread, three-outcome exfil, trace meter in full effect
+            </li>
+            <li>
+              <span class="hktm-roadmap-art" aria-hidden="true">▐█▌</span>
+              Campaign save state — progress survives page reloads and browser sessions
+            </li>
+            <li>
+              <span class="hktm-roadmap-art" aria-hidden="true">▐█▌</span>
+              Operator sound FX — keystrokes, alerts, and the warm click of an incoming mail flag
+            </li>
+          </ul>
+        </div>
+
+        <div class="hktm-roadmap-col hktm-roadmap-col--next" data-reveal>
+          <p class="hktm-roadmap-col-label">
+            <span class="hktm-dot hktm-dot--amber"></span>Next on the board
+          </p>
+          <ul class="hktm-roadmap-list">
+            <li>
+              <span class="hktm-roadmap-art" aria-hidden="true">░█░</span>
+              Mission 2 — a corporate server crawl with lateral movement, decoy files, and two extraction routes
+            </li>
+            <li>
+              <span class="hktm-roadmap-art" aria-hidden="true">░█░</span>
+              Reputation system — marks remember you; blow a cover and the next op costs more heat from the jump
+            </li>
+            <li>
+              <span class="hktm-roadmap-art" aria-hidden="true">░█░</span>
+              Handler rivalry — a second voice in your ear with a different read on every job
+            </li>
+            <li>
+              <span class="hktm-roadmap-art" aria-hidden="true">░█░</span>
+              Dossier codex — deep lore entries that unlock as you complete ops, filling in the world between missions
+            </li>
+          </ul>
+        </div>
+
+        <div class="hktm-roadmap-col hktm-roadmap-col--future" data-reveal>
+          <p class="hktm-roadmap-col-label">
+            <span class="hktm-dot hktm-dot--dim"></span>Signal on the horizon
+          </p>
+          <pre class="hktm-pixel-art hktm-pixel-art--roadmap" aria-hidden="true">
+  ░░░░▓▓▓▓░░░░
+  ░░▓▓████▓▓░░
+  ▓▓██░░░░██▓▓
+  ██░░  ??  ░░██
+  ▓▓██░░░░██▓▓
+  ░░▓▓████▓▓░░
+  ░░░░▓▓▓▓░░░░</pre>
+          <p class="hktm-roadmap-future-copy">
+            Multiple campaigns. Faction contracts. A secondary operator you can burn if the heat gets too
+            heavy. The world is bigger than one grid seam and one corps mailbox — and we are building toward
+            all of it.
+          </p>
+          <a class="hktm-btn-ghost hktm-roadmap-cta" href="./play" target="_blank" rel="noopener">
+            Play the alpha now →
+          </a>
+        </div>
+
+      </div>
+    </section>
+
+    <footer class="hktm-footer">
+      <div class="hktm-footer-inner">
+        <pre class="hktm-pixel-art hktm-pixel-art--footer" aria-hidden="true">▗▄▖  ▗▖ ▗▖▗▖ ▗▖▗▄▄▄▖▗▖  ▗▖</pre>
+        <p class="hktm-footer-copy">
+          Terminal HackSim — open-source fiction-first terminal game. Alpha build. All content subject to change.
+        </p>
+        <nav class="hktm-footer-links" aria-label="Footer links">
+          <a href="./play" target="_blank" rel="noopener">Play</a>
+          <a href="https://github.com/OrithmicSoftware/terminal-hs-game" target="_blank" rel="noopener">GitHub</a>
+          <a href="https://github.com/OrithmicSoftware/terminal-hs-game/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Contribute</a>
+        </nav>
+      </div>
+    </footer>
+
+    <!-- ── Display / CRT settings dialog ─────────────────────────────── -->
+    <dialog id="hktm-display-dialog" class="hktm-crt-dialog" aria-labelledby="hktm-display-dialog-title">
+      <div class="hktm-crt-dialog-inner">
+        <h3 id="hktm-display-dialog-title">Display settings</h3>
+        <p class="hktm-crt-hint">
+          Cathode-style presets and overlays — same options as the in-game terminal. Saved in this browser only.
+        </p>
+        <div class="hktm-crt-field">
+          <label for="hktm-disp-theme">Color preset</label>
+          <select id="hktm-disp-theme" autocomplete="off">
+            <option value="green">PIP green (default)</option>
+            <option value="amber">Amber phosphor</option>
+            <option value="ibm">IBM / DOS blue</option>
+          </select>
+        </div>
+        <div class="hktm-crt-checks">
+          <label><input type="checkbox" id="hktm-disp-scanlines" autocomplete="off" /> Horizontal scanlines</label>
+          <label><input type="checkbox" id="hktm-disp-bloom" autocomplete="off" /> Phosphor glow (bloom)</label>
+          <label><input type="checkbox" id="hktm-disp-grain" autocomplete="off" /> Noise / grain</label>
+          <label><input type="checkbox" id="hktm-disp-flicker" autocomplete="off" /> Subtle flicker</label>
+          <label style="display:flex;align-items:center;gap:.4rem;">
+            <input type="checkbox" id="hktm-disp-glitch" autocomplete="off" /> Periodic glitch bursts
+            <button type="button" id="hktm-disp-glitch-test" style="font-size:0.68rem;padding:0.1rem 0.45rem;background:transparent;border:1px solid var(--dim);color:var(--cyan);border-radius:3px;cursor:pointer;font-family:inherit;">Test now</button>
+          </label>
+        </div>
+        <div class="hktm-crt-actions">
+          <button type="button" class="ghost" id="hktm-disp-reset">Reset defaults</button>
+          <button type="button" class="ghost" id="hktm-disp-close">Close</button>
+        </div>
+      </div>
+    </dialog>
+
+    <script>
+      // ── Display prefs + periodic glitch ────────────────────────────────
+      (function () {
+        var LS = 'hktm_crt_';
+        // Matches game defaults: scanlines+bloom ON, grain+flicker OFF
+        var DEFAULT = { theme: 'green', scanlines: true, bloom: true, grain: false, flicker: false, glitch: true };
+
+        function readPrefs() {
+          try {
+            var ls = localStorage;
+            var raw = ls.getItem(LS + 'theme');
+            return {
+              theme: raw === 'amber' || raw === 'ibm' ? raw : 'green',
+              scanlines: ls.getItem(LS + 'scanlines') !== '0',
+              bloom: ls.getItem(LS + 'bloom') !== '0',
+              grain: ls.getItem(LS + 'grain') === '1',
+              flicker: ls.getItem(LS + 'flicker') === '1',
+              glitch: ls.getItem(LS + 'glitch') !== '0',
+            };
+          } catch (e) { return Object.assign({}, DEFAULT); }
+        }
+
+        function writePrefs(p) {
+          try {
+            var ls = localStorage;
+            ls.setItem(LS + 'theme', p.theme);
+            ls.setItem(LS + 'scanlines', p.scanlines ? '1' : '0');
+            ls.setItem(LS + 'bloom', p.bloom ? '1' : '0');
+            ls.setItem(LS + 'grain', p.grain ? '1' : '0');
+            ls.setItem(LS + 'flicker', p.flicker ? '1' : '0');
+            ls.setItem(LS + 'glitch', p.glitch ? '1' : '0');
+          } catch (e) { /* ignore */ }
+        }
+
+        function applyPrefs(p) {
+          var r = document.documentElement.classList;
+          r.remove('crt-theme-amber', 'crt-theme-ibm');
+          if (p.theme === 'amber') r.add('crt-theme-amber');
+          if (p.theme === 'ibm') r.add('crt-theme-ibm');
+          r.toggle('crt-fx-scanlines', Boolean(p.scanlines));
+          r.toggle('crt-fx-bloom', Boolean(p.bloom));
+          r.toggle('crt-fx-grain', Boolean(p.grain));
+          r.toggle('crt-fx-flicker', Boolean(p.flicker));
+        }
+
+        function syncForm(p) {
+          var themeEl = document.getElementById('hktm-disp-theme');
+          if (themeEl) themeEl.value = p.theme;
+          [['hktm-disp-scanlines', p.scanlines], ['hktm-disp-bloom', p.bloom],
+           ['hktm-disp-grain', p.grain], ['hktm-disp-flicker', p.flicker],
+           ['hktm-disp-glitch', p.glitch]].forEach(function (pair) {
+            var el = document.getElementById(pair[0]);
+            if (el) el.checked = pair[1];
+          });
+        }
+
+        var dlg = document.getElementById('hktm-display-dialog');
+        var openBtn = document.getElementById('hktm-disp-btn');
+
+        openBtn && openBtn.addEventListener('click', function () {
+          syncForm(readPrefs());
+          dlg && dlg.showModal();
+        });
+
+        document.getElementById('hktm-disp-close') &&
+          document.getElementById('hktm-disp-close').addEventListener('click', function () {
+            dlg && dlg.close();
+          });
+
+        document.getElementById('hktm-disp-reset') &&
+          document.getElementById('hktm-disp-reset').addEventListener('click', function () {
+            writePrefs(DEFAULT);
+            applyPrefs(DEFAULT);
+            syncForm(DEFAULT);
+          });
+
+        function persistFromForm() {
+          var themeEl = document.getElementById('hktm-disp-theme');
+          var theme = themeEl && (themeEl.value === 'amber' || themeEl.value === 'ibm') ? themeEl.value : 'green';
+          var next = {
+            theme: theme,
+            scanlines: !!(document.getElementById('hktm-disp-scanlines') || {}).checked,
+            bloom: !!(document.getElementById('hktm-disp-bloom') || {}).checked,
+            grain: !!(document.getElementById('hktm-disp-grain') || {}).checked,
+            flicker: !!(document.getElementById('hktm-disp-flicker') || {}).checked,
+            glitch: !!(document.getElementById('hktm-disp-glitch') || {}).checked,
+          };
+          writePrefs(next);
+          applyPrefs(next);
+        }
+
+        ['hktm-disp-theme','hktm-disp-scanlines','hktm-disp-bloom','hktm-disp-grain','hktm-disp-flicker','hktm-disp-glitch'].forEach(function (id) {
+          var el = document.getElementById(id);
+          if (el) el.addEventListener('change', persistFromForm);
+        });
+
+        // Sync checkboxes to match what was applied by early-apply head script
+        syncForm(readPrefs());
+
+        // ── Periodic glitch ────────────────────────────────────────────────
+        function glitchEnabled() {
+          try { return localStorage.getItem(LS + 'glitch') !== '0'; } catch(e) { return true; }
+        }
+
+        // Glitch types: '' = full, '--short' = fast twitch, '--partial' = body-only
+        // Weighted list: short fires most often, full and partial are less common
+        var GLITCH_TYPES = ['', '--short', '--short', '--partial', '--short', '', '--partial'];
+        var GLITCH_DURATIONS = { '': 950, '--short': 220, '--partial': 600 };
+
+        function fireGlitch() {
+          if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+          var body = document.body;
+          var ov = document.getElementById('hktm-landing-glitch-overlay');
+          // JS-driven frames: reliable in Chrome/Safari/Firefox regardless of scroll-root quirks
+          var frames = [
+            { f: 'hue-rotate(90deg) contrast(2.2) brightness(1.4)', x: -9, y:  3, oo: 0.9,  ox: -10, oy:  0 },
+            { f: 'saturate(4.5) hue-rotate(-55deg)',                 x:  8, y: -5, oo: 0,    ox:   8, oy:  0 },
+<<<<<<< HEAD
+            { f: 'hue-rotate(-100deg) brightness(1.6)',              x: -6, y:  3, oo: 0.85, ox:  -7, oy:  4 },
+            { f: 'contrast(2.8) saturate(3.5)',                      x:  7, y: -3, oo: 0,    ox:   5, oy: -3 },
+            { f: 'hue-rotate(130deg) brightness(0.75)',              x: -4, y:  4, oo: 0.75, ox:  -5, oy:  2 },
+            { f: 'saturate(2.5) hue-rotate(50deg)',                  x:  5, y: -2, oo: 0.2,  ox:   3, oy:  0 },
+            { f: '',                                                  x:  0, y:  0, oo: 0,    ox:   0, oy:  0 },
+=======
+            { f: 'hue-rotate(-100deg) brightness(1.6)',               x: -6, y:  3, oo: 0.85, ox:  -7, oy:  4 },
+            { f: 'contrast(2.8) saturate(3.5)',                       x:  7, y: -3, oo: 0,    ox:   5, oy: -3 },
+            { f: 'hue-rotate(130deg) brightness(0.75)',               x: -4, y:  4, oo: 0.75, ox:  -5, oy:  2 },
+            { f: 'saturate(2.5) hue-rotate(50deg)',                   x:  5, y: -2, oo: 0.2,  ox:   3, oy:  0 },
+            { f: '',                                                   x:  0, y:  0, oo: 0,    ox:   0, oy:  0 },
+>>>>>>> origin/copilot/vscode-mnoplce9-nkrq
+          ];
+          frames.forEach(function (fr, i) {
+            setTimeout(function () {
+              body.style.filter    = fr.f;
+              body.style.transform = fr.x === 0 && fr.y === 0 ? '' : 'translate(' + fr.x + 'px,' + fr.y + 'px)';
+              if (ov) {
+<<<<<<< HEAD
+                ov.style.opacity   = String(fr.oo);
+=======
+                ov.style.opacity   = fr.oo;
+>>>>>>> origin/copilot/vscode-mnoplce9-nkrq
+                ov.style.transform = fr.ox === 0 && fr.oy === 0 ? '' : 'translate(' + fr.ox + 'px,' + fr.oy + 'px)';
+              }
+            }, i * 110);
+          });
+        }
+
+        // "Test now" button in dialog
+        var testBtn = document.getElementById('hktm-disp-glitch-test');
+        testBtn && testBtn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          fireGlitch();
+        });
+
+        // Glitch button in header
+        var headerGlitchBtn = document.getElementById('hktm-header-glitch-btn');
+        headerGlitchBtn && headerGlitchBtn.addEventListener('click', function () {
+          fireGlitch();
+        });
+
+        var glitchTimer = null;
+        function scheduleGlitch() {
+          clearTimeout(glitchTimer);
+          if (!glitchEnabled()) return;
+          // Three-tier frequency: 15% quick burst, 55% normal, 30% long pause
+          var r = Math.random();
+          var delay;
+          if (r < 0.15) {
+            delay = 800 + Math.random() * 1200;    // 0.8–2s  quick stutter
+          } else if (r < 0.70) {
+            delay = 4000 + Math.random() * 6000;   // 4–10s   normal
+          } else {
+            delay = 10000 + Math.random() * 10000; // 10–20s  long pause
+          }
+          glitchTimer = setTimeout(function () { fireGlitch(); scheduleGlitch(); }, delay);
+        }
+        // Fire first glitch after 1.5 s on page load
+        setTimeout(function () {
+          if (glitchEnabled()) { fireGlitch(); scheduleGlitch(); }
+        }, 1500);
+      })();
+    </script>
+
+
+    <script>
+      // ── SCROLL REVEAL ────────────────────────────────────────
+      // Assigns stagger indices to sibling [data-reveal] groups,
+      // then triggers .hktm-revealed via IntersectionObserver.
+      (function () {
+        var els = Array.from(document.querySelectorAll('[data-reveal]'));
+
+        if (!('IntersectionObserver' in window)) {
+          els.forEach(function (el) { el.classList.add('hktm-revealed'); });
+          return;
+        }
+
+        // Assign stagger index based on position among siblings
+        els.forEach(function (el) {
+          var siblings = el.parentElement
+            ? Array.from(el.parentElement.querySelectorAll(':scope > [data-reveal]'))
+            : [el];
+          var idx = siblings.indexOf(el);
+          if (idx > 0) el.style.setProperty('--reveal-i', idx);
+        });
+
+        // Double rAF: guarantees the browser paints opacity:0 BEFORE
+        // the observer fires, so the transition is always visible.
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () {
+            var io = new IntersectionObserver(function (entries) {
+              entries.forEach(function (entry) {
+                if (entry.isIntersecting) {
+                  entry.target.classList.add('hktm-revealed');
+                  io.unobserve(entry.target);
+                }
+              });
+            }, {
+              // Trigger when element is at least 80px above the bottom edge
+              rootMargin: '0px 0px -80px 0px',
+              threshold: 0
+            });
+
+            els.forEach(function (el) { io.observe(el); });
+          });
+        });
+      })();
+    </script>
+  </body>
+</html>
