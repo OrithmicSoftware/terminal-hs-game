@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0a0f0c" />
-    <meta name="hktm-git-version" content="cf90032" />
+    <meta name="hktm-git-version" content="5d7bc1c" />
     <title>Terminal HackSim — neon operator terminal</title>
     <link rel="icon" href="/terminal-hs-game/favicon.svg" type="image/svg+xml" sizes="any" />
     <link rel="apple-touch-icon" href="/terminal-hs-game/favicon.svg" />
@@ -671,30 +671,18 @@
           var frames = [
             { f: 'hue-rotate(90deg) contrast(2.2) brightness(1.4)', x: -9, y:  3, oo: 0.9,  ox: -10, oy:  0 },
             { f: 'saturate(4.5) hue-rotate(-55deg)',                 x:  8, y: -5, oo: 0,    ox:   8, oy:  0 },
-<<<<<<< HEAD
             { f: 'hue-rotate(-100deg) brightness(1.6)',              x: -6, y:  3, oo: 0.85, ox:  -7, oy:  4 },
             { f: 'contrast(2.8) saturate(3.5)',                      x:  7, y: -3, oo: 0,    ox:   5, oy: -3 },
             { f: 'hue-rotate(130deg) brightness(0.75)',              x: -4, y:  4, oo: 0.75, ox:  -5, oy:  2 },
             { f: 'saturate(2.5) hue-rotate(50deg)',                  x:  5, y: -2, oo: 0.2,  ox:   3, oy:  0 },
             { f: '',                                                  x:  0, y:  0, oo: 0,    ox:   0, oy:  0 },
-=======
-            { f: 'hue-rotate(-100deg) brightness(1.6)',               x: -6, y:  3, oo: 0.85, ox:  -7, oy:  4 },
-            { f: 'contrast(2.8) saturate(3.5)',                       x:  7, y: -3, oo: 0,    ox:   5, oy: -3 },
-            { f: 'hue-rotate(130deg) brightness(0.75)',               x: -4, y:  4, oo: 0.75, ox:  -5, oy:  2 },
-            { f: 'saturate(2.5) hue-rotate(50deg)',                   x:  5, y: -2, oo: 0.2,  ox:   3, oy:  0 },
-            { f: '',                                                   x:  0, y:  0, oo: 0,    ox:   0, oy:  0 },
->>>>>>> origin/copilot/vscode-mnoplce9-nkrq
           ];
           frames.forEach(function (fr, i) {
             setTimeout(function () {
               body.style.filter    = fr.f;
               body.style.transform = fr.x === 0 && fr.y === 0 ? '' : 'translate(' + fr.x + 'px,' + fr.y + 'px)';
               if (ov) {
-<<<<<<< HEAD
                 ov.style.opacity   = String(fr.oo);
-=======
-                ov.style.opacity   = fr.oo;
->>>>>>> origin/copilot/vscode-mnoplce9-nkrq
                 ov.style.transform = fr.ox === 0 && fr.oy === 0 ? '' : 'translate(' + fr.ox + 'px,' + fr.oy + 'px)';
               }
             }, i * 110);
