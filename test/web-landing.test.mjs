@@ -28,6 +28,10 @@ test("web landing page presents game-focused copy and stylized HUD details", () 
 
 test("web landing page keeps custom same-page navigation animation with sticky-header offset", () => {
   assert.match(webIndexHtml, /function animateScrollTo\(targetY, durationMs\)/);
+  assert.match(webIndexHtml, /const MIN_SCROLL_DURATION_MS = 220;/);
+  assert.match(webIndexHtml, /const MAX_SCROLL_DURATION_MS = 760;/);
+  assert.match(webIndexHtml, /const SCROLL_DURATION_FACTOR = 0.5;/);
+  assert.match(webIndexHtml, /const eased = 1 - Math\.pow\(1 - t, 3\);/);
   assert.match(webIndexHtml, /event\.target instanceof Element \? event\.target\.closest\('a\[href\]'\) : null/);
   assert.match(webIndexHtml, /url\.origin !== window\.location\.origin \|\| url\.pathname !== window\.location\.pathname/);
   assert.match(webIndexHtml, /document\.querySelector\('\.hktm-site-header'\)/);

@@ -734,10 +734,10 @@
                   .filter(Boolean)
       )];
 
-      // Keep short hops perceptible, long jumps bounded, and mid-range jumps brisk.
-      const MIN_SCROLL_DURATION_MS = 420;
-      const MAX_SCROLL_DURATION_MS = 900;
-      const SCROLL_DURATION_FACTOR = 0.7;
+      // Keep short hops brisk, long jumps bounded, and start movement immediately.
+      const MIN_SCROLL_DURATION_MS = 220;
+      const MAX_SCROLL_DURATION_MS = 760;
+      const SCROLL_DURATION_FACTOR = 0.5;
       const HEADER_SCROLL_GAP_PX = 8;
       let scrollAnimationFrame = null;
 
@@ -753,9 +753,7 @@
 
         const tick = (nowTs) => {
           const t = Math.min(1, (nowTs - startTs) / durationMs);
-          const eased = t < 0.5
-            ? 4 * t * t * t
-            : 1 - Math.pow(-2 * t + 2, 3) / 2;
+          const eased = 1 - Math.pow(1 - t, 3);
 
           window.scrollTo(0, startY + deltaY * eased);
 
