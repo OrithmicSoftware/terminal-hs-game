@@ -1,10 +1,16 @@
 import { animSleep, isAnimTurbo } from "./anim-sleep-core.mjs";
 
 const SPECIAL_CHARS = Array.from("!@#$%^&*()-_=+[]{}<>?/|\\~`⟂◈▯◼◻◉◌");
+const BROKEN_CHARS = Array.from("⟂◈▯◼◻◉◌▒▓░╳╬");
 const ALPHA = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-function maskToken(token) {
-  return /^\s+$/.test(token) || token.length === 0 ? token : Array.from({ length: token.length }, () => "▯").join("");
+function maskToken(token, randomFn = Math.random) {
+  return /^\s+$/.test(token) || token.length === 0
+    ? token
+    : Array.from(
+        { length: token.length },
+        () => BROKEN_CHARS[Math.floor(randomFn() * BROKEN_CHARS.length)],
+      ).join("");
 }
 
 /**
@@ -12,15 +18,16 @@ function maskToken(token) {
  *
  * @param {string} phrase
  * @param {(text: string) => void} renderFn Called each frame with the full phrase text.
- * @param {{ frameMs?: number, revealPerCharMs?: number, turboMs?: number }} [opts]
+ * @param {{ frameMs?: number, revealPerCharMs?: number, turboMs?: number, randomFn?: () => number }} [opts]
  */
 export async function animatePhraseDecode(phrase, renderFn, opts = {}) {
   const frameMs = typeof opts.frameMs === "number" ? opts.frameMs : 70;
   const revealPerCharMs = typeof opts.revealPerCharMs === "number" ? opts.revealPerCharMs : 28;
+  const randomFn = typeof opts.randomFn === "function" ? opts.randomFn : Math.random;
 
   // Keep whitespace tokens so we can reassemble the phrase exactly.
   const sourceTokens = String(phrase ?? "").split(/(\s+)/);
-  const tokens = sourceTokens.map(maskToken);
+  const tokens = sourceTokens.map((token) => maskToken(token, randomFn));
 
   const effectiveFrameMs = (ms) => (isAnimTurbo() ? Math.max(0, Math.floor(ms / 12)) : ms);
 
@@ -35,7 +42,9 @@ export async function animatePhraseDecode(phrase, renderFn, opts = {}) {
 
     // Stage 1: broken glyphs (brief)
     for (let f = 0; f < 2; f++) {
-      tokens[ti] = Array.from({ length: len }, () => (Math.random() > 0.5 ? "�" : "▯")).join("");
+      tokens[ti] = Array.from({ length: len }, () => BROKEN_CHARS[Math.floor(randomFn() * BROKEN_CHARS.length)]).join(
+        "",
+      );
       render(tokens);
       // eslint-disable-next-line no-await-in-loop
       await animSleep(effectiveFrameMs(frameMs));
@@ -43,7 +52,9 @@ export async function animatePhraseDecode(phrase, renderFn, opts = {}) {
 
     // Stage 2: special chars
     for (let f = 0; f < Math.max(3, Math.floor(len / 1.5)); f++) {
-      tokens[ti] = Array.from({ length: len }, () => SPECIAL_CHARS[Math.floor(Math.random() * SPECIAL_CHARS.length)]).join("");
+      tokens[ti] = Array.from({ length: len }, () => SPECIAL_CHARS[Math.floor(randomFn() * SPECIAL_CHARS.length)]).join(
+        "",
+      );
       render(tokens);
       // eslint-disable-next-line no-await-in-loop
       await animSleep(effectiveFrameMs(frameMs));
@@ -51,7 +62,7 @@ export async function animatePhraseDecode(phrase, renderFn, opts = {}) {
 
     // Stage 3: random letters (varying per-frame)
     for (let f = 0; f < Math.max(4, len * 2); f++) {
-      tokens[ti] = Array.from({ length: len }, () => ALPHA[Math.floor(Math.random() * ALPHA.length)]).join("");
+      tokens[ti] = Array.from({ length: len }, () => ALPHA[Math.floor(randomFn() * ALPHA.length)]).join("");
       render(tokens);
       // eslint-disable-next-line no-await-in-loop
       await animSleep(effectiveFrameMs(Math.max(12, Math.floor(frameMs / 2))));
@@ -63,7 +74,7 @@ export async function animatePhraseDecode(phrase, renderFn, opts = {}) {
       revealed[ci] = token[ci];
       // any remaining positions still show a random letter to keep motion
       for (let r = ci + 1; r < len; r++) {
-        revealed[r] = ALPHA[Math.floor(Math.random() * ALPHA.length)];
+        revealed[r] = ALPHA[Math.floor(randomFn() * ALPHA.length)];
       }
       tokens[ti] = revealed.join("");
       render(tokens);
